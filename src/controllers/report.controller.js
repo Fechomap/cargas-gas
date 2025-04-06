@@ -4,6 +4,7 @@ import { reportService } from '../services/report.service.js';
 import { unitService } from '../services/unit.service.js';
 import { updateConversationState } from '../state/conversation.js';
 import { logger } from '../utils/logger.js';
+import { getReportOptionsKeyboard, getPostOperationKeyboard } from '../views/keyboards.js'; // Import shared keyboards
 
 /**
  * Controlador para gestionar la generación de reportes
@@ -24,25 +25,14 @@ class ReportController {
       });
       logger.info('Estado actualizado correctamente');
       
-      // Crear teclado de opciones directamente usando Markup
-      const keyboard = Markup.inlineKeyboard([
-        [Markup.button.callback('📅 Filtrar por fechas', 'filter_by_date')],
-        [Markup.button.callback('👤 Filtrar por operador', 'filter_by_operator')],
-        [Markup.button.callback('⛽ Filtrar por tipo de combustible', 'filter_by_fuel_type')],
-        [Markup.button.callback('💰 Filtrar por estatus de pago', 'filter_by_payment_status')],
-        [
-          Markup.button.callback('📄 Generar PDF', 'generate_pdf_report'),
-          Markup.button.callback('📊 Generar Excel', 'generate_excel_report')
-        ],
-        [Markup.button.callback('❌ Cancelar', 'cancel_report')]
-      ]);
-      
-      logger.info(`Teclado generado: ${JSON.stringify(keyboard)}`);
+      // Obtener el teclado de opciones de reporte usando la función importada
+      const { reply_markup } = getReportOptionsKeyboard(ctx.session.data.filters); // Pass current filters
+      logger.info(`Teclado generado: ${JSON.stringify(reply_markup)}`);
       
       // Mostrar opciones de filtrado
-      await ctx.reply('🔍 *Generación de Reportes* 📊', {
+      await ctx.reply('🔍 *Generación de Reportes* 📊\nSelecciona un filtro o genera el reporte:', {
         parse_mode: 'Markdown',
-        reply_markup: keyboard
+        reply_markup: reply_markup // Usar el teclado obtenido
       });
       logger.info('Mensaje de opciones de reporte enviado');
     } catch (error) {
@@ -148,8 +138,9 @@ class ReportController {
       await ctx.reply(`✅ Filtro de fechas aplicado: ${formatDate(ctx.session.data.filters.startDate)} - ${formatDate(ctx.session.data.filters.endDate)}`);
       
       // Mostrar opciones de filtrado actualizadas
+      // Mostrar opciones de filtrado actualizadas usando la función importada
       await ctx.reply('¿Deseas aplicar más filtros o generar el reporte?', {
-        reply_markup: this.getFilterOptionsKeyboard(ctx.session.data.filters)
+        reply_markup: getReportOptionsKeyboard(ctx.session.data.filters)
       });
     } catch (error) {
       logger.error(`Error en entrada de fecha final: ${error.message}`);
@@ -206,9 +197,9 @@ class ReportController {
       await ctx.answerCbQuery(`Operador seleccionado: ${operator}`);
       await ctx.reply(`✅ Filtro por operador aplicado: ${operator}`);
       
-      // Mostrar opciones de filtrado actualizadas
+      // Mostrar opciones de filtrado actualizadas usando la función importada
       await ctx.reply('¿Deseas aplicar más filtros o generar el reporte?', {
-        reply_markup: this.getFilterOptionsKeyboard(ctx.session.data.filters)
+        reply_markup: getReportOptionsKeyboard(ctx.session.data.filters)
       });
     } catch (error) {
       logger.error(`Error en selección de operador: ${error.message}`);
@@ -256,9 +247,9 @@ class ReportController {
       await ctx.answerCbQuery(`Tipo de combustible seleccionado: ${fuelType}`);
       await ctx.reply(`✅ Filtro por tipo de combustible aplicado: ${fuelType}`);
       
-      // Mostrar opciones de filtrado actualizadas
+      // Mostrar opciones de filtrado actualizadas usando la función importada
       await ctx.reply('¿Deseas aplicar más filtros o generar el reporte?', {
-        reply_markup: this.getFilterOptionsKeyboard(ctx.session.data.filters)
+        reply_markup: getReportOptionsKeyboard(ctx.session.data.filters)
       });
     } catch (error) {
       logger.error(`Error en selección de tipo de combustible: ${error.message}`);
@@ -306,9 +297,9 @@ class ReportController {
       await ctx.answerCbQuery(`Estatus de pago seleccionado: ${paymentStatus}`);
       await ctx.reply(`✅ Filtro por estatus de pago aplicado: ${paymentStatus}`);
       
-      // Mostrar opciones de filtrado actualizadas
+      // Mostrar opciones de filtrado actualizadas usando la función importada
       await ctx.reply('¿Deseas aplicar más filtros o generar el reporte?', {
-        reply_markup: this.getFilterOptionsKeyboard(ctx.session.data.filters)
+        reply_markup: getReportOptionsKeyboard(ctx.session.data.filters)
       });
     } catch (error) {
       logger.error(`Error en selección de estatus de pago: ${error.message}`);
@@ -348,23 +339,16 @@ class ReportController {
         // Limpiar estado de conversación
         await updateConversationState(ctx, 'idle', {});
         
-        // Mostrar menú principal
-        await ctx.reply('¿Qué deseas hacer ahora?', {
-          reply_markup: Markup.inlineKeyboard([
-            [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
-          ])
-        });
+        // Mostrar menú post-operación
+        await ctx.reply('¿Qué deseas hacer ahora?', getPostOperationKeyboard());
+        
       }
     } catch (error) {
       logger.error(`Error al generar reporte PDF: ${error.message}`);
       await ctx.reply('Ocurrió un error al generar el reporte PDF. Por favor, intenta nuevamente.');
       
-      // Mostrar menú principal como fallback
-      await ctx.reply('¿Qué deseas hacer ahora?', {
-        reply_markup: Markup.inlineKeyboard([
-          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
-        ])
-      });
+      // Mostrar menú post-operación como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', getPostOperationKeyboard());
     }
   }
   
@@ -400,23 +384,16 @@ class ReportController {
         // Limpiar estado de conversación
         await updateConversationState(ctx, 'idle', {});
         
-        // Mostrar menú principal
-        await ctx.reply('¿Qué deseas hacer ahora?', {
-          reply_markup: Markup.inlineKeyboard([
-            [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
-          ])
-        });
+        // Mostrar menú post-operación
+        await ctx.reply('¿Qué deseas hacer ahora?', getPostOperationKeyboard());
+        
       }
     } catch (error) {
       logger.error(`Error al generar reporte Excel: ${error.message}`);
       await ctx.reply('Ocurrió un error al generar el reporte Excel. Por favor, intenta nuevamente.');
       
-      // Mostrar menú principal como fallback
-      await ctx.reply('¿Qué deseas hacer ahora?', {
-        reply_markup: Markup.inlineKeyboard([
-          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
-        ])
-      });
+      // Mostrar menú post-operación como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', getPostOperationKeyboard());
     }
   }
   
@@ -443,73 +420,19 @@ class ReportController {
       // Limpiar estado de conversación
       await updateConversationState(ctx, 'idle', {});
       
-      // Mostrar menú principal
-      await ctx.reply('¿Qué deseas hacer ahora?', {
-        reply_markup: Markup.inlineKeyboard([
-          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
-        ])
-      });
+      // Mostrar menú post-operación
+      await ctx.reply('¿Qué deseas hacer ahora?', getPostOperationKeyboard());
+      
     } catch (error) {
       logger.error(`Error al marcar todas como pagadas: ${error.message}`);
       await ctx.reply('Ocurrió un error al procesar el cambio. Por favor, intenta nuevamente.');
       
-      // Mostrar menú principal como fallback
-      await ctx.reply('¿Qué deseas hacer ahora?', {
-        reply_markup: Markup.inlineKeyboard([
-          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
-        ])
-      });
+      // Mostrar menú post-operación como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', getPostOperationKeyboard());
     }
   }
   
-  /**
-   * Obtiene el teclado de opciones de filtrado
-   * @param {Object} filters - Filtros actuales
-   * @returns {Object} - Teclado con opciones de filtrado
-   */
-  getFilterOptionsKeyboard(filters = {}) {
-    const buttons = [];
-    
-    // Opción de filtro por fecha
-    const dateFilterText = filters.startDate ? 
-      `📅 Cambiar fechas (${formatDate(filters.startDate)} - ${formatDate(filters.endDate)})` : 
-      '📅 Filtrar por fechas';
-    buttons.push([Markup.button.callback(dateFilterText, 'filter_by_date')]);
-    
-    // Opción de filtro por operador
-    const operatorFilterText = filters.operatorName ? 
-      `👤 Cambiar operador (${filters.operatorName})` : 
-      '👤 Filtrar por operador';
-    buttons.push([Markup.button.callback(operatorFilterText, 'filter_by_operator')]);
-    
-    // Opción de filtro por tipo de combustible
-    const fuelTypeFilterText = filters.fuelType ? 
-      `⛽ Cambiar tipo (${filters.fuelType})` : 
-      '⛽ Filtrar por tipo de combustible';
-    buttons.push([Markup.button.callback(fuelTypeFilterText, 'filter_by_fuel_type')]);
-    
-    // Opción de filtro por estatus de pago
-    const paymentStatusFilterText = filters.paymentStatus ? 
-      `💰 Cambiar estatus (${filters.paymentStatus})` : 
-      '💰 Filtrar por estatus de pago';
-    buttons.push([Markup.button.callback(paymentStatusFilterText, 'filter_by_payment_status')]);
-    
-    // Botones para generar reportes
-    buttons.push([
-      Markup.button.callback('📄 Generar PDF', 'generate_pdf_report'),
-      Markup.button.callback('📊 Generar Excel', 'generate_excel_report')
-    ]);
-    
-    // Botón para limpiar filtros
-    if (Object.keys(filters).length > 0) {
-      buttons.push([Markup.button.callback('🗑️ Limpiar todos los filtros', 'clear_all_filters')]);
-    }
-    
-    // Botón para cancelar
-    buttons.push([Markup.button.callback('❌ Cancelar', 'cancel_report')]);
-    
-    return Markup.inlineKeyboard(buttons);
-  }
+  // REMOVED: Duplicate getFilterOptionsKeyboard function
 }
 
 /**

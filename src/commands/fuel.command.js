@@ -15,6 +15,27 @@ logger.info("⭐ Registrando manejadores de fuel.command.js");
  */
 export function setupFuelCommand(bot) {
   logger.info("⭐ Configurando manejadores de combustible");
+
+  // Acción para iniciar el registro de carga de combustible (desde el menú principal)
+  bot.action('register_fuel_start', async (ctx) => {
+    try {
+      logger.info(`Usuario ${ctx.from.id} inició registro de carga desde menú`);
+      await ctx.answerCbQuery('Selecciona la unidad para la carga...');
+      
+      // Llamar al controlador de unidades para mostrar la selección
+      // Asumiendo que existe un método para esto en unitController
+      await unitController.requestUnitSelectionForFuel(ctx); 
+      
+    } catch (error) {
+      logger.error(`Error en acción register_fuel_start: ${error.message}`, error);
+      await ctx.answerCbQuery('Error al iniciar registro');
+      await ctx.reply('Ocurrió un error al iniciar el registro de carga. Intenta de nuevo.');
+      // Mostrar menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
+    }
+  });
   
   // Comando para mostrar saldo pendiente
   bot.command('saldo', async (ctx) => {
@@ -183,7 +204,9 @@ export function setupFuelCommand(bot) {
     });
   });
   
-  // Manejar el botón main_menu de forma adecuada
+  // Manejar el botón main_menu de forma adecuada 
+  // NOTE: This handler might be redundant if already defined elsewhere (e.g., start.command.js)
+  // Consider consolidating main_menu handling later if needed.
   bot.action('main_menu', async (ctx) => {
     try {
       await ctx.answerCbQuery('Volviendo al menú principal');

@@ -9,9 +9,9 @@ import { Markup } from 'telegraf';
  */
 export function getMainKeyboard() {
   return Markup.inlineKeyboard([
-    [Markup.button.callback('📝 Registrar unidad', 'register_unit')],
-    [Markup.button.callback('👁️ Ver unidades', 'show_units')],
-    [Markup.button.callback('💰 Consultar saldo pendiente', 'check_balance')],
+    [Markup.button.callback('🆕 Registrar unidad', 'register_unit')], // Changed icon for consistency
+    [Markup.button.callback('⛽ Registrar carga', 'register_fuel_start')], // Changed label and callback
+    [Markup.button.callback('💰 Consultar saldo', 'check_balance')], // Changed label
     [Markup.button.callback('📊 Generar reporte', 'generate_report')],
     [Markup.button.callback('❓ Ayuda', 'show_help')]
   ]);

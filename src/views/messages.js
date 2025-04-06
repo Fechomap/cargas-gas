@@ -10,13 +10,6 @@ export function getWelcomeMessage(name) {
     
   *Bienvenido al Bot de Registro de Cargas de Combustible* ⛽
   
-  Este bot te permite:
-  
-  • 📝 Registrar unidades (camionetas o grúas)
-  • ⛽ Capturar cargas de gas o gasolina
-  • 💰 Consultar saldo pendiente
-  • 📊 Generar reportes personalizados
-  
   Para comenzar, selecciona una opción del menú.`;
   }
   

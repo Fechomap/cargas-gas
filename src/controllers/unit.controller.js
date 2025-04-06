@@ -1,8 +1,10 @@
 // src/controllers/unit.controller.js
 import { Markup } from 'telegraf';
+// Removed duplicate import
 import { Unit } from '../models/unit.model.js';
 import { unitService } from '../services/unit.service.js';
 import { logger } from '../utils/logger.js';
+import { getUnitsKeyboard } from '../views/keyboards.js'; // Import the keyboard function
 
 /**
  * Controlador para gestionar unidades (camionetas/grúas)
@@ -92,6 +94,35 @@ class UnitController {
     } catch (error) {
       logger.error(`Error al desactivar unidad: ${error.message}`);
       throw error;
+    }
+  }
+
+  /**
+   * Muestra las unidades para que el usuario seleccione una para registrar carga
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async requestUnitSelectionForFuel(ctx) {
+    try {
+      logger.info(`Solicitando selección de unidad para carga (Usuario: ${ctx.from.id})`);
+      // Obtener todas las unidades activas
+      const units = await unitService.getAllActiveUnits();
+      
+      // Usar la función getUnitsKeyboard para generar el teclado
+      const keyboard = getUnitsKeyboard(units); 
+      
+      // Enviar mensaje con el teclado
+      // Nota: getUnitsKeyboard ya maneja el caso de 0 unidades.
+      await ctx.reply('Selecciona la unidad a la que deseas registrar una carga:', keyboard);
+      
+    } catch (error) {
+      logger.error(`Error al solicitar selección de unidad para carga: ${error.message}`);
+      await ctx.reply('Ocurrió un error al cargar las unidades. Por favor, intenta volver al menú principal.');
+      // Opcional: Mostrar botón de menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: Markup.inlineKeyboard([
+          [Markup.button.callback('🏠 Menú principal', 'main_menu')]
+        ])
+      });
     }
   }
 }
