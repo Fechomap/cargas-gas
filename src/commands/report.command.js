@@ -3,6 +3,8 @@ import { Markup } from 'telegraf';
 import { reportController } from '../controllers/report.controller.js';
 import { isInState } from '../state/conversation.js';
 import { logger } from '../utils/logger.js';
+import { getMainKeyboard } from '../views/keyboards.js';
+
 
 /**
  * Configura los comandos para generación de reportes
@@ -13,10 +15,19 @@ export function setupReportCommand(bot) {
   bot.command('reporte', async (ctx) => {
     try {
       logger.info(`Usuario ${ctx.from.id} solicitó generación de reporte`);
+      
+      // CORRECCIÓN: Añadir logs para trazar el flujo
+      logger.info('Llamando a reportController.startReportGeneration()');
       await reportController.startReportGeneration(ctx);
+      logger.info('Finalizada llamada a startReportGeneration');
     } catch (error) {
-      logger.error(`Error en comando reporte: ${error.message}`);
+      logger.error(`Error en comando reporte: ${error.message}`, error);
       await ctx.reply('Ocurrió un error al iniciar la generación del reporte.');
+      
+      // Mostrar menú incluso después del error
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
     }
   });
   

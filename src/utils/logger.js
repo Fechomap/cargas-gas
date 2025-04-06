@@ -58,3 +58,11 @@ logger.exceptions.handle(
 process.on('unhandledRejection', (error) => {
   logger.error('Unhandled Rejection:', error);
 });
+
+export function logError(message, error, methodName = '') {
+  const prefix = methodName ? `[${methodName}] ` : '';
+  logger.error(`${prefix}${message}`);
+  if (error && error.stack) {
+    logger.error(`Stack trace: ${error.stack}`);
+  }
+}

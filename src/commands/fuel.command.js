@@ -2,42 +2,75 @@
 import { Markup } from 'telegraf';
 import { fuelController } from '../controllers/fuel.controller.js';
 import { unitController } from '../controllers/unit.controller.js';
-import { isInState } from '../state/conversation.js';
+import { isInState, updateConversationState } from '../state/conversation.js';
 import { logger } from '../utils/logger.js';
+import { storageService } from '../services/storage.service.js';
+import { getMainKeyboard } from '../views/keyboards.js';
+
+logger.info("⭐ Registrando manejadores de fuel.command.js");
 
 /**
  * Configura los comandos de carga de combustible
  * @param {Telegraf} bot - Instancia del bot de Telegram
  */
 export function setupFuelCommand(bot) {
+  logger.info("⭐ Configurando manejadores de combustible");
+  
   // Comando para mostrar saldo pendiente
   bot.command('saldo', async (ctx) => {
     try {
       logger.info(`Usuario ${ctx.from.id} solicitó saldo pendiente`);
+      // CORRECCIÓN: Añadir logs antes y después de la llamada para trazar posible fallo
+      logger.info('Llamando a fuelController.getTotalPendingBalance()');
       const totalAmount = await fuelController.getTotalPendingBalance();
+      logger.info(`Saldo recuperado: ${totalAmount}`);
       
       await ctx.reply(`💰 *Saldo pendiente total: $${totalAmount.toFixed(2)}*`, {
         parse_mode: 'Markdown'
       });
+      
+      // CORRECCIÓN: Mostrar menú después de la acción
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
     } catch (error) {
-      logger.error(`Error al mostrar saldo: ${error.message}`);
+      logger.error(`Error al mostrar saldo: ${error.message}`, error);
       await ctx.reply('Ocurrió un error al consultar el saldo pendiente.');
+      // Mostrar menú incluso después del error
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
     }
   });
   
   // Acción para mostrar saldo pendiente desde el botón
   bot.action('check_balance', async (ctx) => {
     try {
+      logger.info(`Usuario ${ctx.from.id} solicitó saldo pendiente mediante botón`);
       await ctx.answerCbQuery('Consultando saldo pendiente...');
+      
+      // CORRECCIÓN: Añadir logs para trazar
+      logger.info('Llamando a fuelController.getTotalPendingBalance()');
       const totalAmount = await fuelController.getTotalPendingBalance();
+      logger.info(`Saldo recuperado: ${totalAmount}`);
       
       await ctx.reply(`💰 *Saldo pendiente total: $${totalAmount.toFixed(2)}*`, {
         parse_mode: 'Markdown'
       });
+      
+      // CORRECCIÓN: Mostrar menú después de la acción
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
     } catch (error) {
-      logger.error(`Error al mostrar saldo: ${error.message}`);
+      logger.error(`Error al mostrar saldo: ${error.message}`, error);
       await ctx.answerCbQuery('Error al consultar saldo');
       await ctx.reply('Ocurrió un error al consultar el saldo pendiente.');
+      
+      // Mostrar menú incluso después del error
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
     }
   });
   
@@ -106,36 +139,77 @@ export function setupFuelCommand(bot) {
   });
   
   // Manejar confirmación final
+  // Manejar confirmación final
   bot.action('fuel_confirm_save', async (ctx) => {
-    if (isInState(ctx, 'fuel_entry_confirm')) {
+    logger.info(`BOTÓN DE CONFIRMACIÓN PRESIONADO: fuel_confirm_save`);
+    try {
+      logger.info(`Usuario ${ctx.from.id} confirmó guardar carga`);
+      
+      if (!ctx.session || !ctx.session.state || ctx.session.state !== 'fuel_entry_confirm') {
+        logger.error(`Error: Estado incorrecto para guardar carga. Estado actual: ${ctx.session?.state}`);
+        await ctx.answerCbQuery('Error: Flujo incorrecto');
+        await ctx.reply('Ocurrió un error en el flujo de registro. Por favor, inicia el proceso nuevamente.');
+        return;
+      }
+      
+      logger.info('Llamando a fuelController.saveFuelEntry para guardar la carga');
       await fuelController.saveFuelEntry(ctx);
+    } catch (error) {
+      logger.error(`Error en botón de confirmación: ${error.message}`);
+      await ctx.answerCbQuery('Error al guardar');
+      await ctx.reply('Ocurrió un error al guardar la carga. Por favor, intenta nuevamente.');
+      
+      // Mostrar menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
     }
   });
   
+  // Manejar cancelación
   bot.action('fuel_confirm_cancel', async (ctx) => {
-    if (isInState(ctx, 'fuel_entry_confirm')) {
-      await ctx.answerCbQuery('Registro cancelado');
-      await ctx.reply('Registro cancelado. ¿Qué deseas hacer?', 
+    logger.info(`Usuario ${ctx.from.id} canceló guardar carga`);
+    await ctx.answerCbQuery('Operación cancelada');
+    await ctx.reply('Operación cancelada.');
+    
+    // Limpiar estado de conversación
+    await updateConversationState(ctx, 'idle', {});
+    
+    // Mostrar menú principal
+    await ctx.reply('¿Qué deseas hacer ahora?', {
+      reply_markup: Markup.inlineKeyboard([
+        [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+      ])
+    });
+  });
+  
+  // Manejar el botón main_menu de forma adecuada
+  bot.action('main_menu', async (ctx) => {
+    try {
+      await ctx.answerCbQuery('Volviendo al menú principal');
+      
+      // Limpiar el estado de conversación
+      if (ctx.session) {
+        ctx.session.state = 'idle';
+        ctx.session.data = {};
+      }
+      
+      // Mostrar mensaje con menú principal usando la función importada
+      await ctx.reply('🏠 Menú Principal', {
+        reply_markup: getMainKeyboard()
+      });
+    } catch (error) {
+      logger.error(`Error al volver al menú principal: ${error.message}`);
+      await ctx.answerCbQuery('Error al mostrar menú');
+      
+      // Intento directo con botones en línea básicos
+      await ctx.reply('Menú Principal (alternativo)', 
         Markup.inlineKeyboard([
-          [Markup.button.callback('Intentar nuevamente', ctx.session.data.unitButtonId)],
-          [Markup.button.callback('Volver al menú', 'main_menu')]
+          [Markup.button.callback('📝 Registrar unidad', 'register_unit')],
+          [Markup.button.callback('💰 Saldo pendiente', 'check_balance')],
+          [Markup.button.callback('📊 Generar reporte', 'generate_report')]
         ])
       );
     }
-  });
-  
-  // Manejar botón para volver al menú principal
-  bot.action('main_menu', async (ctx) => {
-    await ctx.answerCbQuery('Volviendo al menú principal');
-    
-    // Mostrar menú principal (implementado en start.command.js)
-    ctx.telegram.sendMessage(ctx.chat.id, '🏠 Menú Principal', {
-      reply_markup: Markup.inlineKeyboard([
-        [Markup.button.callback('📝 Registrar unidad', 'register_unit')],
-        [Markup.button.callback('📋 Ver unidades', 'show_units')],
-        [Markup.button.callback('💰 Saldo pendiente', 'check_balance')],
-        [Markup.button.callback('📊 Generar reporte', 'generate_report')]
-      ])
-    });
   });
 }

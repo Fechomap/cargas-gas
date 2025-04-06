@@ -33,26 +33,42 @@ class StorageService {
    */
   async savePhotoFromTelegram(ctx, fileId) {
     try {
+      logger.info(`Iniciando guardado de foto. FileID: ${fileId}`);
+      
+      // Verificar permisos de directorio
+      try {
+        await fsPromises.access(UPLOAD_DIR, fs.constants.W_OK);
+        logger.info(`Directorio ${UPLOAD_DIR} tiene permisos de escritura`);
+      } catch (permissionError) {
+        logger.error(`Sin permisos de escritura en ${UPLOAD_DIR}: ${permissionError.message}`);
+        throw new Error(`No hay permisos de escritura en directorio de uploads: ${permissionError.message}`);
+      }
+      
       // Obtener URL del archivo
+      logger.info('Obteniendo URL del archivo de Telegram');
       const fileUrl = await ctx.telegram.getFileLink(fileId);
+      logger.info(`URL obtenida: ${fileUrl}`);
       
       // Descargar archivo
+      logger.info('Descargando archivo...');
       const response = await fetch(fileUrl);
       const buffer = await response.arrayBuffer();
+      logger.info(`Archivo descargado. Tamaño: ${buffer.byteLength} bytes`);
       
       // Generar nombre único
       const uniqueId = uuidv4();
       const fileExt = 'jpg'; // Telegram convierte las imágenes a JPEG
       const fileName = `${uniqueId}.${fileExt}`;
       const filePath = path.join(UPLOAD_DIR, fileName);
+      logger.info(`Nombre de archivo generado: ${fileName}`);
       
       // Guardar archivo
       await fsPromises.writeFile(filePath, Buffer.from(buffer));
+      logger.info(`Foto guardada exitosamente en: ${filePath}`);
       
-      logger.info(`Foto guardada: ${filePath}`);
       return filePath;
     } catch (error) {
-      logger.error(`Error al guardar foto: ${error.message}`);
+      logger.error(`Error al guardar foto: ${error.message}`, error);
       throw error;
     }
   }

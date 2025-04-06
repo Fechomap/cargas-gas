@@ -17,7 +17,10 @@ export async function connectToDatabase() {
   }
 
   try {
-    await mongoose.connect(dbConfig.uri, dbConfig.options);
+    // Usar await directamente en mongoose.connect
+    await mongoose.connect(dbConfig.uri, {
+      dbName: dbConfig.options.dbName
+    });
     
     isConnected = true;
     logger.info('Conexión exitosa a MongoDB');
@@ -35,7 +38,7 @@ export async function connectToDatabase() {
     return mongoose.connection;
   } catch (error) {
     logger.error('Error al conectar a MongoDB:', error);
-    process.exit(1);
+    throw error; // Re-lanzar error para manejo adecuado
   }
 }
 

@@ -15,19 +15,46 @@ class ReportController {
    */
   async startReportGeneration(ctx) {
     try {
+      logger.info(`Iniciando generación de reporte para usuario ${ctx.from.id}`);
+      
       // Inicializar filtros vacíos en la sesión
+      logger.info('Actualizando estado de conversación a report_select_filters');
       await updateConversationState(ctx, 'report_select_filters', {
         filters: {}
       });
+      logger.info('Estado actualizado correctamente');
+      
+      // Crear teclado de opciones directamente usando Markup
+      const keyboard = Markup.inlineKeyboard([
+        [Markup.button.callback('📅 Filtrar por fechas', 'filter_by_date')],
+        [Markup.button.callback('👤 Filtrar por operador', 'filter_by_operator')],
+        [Markup.button.callback('⛽ Filtrar por tipo de combustible', 'filter_by_fuel_type')],
+        [Markup.button.callback('💰 Filtrar por estatus de pago', 'filter_by_payment_status')],
+        [
+          Markup.button.callback('📄 Generar PDF', 'generate_pdf_report'),
+          Markup.button.callback('📊 Generar Excel', 'generate_excel_report')
+        ],
+        [Markup.button.callback('❌ Cancelar', 'cancel_report')]
+      ]);
+      
+      logger.info(`Teclado generado: ${JSON.stringify(keyboard)}`);
       
       // Mostrar opciones de filtrado
       await ctx.reply('🔍 *Generación de Reportes* 📊', {
         parse_mode: 'Markdown',
-        reply_markup: this.getFilterOptionsKeyboard()
+        reply_markup: keyboard
       });
+      logger.info('Mensaje de opciones de reporte enviado');
     } catch (error) {
-      logger.error(`Error al iniciar generación de reporte: ${error.message}`);
+      logger.error(`Error al iniciar generación de reporte: ${error.message}`, error);
       await ctx.reply('Ocurrió un error al iniciar la generación del reporte. Por favor, intenta nuevamente.');
+      
+      // Mostrar botón para volver al menú principal
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: Markup.inlineKeyboard([
+          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+        ])
+      });
     }
   }
   
@@ -320,10 +347,24 @@ class ReportController {
       } else {
         // Limpiar estado de conversación
         await updateConversationState(ctx, 'idle', {});
+        
+        // Mostrar menú principal
+        await ctx.reply('¿Qué deseas hacer ahora?', {
+          reply_markup: Markup.inlineKeyboard([
+            [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+          ])
+        });
       }
     } catch (error) {
       logger.error(`Error al generar reporte PDF: ${error.message}`);
       await ctx.reply('Ocurrió un error al generar el reporte PDF. Por favor, intenta nuevamente.');
+      
+      // Mostrar menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: Markup.inlineKeyboard([
+          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+        ])
+      });
     }
   }
   
@@ -358,10 +399,24 @@ class ReportController {
       } else {
         // Limpiar estado de conversación
         await updateConversationState(ctx, 'idle', {});
+        
+        // Mostrar menú principal
+        await ctx.reply('¿Qué deseas hacer ahora?', {
+          reply_markup: Markup.inlineKeyboard([
+            [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+          ])
+        });
       }
     } catch (error) {
       logger.error(`Error al generar reporte Excel: ${error.message}`);
       await ctx.reply('Ocurrió un error al generar el reporte Excel. Por favor, intenta nuevamente.');
+      
+      // Mostrar menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: Markup.inlineKeyboard([
+          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+        ])
+      });
     }
   }
   
@@ -387,9 +442,23 @@ class ReportController {
       
       // Limpiar estado de conversación
       await updateConversationState(ctx, 'idle', {});
+      
+      // Mostrar menú principal
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: Markup.inlineKeyboard([
+          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+        ])
+      });
     } catch (error) {
       logger.error(`Error al marcar todas como pagadas: ${error.message}`);
       await ctx.reply('Ocurrió un error al procesar el cambio. Por favor, intenta nuevamente.');
+      
+      // Mostrar menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: Markup.inlineKeyboard([
+          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+        ])
+      });
     }
   }
   

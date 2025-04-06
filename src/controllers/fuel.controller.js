@@ -5,6 +5,7 @@ import { unitController } from './unit.controller.js';
 import { updateConversationState } from '../state/conversation.js';
 import { logger } from '../utils/logger.js';
 import { storageService } from '../services/storage.service.js';
+import { getMainKeyboard } from '../views/keyboards.js';
 
 /**
  * Controlador para gestionar cargas de combustible
@@ -177,23 +178,28 @@ class FuelController {
       
       // Mostrar resumen y solicitar confirmación
       const summary = `
-📝 *Resumen de la carga*
-👤 Operador: ${ctx.session.data.operatorName}
-🚚 Unidad: ${ctx.session.data.unitNumber}
-⛽ Tipo: ${ctx.session.data.fuelType}
-🔢 Litros: ${ctx.session.data.liters}
-💰 Monto: $${ctx.session.data.amount.toFixed(2)}
-💳 Estatus: ${ctx.session.data.paymentStatus}
-🧾 Ticket: ${ctx.session.data.ticketPhoto ? 'Incluido' : 'No incluido'}
+  📝 *Resumen de la carga*
+  👤 Operador: ${ctx.session.data.operatorName}
+  🚚 Unidad: ${ctx.session.data.unitNumber}
+  ⛽ Tipo: ${ctx.session.data.fuelType}
+  🔢 Litros: ${ctx.session.data.liters}
+  💰 Monto: $${ctx.session.data.amount.toFixed(2)}
+  💳 Estatus: ${ctx.session.data.paymentStatus}
+  🧾 Ticket: ${ctx.session.data.ticketPhoto ? 'Incluido' : 'No incluido'}
       `;
       
+      // IMPORTANTE: Usar Markup explícitamente con botones de callback correctos
       await ctx.reply(summary, {
         parse_mode: 'Markdown',
-        reply_markup: Markup.inlineKeyboard([
-          Markup.button.callback('✅ Guardar', 'fuel_confirm_save'),
-          Markup.button.callback('❌ Cancelar', 'fuel_confirm_cancel')
-        ])
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '✅ Guardar', callback_data: 'fuel_confirm_save' }],
+            [{ text: '❌ Cancelar', callback_data: 'fuel_confirm_cancel' }]
+          ]
+        }
       });
+      
+      logger.info(`Mostrando botones de confirmación para usuario ${ctx.from.id}`);
     } catch (error) {
       logger.error(`Error en selección de estatus: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, selecciona nuevamente el estatus de pago.');
@@ -206,20 +212,46 @@ class FuelController {
    */
   async saveFuelEntry(ctx) {
     try {
+      // Verificar si existen los datos necesarios
+      if (!ctx.session || !ctx.session.data) {
+        logger.error('Error: No hay datos en la sesión para guardar');
+        await ctx.answerCbQuery('Error: Datos incompletos');
+        await ctx.reply('Ocurrió un error. No hay datos para guardar. Por favor, intenta nuevamente.');
+        return;
+      }
+
+      logger.info('Iniciando guardado de carga de combustible');
+      logger.info(`Datos a guardar: ${JSON.stringify(ctx.session.data)}`);
+      
       // Crear objeto de carga desde los datos de la sesión
       const fuelData = {
         unitId: ctx.session.data.unitId,
-        liters: ctx.session.data.liters,
-        amount: ctx.session.data.amount,
-        fuelType: ctx.session.data.fuelType,
-        paymentStatus: ctx.session.data.paymentStatus,
-        ticketPhoto: ctx.session.data.ticketPhoto,
+        liters: Number(ctx.session.data.liters) || 0,
+        amount: Number(ctx.session.data.amount) || 0,
+        fuelType: ctx.session.data.fuelType || 'gas',
+        paymentStatus: ctx.session.data.paymentStatus || 'no pagada',
+        ticketPhoto: ctx.session.data.ticketPhoto || null,
         operatorName: ctx.session.data.operatorName,
         unitNumber: ctx.session.data.unitNumber
       };
       
-      // Guardar en la base de datos
+      logger.info(`Objeto fuelData creado: ${JSON.stringify(fuelData)}`);
+      
+      // Validar datos críticos
+      const requiredFields = ['unitId', 'liters', 'amount', 'fuelType', 'paymentStatus'];
+      const missingFields = requiredFields.filter(field => !fuelData[field]);
+      
+      if (missingFields.length > 0) {
+        logger.error(`Error: Faltan campos requeridos: ${missingFields.join(', ')}`);
+        await ctx.answerCbQuery('Error: Datos incompletos');
+        await ctx.reply(`Faltan datos importantes: ${missingFields.join(', ')}. Por favor, intenta nuevamente.`);
+        return;
+      }
+      
+      // Guardar en la base de datos con log detallado de cada paso
+      logger.info('Llamando a fuelService.createFuelEntry()');
       const savedFuel = await fuelService.createFuelEntry(fuelData);
+      logger.info(`Carga guardada con ID: ${savedFuel._id}`);
       
       await ctx.answerCbQuery('Carga guardada correctamente');
       await ctx.reply(`✅ Carga registrada correctamente con ID: ${savedFuel._id}`);
@@ -230,14 +262,22 @@ class FuelController {
       // Mostrar menú principal o permitir otra captura
       await ctx.reply('¿Qué deseas hacer ahora?', 
         Markup.inlineKeyboard([
-          Markup.button.callback('Registrar otra carga', ctx.session.data.unitButtonId),
-          Markup.button.callback('Volver al menú principal', 'main_menu')
+          [Markup.button.callback('📝 Registrar otra carga', ctx.session.data.unitButtonId || 'show_units')],
+          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
         ])
       );
     } catch (error) {
       logger.error(`Error al guardar carga: ${error.message}`);
+      logger.error(error.stack || 'No stack trace disponible');
       await ctx.answerCbQuery('Error al guardar');
       await ctx.reply('Ocurrió un error al guardar la carga. Por favor, intenta nuevamente.');
+      
+      // Añadir botón para volver al menú principal incluso después de error
+      await ctx.reply('¿Qué deseas hacer ahora?', 
+        Markup.inlineKeyboard([
+          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+        ])
+      );
     }
   }
   

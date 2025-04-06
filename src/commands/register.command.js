@@ -96,11 +96,28 @@ export function setupRegisterUnitCommand(bot) {
  */
 async function startUnitRegistration(ctx) {
   try {
+    logger.info(`Usuario ${ctx.from.id} inició registro de unidad`);
+    
+    // CORRECCIÓN: Asegurar que ctx.session existe
+    if (!ctx.session) {
+      logger.info('Inicializando sesión ya que no existe');
+      ctx.session = { state: 'idle', data: {} };
+    }
+    
     // Iniciar el estado de conversación para registro
+    logger.info('Actualizando estado a register_unit_name');
     await updateConversationState(ctx, 'register_unit_name', {});
+    logger.info('Estado actualizado correctamente');
+    
     await ctx.reply('Por favor, ingresa el nombre del operador:');
+    logger.info('Solicitud de nombre de operador enviada');
   } catch (error) {
-    logger.error(`Error al iniciar registro: ${error.message}`);
+    logger.error(`Error al iniciar registro: ${error.message}`, error);
     await ctx.reply('Ocurrió un error al iniciar el registro. Por favor, intenta nuevamente.');
+    
+    // Mostrar menú principal como fallback
+    await ctx.reply('¿Qué deseas hacer ahora?', {
+      reply_markup: getMainKeyboard()
+    });
   }
 }

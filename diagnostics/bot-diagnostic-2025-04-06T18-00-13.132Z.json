@@ -1,0 +1,57 @@
+{
+  "environment": {
+    "variables": {
+      "TELEGRAM_BOT_TOKEN": true,
+      "MONGODB_URI": true,
+      "MONGODB_DB_NAME": true
+    }
+  },
+  "files": {
+    "critical": {
+      "index.js": true,
+      "src/commands/index.js": true,
+      "src/commands/fuel.command.js": true,
+      "src/commands/report.command.js": true,
+      "src/commands/start.command.js": true,
+      "src/controllers/fuel.controller.js": true,
+      "src/controllers/report.controller.js": true,
+      "src/services/fuel.service.js": true,
+      "src/services/report.service.js": true,
+      "src/views/keyboards.js": true
+    },
+    "issues": {
+      "src/commands/report.command.js": "Missing keyboards import"
+    }
+  },
+  "mongodb": {
+    "connected": false,
+    "error": "mongoose is not defined"
+  },
+  "telegram": {
+    "connected": true,
+    "botInfo": {
+      "id": 8057361761,
+      "username": "cargas_gas_bot",
+      "firstName": "Cargas de gas"
+    }
+  },
+  "commands": {
+    "registered": false,
+    "error": "bot.start is not a function"
+  },
+  "handlers": [],
+  "modules": {
+    "keyboards": {
+      "loaded": true,
+      "valid": true
+    },
+    "fuel controller": {
+      "loaded": true,
+      "valid": true
+    },
+    "report controller": {
+      "loaded": true,
+      "valid": true
+    }
+  }
+}

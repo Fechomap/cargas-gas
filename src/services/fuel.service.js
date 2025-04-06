@@ -14,30 +14,42 @@ class FuelService {
    */
   async createFuelEntry(fuelData) {
     try {
+      logger.info(`Iniciando creación de carga de combustible: ${JSON.stringify(fuelData)}`);
+      
       // Verificar que la unidad existe
+      logger.info(`Verificando existencia de unidad con ID: ${fuelData.unitId}`);
       const unit = await Unit.findById(fuelData.unitId);
+      
       if (!unit) {
+        logger.error(`Unidad con ID ${fuelData.unitId} no encontrada`);
         throw new Error(`Unidad con ID ${fuelData.unitId} no encontrada`);
       }
       
-      // Crear nueva carga
+      logger.info(`Unidad encontrada: ${unit.operatorName} - ${unit.unitNumber}`);
+      
+      // Crear nueva carga con valores explícitos para evitar undefined
       const newFuel = new Fuel({
         unitId: fuelData.unitId,
-        liters: fuelData.liters,
-        amount: fuelData.amount,
-        fuelType: fuelData.fuelType,
-        paymentStatus: fuelData.paymentStatus,
-        ticketPhoto: fuelData.ticketPhoto,
-        operatorName: fuelData.operatorName,
-        unitNumber: fuelData.unitNumber,
+        liters: Number(fuelData.liters) || 0,
+        amount: Number(fuelData.amount) || 0,
+        fuelType: fuelData.fuelType || 'gas',
+        paymentStatus: fuelData.paymentStatus || 'no pagada',
+        ticketPhoto: fuelData.ticketPhoto || null,
+        operatorName: fuelData.operatorName || unit.operatorName,
+        unitNumber: fuelData.unitNumber || unit.unitNumber,
         recordDate: new Date(),
         paymentDate: fuelData.paymentStatus === 'pagada' ? new Date() : null
       });
       
+      logger.info(`Objeto Fuel creado, procediendo a guardar: ${JSON.stringify(newFuel)}`);
+      
+      // Guardar usando await para capturar errores de validación
       await newFuel.save();
+      logger.info(`Carga guardada exitosamente con ID: ${newFuel._id}`);
       return newFuel;
     } catch (error) {
       logger.error(`Error en servicio de combustible (createFuelEntry): ${error.message}`);
+      logger.error(error.stack || 'No stack trace disponible');
       throw error;
     }
   }
@@ -129,10 +141,23 @@ class FuelService {
    */
   async getTotalUnpaidAmount() {
     try {
-      return await Fuel.getTotalUnpaidAmount();
+      logger.info('Iniciando cálculo de saldo pendiente');
+      
+      // CORRECCIÓN: Implementar cálculo directo para mayor confiabilidad
+      const result = await Fuel.aggregate([
+        { $match: { paymentStatus: 'no pagada' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]);
+      
+      logger.info(`Resultado de la consulta: ${JSON.stringify(result)}`);
+      const total = result.length > 0 ? result[0].total : 0;
+      logger.info(`Total calculado: ${total}`);
+      
+      return total;
     } catch (error) {
-      logger.error(`Error en servicio de combustible (getTotalUnpaidAmount): ${error.message}`);
-      throw error;
+      logger.error(`Error en servicio de combustible (getTotalUnpaidAmount): ${error.message}`, error);
+      // CORRECCIÓN: Retornar 0 en caso de error para evitar que el flujo se rompa
+      return 0;
     }
   }
   

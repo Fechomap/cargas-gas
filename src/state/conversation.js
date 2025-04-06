@@ -11,6 +11,7 @@ export async function updateConversationState(ctx, newState, data = null) {
   try {
     // Inicializar sesión si no existe
     if (!ctx.session) {
+      logger.info(`Creando nueva sesión para usuario ${ctx.from?.id || 'desconocido'}`);
       ctx.session = {};
     }
     
@@ -19,19 +20,21 @@ export async function updateConversationState(ctx, newState, data = null) {
     
     // Actualizar estado
     ctx.session.state = newState;
+    logger.info(`Cambio de estado: ${previousState} -> ${newState} (Usuario: ${ctx.from?.id || 'desconocido'})`);
     
     // Si se proporcionan datos, actualizar o mantener los existentes
     if (data !== null) {
       ctx.session.data = data;
+      logger.debug(`Datos actualizados: ${JSON.stringify(data)}`);
     } else if (!ctx.session.data) {
       ctx.session.data = {};
+      logger.debug('Inicializados datos vacíos');
     }
-    
-    logger.debug(`Conversación ${ctx.from.id}: ${previousState} -> ${newState}`);
   } catch (error) {
-    logger.error(`Error al actualizar estado de conversación: ${error.message}`);
+    logger.error(`Error al actualizar estado de conversación: ${error.message}`, error);
     // Intentar restablecer la sesión en caso de error
     ctx.session = { state: 'idle', data: {} };
+    logger.info('Sesión restablecida a estado idle por error');
   }
 }
 
@@ -63,5 +66,18 @@ export async function clearConversationState(ctx) {
     logger.debug(`Conversación ${ctx.from.id}: estado limpiado`);
   } catch (error) {
     logger.error(`Error al limpiar estado de conversación: ${error.message}`);
+  }
+}
+// Al final del archivo conversation.js
+// Función para depurar el estado actual
+export function debugState(ctx) {
+  if (!ctx.session) {
+    logger.info('No hay sesión para este contexto');
+    return;
+  }
+  
+  logger.info(`Estado actual: ${ctx.session.state}`);
+  if (ctx.session.data) {
+    logger.info(`Datos en sesión: ${JSON.stringify(ctx.session.data, null, 2)}`);
   }
 }
