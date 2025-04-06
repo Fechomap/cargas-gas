@@ -1,0 +1,24 @@
+# Dependencias
+node_modules/
+npm-debug.log
+
+# Entorno
+.env
+
+# Logs
+logs/
+*.log
+
+# Carpetas de archivos temporales
+uploads/
+temp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
