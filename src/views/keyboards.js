@@ -101,11 +101,8 @@ export function getReportOptionsKeyboard(filters = {}) {
   buttons.push([Markup.button.callback('⛽ Filtrar por tipo de combustible', 'filter_by_fuel_type')]);
   buttons.push([Markup.button.callback('💰 Filtrar por estatus de pago', 'filter_by_payment_status')]);
   
-  // Opciones de exportación
-  buttons.push([
-    Markup.button.callback('📄 Generar PDF', 'generate_pdf_report'),
-    Markup.button.callback('📊 Generar Excel', 'generate_excel_report')
-  ]);
+  // Opción de reporte global (reemplaza los botones individuales)
+  buttons.push([Markup.button.callback('📊 Generar Reporte Global', 'generate_global_report')]);
   
   // Botón para limpiar filtros (si hay filtros aplicados)
   if (Object.keys(filters || {}).length > 0) {

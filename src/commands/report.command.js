@@ -186,4 +186,11 @@ export function setupReportCommand(bot) {
     
     return next();
   });
+
+  // Generar reportes globales (PDF y Excel)
+  bot.action('generate_global_report', async (ctx) => {
+    if (isInState(ctx, 'report_select_filters')) {
+      await reportController.generateGlobalReport(ctx);
+    }
+  });
 }

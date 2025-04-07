@@ -432,6 +432,59 @@ class ReportController {
     }
   }
   
+  /**
+   * Genera reportes en ambos formatos (PDF y Excel)
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async generateGlobalReport(ctx) {
+    try {
+      await ctx.answerCbQuery('Generando reportes globales...');
+ 
+      // Mostrar mensaje de espera
+      const waitMessage = await ctx.reply('⏳ Generando reportes PDF y Excel, por favor espera...');
+ 
+      // Generar reporte PDF usando el servicio
+      logger.info('Generando reporte PDF...');
+      const pdfReport = await reportService.generatePdfReport(ctx.session.data.filters);
+      logger.info('Reporte PDF generado correctamente');
+ 
+      // Generar reporte Excel usando el servicio
+      logger.info('Generando reporte Excel...');
+      const excelReport = await reportService.generateExcelReport(ctx.session.data.filters);
+      logger.info('Reporte Excel generado correctamente');
+ 
+      // Eliminar mensaje de espera
+      await ctx.deleteMessage(waitMessage.message_id);
+ 
+      // Enviar ambos archivos
+      await ctx.reply('✅ Reportes generados correctamente:');
+      await ctx.replyWithDocument({ source: pdfReport.path, filename: pdfReport.filename });
+      await ctx.replyWithDocument({ source: excelReport.path, filename: excelReport.filename });
+ 
+      // Si el reporte es de notas no pagadas, mostrar botón para marcar todas como pagadas
+      if (ctx.session.data.filters.paymentStatus === 'no pagada') {
+        await ctx.reply('¿Deseas marcar todas las notas del reporte como pagadas?',
+          Markup.inlineKeyboard([
+            Markup.button.callback('✅ Marcar todas como pagadas', 'mark_all_as_paid'),
+            Markup.button.callback('❌ Cancelar', 'cancel_mark_all')
+          ])
+        );
+      } else {
+        // Limpiar estado de conversación
+        await updateConversationState(ctx, 'idle', {});
+ 
+        // Mostrar menú post-operación
+        await ctx.reply('¿Qué deseas hacer ahora?', getPostOperationKeyboard());
+      }
+    } catch (error) {
+      logger.error(`Error al generar reportes globales: ${error.message}`);
+      await ctx.reply('Ocurrió un error al generar los reportes. Por favor, intenta nuevamente.');
+ 
+      // Mostrar menú post-operación como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', getPostOperationKeyboard());
+    }
+  }
+ 
   // REMOVED: Duplicate getFilterOptionsKeyboard function
 }
 
