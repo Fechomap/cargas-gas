@@ -54,11 +54,24 @@ class ReportController {
    */
   async handleDateFilterSelection(ctx) {
     try {
-      await updateConversationState(ctx, 'report_date_from');
       await ctx.answerCbQuery('Seleccionando rango de fechas');
       
-      // Para simplificar, solicitar fechas en formato texto
-      await ctx.reply('Ingresa la fecha inicial (DD/MM/AAAA):');
+      // Actualizar estado de conversación
+      await updateConversationState(ctx, 'report_select_date_range');
+      
+      // Mostrar teclado con opciones de rangos predefinidos
+      await ctx.reply('Selecciona un rango de fechas:', 
+        Markup.inlineKeyboard([
+          [Markup.button.callback('📅 Hoy', 'date_range_today')],
+          [Markup.button.callback('📅 Esta semana', 'date_range_this_week')],
+          [Markup.button.callback('📅 Últimas 2 semanas', 'date_range_last_2_weeks')],
+          [Markup.button.callback('📅 Últimas 3 semanas', 'date_range_last_3_weeks')],
+          [Markup.button.callback('📅 Este mes', 'date_range_this_month')],
+          [Markup.button.callback('📅 Últimos 3 meses', 'date_range_last_3_months')],
+          [Markup.button.callback('📅 Fechas personalizadas', 'date_range_custom')],
+          [Markup.button.callback('❌ Cancelar', 'cancel_date_filter')]
+        ])
+      );
     } catch (error) {
       logger.error(`Error en selección de filtro por fecha: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
@@ -485,7 +498,81 @@ class ReportController {
     }
   }
  
-  // REMOVED: Duplicate getFilterOptionsKeyboard function
+  /**
+   * Procesa la selección de un rango de fechas predefinido
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {string} rangeType - Tipo de rango seleccionado
+   */
+  async handlePredefinedDateRange(ctx, rangeType) {
+    try {
+      // Calcular fechas según el rango seleccionado
+      let startDate = new Date();
+      let endDate = new Date();
+      
+      switch (rangeType) {
+        case 'today':
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'this_week':
+          const dayOfWeek = startDate.getDay();
+          const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+          startDate.setDate(startDate.getDate() - diff);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'last_2_weeks':
+          const dayOfWeek2 = startDate.getDay();
+          const diff2 = dayOfWeek2 === 0 ? 6 : dayOfWeek2 - 1;
+          startDate.setDate(startDate.getDate() - diff2 - 7);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'last_3_weeks':
+          const dayOfWeek3 = startDate.getDay();
+          const diff3 = dayOfWeek3 === 0 ? 6 : dayOfWeek3 - 1;
+          startDate.setDate(startDate.getDate() - diff3 - 14);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'this_month':
+          startDate.setDate(1);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'last_3_months':
+          startDate.setMonth(startDate.getMonth() - 2);
+          startDate.setDate(1);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+      }
+      
+      endDate.setHours(23, 59, 59, 999);
+      
+      ctx.session.data.filters.startDate = startDate;
+      ctx.session.data.filters.endDate = endDate;
+      
+      await updateConversationState(ctx, 'report_select_filters');
+      await ctx.answerCbQuery('Filtro de fechas aplicado');
+      await ctx.reply(`✅ Filtro de fechas aplicado: ${formatDate(startDate)} - ${formatDate(endDate)}`);
+      await ctx.reply('¿Deseas aplicar más filtros o generar el reporte?', {
+        reply_markup: getReportOptionsKeyboard(ctx.session.data.filters)
+      });
+    } catch (error) {
+      logger.error(`Error al procesar rango de fechas predefinido: ${error.message}`);
+      await ctx.reply('Ocurrió un error al aplicar el filtro de fechas. Por favor, intenta nuevamente.');
+    }
+  }
+ 
+  /**
+   * Inicia el flujo para ingreso de fechas personalizadas
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async handleCustomDateRangeSelection(ctx) {
+    try {
+      await ctx.answerCbQuery('Ingresando fechas personalizadas');
+      await updateConversationState(ctx, 'report_date_from');
+      await ctx.reply('Ingresa la fecha inicial (DD/MM/AAAA):');
+    } catch (error) {
+      logger.error(`Error al iniciar selección de fechas personalizadas: ${error.message}`);
+      await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
+    }
+  }
 }
 
 /**

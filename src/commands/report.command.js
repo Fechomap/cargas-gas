@@ -49,6 +49,59 @@ export function setupReportCommand(bot) {
       await reportController.handleDateFilterSelection(ctx);
     }
   });
+
+  // Cancelar selección de fecha
+  bot.action('cancel_date_filter', async (ctx) => {
+    if (isInState(ctx, 'report_select_date_range')) {
+      await ctx.answerCbQuery('Selección cancelada');
+      await ctx.reply('Selección de fechas cancelada.');
+      await reportController.startReportGeneration(ctx);
+    }
+  });
+
+  // Manejar rangos predefinidos
+  bot.action('date_range_today', async (ctx) => {
+    if (isInState(ctx, 'report_select_date_range')) {
+      await reportController.handlePredefinedDateRange(ctx, 'today');
+    }
+  });
+
+  bot.action('date_range_this_week', async (ctx) => {
+    if (isInState(ctx, 'report_select_date_range')) {
+      await reportController.handlePredefinedDateRange(ctx, 'this_week');
+    }
+  });
+
+  bot.action('date_range_last_2_weeks', async (ctx) => {
+    if (isInState(ctx, 'report_select_date_range')) {
+      await reportController.handlePredefinedDateRange(ctx, 'last_2_weeks');
+    }
+  });
+
+  bot.action('date_range_last_3_weeks', async (ctx) => {
+    if (isInState(ctx, 'report_select_date_range')) {
+      await reportController.handlePredefinedDateRange(ctx, 'last_3_weeks');
+    }
+  });
+
+  bot.action('date_range_this_month', async (ctx) => {
+    if (isInState(ctx, 'report_select_date_range')) {
+      await reportController.handlePredefinedDateRange(ctx, 'this_month');
+    }
+  });
+
+  bot.action('date_range_last_3_months', async (ctx) => {
+    if (isInState(ctx, 'report_select_date_range')) {
+      await reportController.handlePredefinedDateRange(ctx, 'last_3_months');
+    }
+  });
+
+  // Manejar selección de fechas personalizadas
+  bot.action('date_range_custom', async (ctx) => {
+    if (isInState(ctx, 'report_select_date_range')) {
+      await reportController.handleCustomDateRangeSelection(ctx);
+    }
+  });
   
   // Filtro por operador
   bot.action('filter_by_operator', async (ctx) => {
