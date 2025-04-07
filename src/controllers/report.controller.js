@@ -14,23 +14,56 @@ class ReportController {
    * Inicia el flujo de generación de reportes
    * @param {TelegrafContext} ctx - Contexto de Telegraf
    */
+  // Modificación a src/controllers/report.controller.js
+
+  // Reemplazar el método startReportGeneration con esta versión actualizada:
   async startReportGeneration(ctx) {
     try {
       logger.info(`Iniciando generación de reporte para usuario ${ctx.from.id}`);
       
-      // Inicializar filtros vacíos en la sesión
+      // SOLUCIÓN: Preservar filtros existentes o inicializar vacíos si no existen
+      const existingFilters = ctx.session?.data?.filters || {};
+      
+      // Actualizar estado preservando los filtros existentes
       logger.info('Actualizando estado de conversación a report_select_filters');
       await updateConversationState(ctx, 'report_select_filters', {
-        filters: {}
+        filters: existingFilters
       });
-      logger.info('Estado actualizado correctamente');
+      logger.info(`Estado actualizado correctamente. Filtros preservados: ${JSON.stringify(existingFilters)}`);
       
-      // Obtener el teclado de opciones de reporte usando la función importada
+      // Obtener el teclado de opciones de reporte pasando los filtros existentes
       const { reply_markup } = getReportOptionsKeyboard(ctx.session.data.filters);
       logger.info(`Teclado generado: ${JSON.stringify(reply_markup)}`);
       
       // Mostrar opciones de filtrado
-      await ctx.reply('🔍 *Generación de Reportes* 📊\nSelecciona un filtro o genera el reporte:', {
+      let messageText = '🔍 *Generación de Reportes* 📊\n';
+      
+      // Añadir resumen de filtros aplicados si existen
+      if (Object.keys(existingFilters).length > 0) {
+        messageText += '\n*Filtros aplicados actualmente:*\n';
+        
+        if (existingFilters.startDate && existingFilters.endDate) {
+          messageText += `• 📅 *Fechas:* ${formatDate(existingFilters.startDate)} - ${formatDate(existingFilters.endDate)}\n`;
+        }
+        
+        if (existingFilters.operatorName) {
+          messageText += `• 👤 *Operador:* ${existingFilters.operatorName}\n`;
+        }
+        
+        if (existingFilters.fuelType) {
+          messageText += `• ⛽ *Combustible:* ${existingFilters.fuelType}\n`;
+        }
+        
+        if (existingFilters.paymentStatus) {
+          messageText += `• 💳 *Estatus de pago:* ${existingFilters.paymentStatus}\n`;
+        }
+        
+        messageText += '\nSelecciona otra opción de filtrado o genera el reporte:';
+      } else {
+        messageText += 'Selecciona un filtro o genera el reporte:';
+      }
+      
+      await ctx.reply(messageText, {
         parse_mode: 'Markdown',
         reply_markup: reply_markup
       });
