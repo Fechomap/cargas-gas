@@ -5,6 +5,29 @@ import { fuelService } from './fuel.service.js';
 import { storageService } from './storage.service.js';
 import { logger } from '../utils/logger.js';
 
+// AGREGAR AQUÍ - Función formatDate
+/**
+ * Formatea una fecha según la zona horaria de CDMX
+ * @param {Date} date - Fecha a formatear
+ * @returns {string} - Fecha formateada dd-mm-aaaa hh:mm am/pm
+ */
+function formatDate(date) {
+  // Establecer zona horaria para CDMX (UTC-6)
+  const options = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'America/Mexico_City'
+  };
+
+  // Formatear como DD-MM-AAAA
+  const formattedDate = new Intl.DateTimeFormat('es-MX', options).format(date);
+  return formattedDate.replace(/\//g, '-');
+}
+
 // Definir fuentes para PDFMake
 const fonts = {
   Roboto: {
@@ -77,14 +100,14 @@ class ReportService {
       
       // Crear hoja de datos
       const worksheetData = reportData.entries.map(entry => ({
-        'Fecha': new Date(entry.recordDate).toLocaleString(),
+        'Fecha': formatDate(new Date(entry.recordDate)),
         'Operador': entry.operatorName,
         'Unidad': entry.unitNumber,
         'Tipo': entry.fuelType,
         'Litros': entry.liters,
         'Monto': entry.amount,
         'Estatus': entry.paymentStatus,
-        'Fecha Pago': entry.paymentDate ? new Date(entry.paymentDate).toLocaleString() : 'N/A'
+        'Fecha Pago': entry.paymentDate ? formatDate(new Date(entry.paymentDate)) : 'N/A'
       }));
       
       const worksheet = XLSX.utils.json_to_sheet(worksheetData);
@@ -166,10 +189,10 @@ class ReportService {
     const tableBody = [
       ['Fecha', 'Operador', 'Unidad', 'Tipo', 'Litros', 'Monto', 'Estatus']
     ];
-    
+
     reportData.entries.forEach(entry => {
       tableBody.push([
-        new Date(entry.recordDate).toLocaleString(),
+        formatDate(new Date(entry.recordDate)),
         entry.operatorName,
         entry.unitNumber,
         entry.fuelType,
@@ -213,7 +236,7 @@ class ReportService {
     return {
       content: [
         { text: 'REPORTE DE CARGAS DE COMBUSTIBLE', style: 'header' },
-        { text: `Generado el: ${new Date().toLocaleString()}`, style: 'subheader' },
+        { text: `Generado el: ${formatDate(new Date())}`, style: 'subheader' },
         
         // Mostrar filtros aplicados
         filtersApplied.length > 0 ? 
@@ -270,11 +293,15 @@ class ReportService {
    */
   getReportDateString() {
     const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = now.getFullYear();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
+    // Crear opciones para formato en CDMX
+    const options = { timeZone: 'America/Mexico_City' };
+    const cdmxDate = new Date(now.toLocaleString('en-US', options));
+    
+    const day = String(cdmxDate.getDate()).padStart(2, '0');
+    const month = String(cdmxDate.getMonth() + 1).padStart(2, '0');
+    const year = cdmxDate.getFullYear();
+    const hours = String(cdmxDate.getHours()).padStart(2, '0');
+    const minutes = String(cdmxDate.getMinutes()).padStart(2, '0');
     
     return `${day}${month}${year}_${hours}${minutes}`;
   }
