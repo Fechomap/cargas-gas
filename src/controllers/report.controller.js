@@ -154,10 +154,6 @@ class ReportController {
       await ctx.reply('Generar reporte con los filtros aplicados:', 
         Markup.inlineKeyboard([
           [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
-          [
-            Markup.button.callback('📄 PDF', 'generate_pdf_report'),
-            Markup.button.callback('📊 Excel', 'generate_excel_report')
-          ],
           [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
           [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
           [Markup.button.callback('❌ Cancelar', 'cancel_report')]
@@ -222,10 +218,6 @@ class ReportController {
       await ctx.reply('Generar reporte con los filtros aplicados:', 
         Markup.inlineKeyboard([
           [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
-          [
-            Markup.button.callback('📄 PDF', 'generate_pdf_report'),
-            Markup.button.callback('📊 Excel', 'generate_excel_report')
-          ],
           [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
           [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
           [Markup.button.callback('❌ Cancelar', 'cancel_report')]
@@ -281,10 +273,6 @@ class ReportController {
       await ctx.reply('Generar reporte con los filtros aplicados:', 
         Markup.inlineKeyboard([
           [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
-          [
-            Markup.button.callback('📄 PDF', 'generate_pdf_report'),
-            Markup.button.callback('📊 Excel', 'generate_excel_report')
-          ],
           [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
           [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
           [Markup.button.callback('❌ Cancelar', 'cancel_report')]
@@ -343,10 +331,6 @@ class ReportController {
       await ctx.reply('Generar reporte con los filtros aplicados:', 
         Markup.inlineKeyboard([
           [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
-          [
-            Markup.button.callback('📄 PDF', 'generate_pdf_report'),
-            Markup.button.callback('📊 Excel', 'generate_excel_report')
-          ],
           [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
           [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
           [Markup.button.callback('❌ Cancelar', 'cancel_report')]
@@ -593,10 +577,6 @@ class ReportController {
       await ctx.reply('Generar reporte con los filtros aplicados:', 
         Markup.inlineKeyboard([
           [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
-          [
-            Markup.button.callback('📄 PDF', 'generate_pdf_report'),
-            Markup.button.callback('📊 Excel', 'generate_excel_report')
-          ],
           [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
           [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
           [Markup.button.callback('❌ Cancelar', 'cancel_report')]
