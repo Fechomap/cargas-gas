@@ -52,11 +52,32 @@ async function startBot() {
       }
     });
 
-    // Iniciar el bot
+    // Iniciar el bot según el entorno
     logger.info('Lanzando bot...');
-    await bot.launch();
-    logger.info('Bot iniciado correctamente');
-
+    
+    if (process.env.NODE_ENV === 'production') {
+      // Configuración para Heroku con webhook
+      const PORT = process.env.PORT || 3000;
+      const URL = process.env.APP_URL;
+      
+      if (!URL) {
+        logger.error('La variable APP_URL no está definida. Es necesaria para el modo webhook.');
+        process.exit(1);
+      }
+      
+      // Configurar webhook
+      logger.info(`Configurando webhook en ${URL}`);
+      await bot.telegram.setWebhook(`${URL}/bot${process.env.TELEGRAM_BOT_TOKEN}`);
+      
+      // Iniciar servidor web
+      bot.startWebhook(`/bot${process.env.TELEGRAM_BOT_TOKEN}`, null, PORT);
+      logger.info(`Bot iniciado en modo webhook en puerto ${PORT}`);
+    } else {
+      // Configuración para desarrollo con polling
+      await bot.launch();
+      logger.info('Bot iniciado en modo polling');
+    }
+    
     // Registrar información del bot
     const botInfo = await bot.telegram.getMe();
     logger.info(`Bot activo como: @${botInfo.username} (ID: ${botInfo.id})`);
