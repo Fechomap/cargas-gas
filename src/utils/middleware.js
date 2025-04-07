@@ -40,6 +40,7 @@ export function setupMiddleware(bot) {
     }
   });
 }
+
 // Añadir este middleware para diagnóstico de flujo
 export function setupDiagnosticMiddleware(bot) {
   // Middleware para registrar todas las actualizaciones
@@ -61,5 +62,31 @@ export function setupDiagnosticMiddleware(bot) {
       logger.error(`Error en middleware de diagnóstico: ${error.message}`, error);
       await next();
     }
+  });
+}
+
+/**
+ * Configura restricción para solo permitir el bot en un grupo específico
+ * @param {Telegraf} bot - Instancia del bot de Telegram
+ */
+export function setupGroupRestriction(bot) {
+  // IMPORTANTE: Reemplaza este ID con la ID real de tu grupo
+  const ALLOWED_GROUP_ID = -4668148184; // ID de tu grupo
+  
+  // Middleware para restringir acceso SOLO al grupo específico
+  bot.use((ctx, next) => {
+    // Registrar información del chat para depuración
+    if (ctx.chat) {
+      logger.info(`Chat info - ID: ${ctx.chat.id}, Tipo: ${ctx.chat.type}, Título: ${ctx.chat.title || 'N/A'}`);
+    }
+    
+    // Si no hay chat o no es el grupo autorizado, ignorar
+    if (!ctx.chat || ctx.chat.id !== ALLOWED_GROUP_ID) {
+      logger.warn(`Acceso denegado - ID: ${ctx.chat?.id || 'desconocido'}, Tipo: ${ctx.chat?.type || 'desconocido'}`);
+      return; // Bloquear silenciosamente, no responder al usuario
+    }
+    
+    // Si llegamos aquí, es el grupo autorizado
+    return next();
   });
 }

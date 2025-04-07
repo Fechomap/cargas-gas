@@ -4,7 +4,7 @@ import { botConfig } from './config/bot.config.js';
 import { connectToDatabase } from './src/db/connection.js';
 import { initializeBot } from './src/api/telegram.api.js';
 import { registerCommands } from './src/commands/index.js';
-import { setupMiddleware } from './src/utils/middleware.js';
+import { setupMiddleware, setupGroupRestriction } from './src/utils/middleware.js';
 import { logger } from './src/utils/logger.js';
 
 async function startBot() {
@@ -32,6 +32,8 @@ async function startBot() {
     // Configurar middleware
     logger.info('Configurando middleware...');
     setupMiddleware(bot);
+    // Añadir restricción de uso solo en grupos específicos
+    setupGroupRestriction(bot);
     logger.info('Middleware configurado');
 
     // Registrar comandos
