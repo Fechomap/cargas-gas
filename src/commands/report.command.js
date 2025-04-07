@@ -162,7 +162,9 @@ export function setupReportCommand(bot) {
   bot.action(/^select_payment_status_(pagada|no_pagada)$/, async (ctx) => {
     if (isInState(ctx, 'report_select_payment_status')) {
       const paymentStatus = ctx.match[1];
-      await reportController.handlePaymentStatusSelection(ctx, paymentStatus);
+      // Convertir 'no_pagada' a 'no pagada' para coincidir con la base de datos
+      const formattedStatus = paymentStatus === 'no_pagada' ? 'no pagada' : paymentStatus;
+      await reportController.handlePaymentStatusSelection(ctx, formattedStatus);
     }
   });
   
@@ -244,6 +246,14 @@ export function setupReportCommand(bot) {
   bot.action('generate_global_report', async (ctx) => {
     if (isInState(ctx, 'report_select_filters')) {
       await reportController.generateGlobalReport(ctx);
+    }
+  });
+
+  // Continuar con más filtros
+  bot.action('continue_filtering', async (ctx) => {
+    if (isInState(ctx, 'report_select_filters')) {
+      await ctx.answerCbQuery('Continuando con más filtros...');
+      await reportController.startReportGeneration(ctx);
     }
   });
 }

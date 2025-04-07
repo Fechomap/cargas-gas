@@ -1,6 +1,4 @@
 // src/views/keyboards.js
-// Reemplazar completamente este archivo
-
 import { Markup } from 'telegraf';
 
 /**
@@ -9,9 +7,9 @@ import { Markup } from 'telegraf';
  */
 export function getMainKeyboard() {
   return Markup.inlineKeyboard([
-    [Markup.button.callback('🆕 Registrar unidad', 'register_unit')], // Changed icon for consistency
-    [Markup.button.callback('⛽ Registrar carga', 'register_fuel_start')], // Changed label and callback
-    [Markup.button.callback('💰 Consultar saldo', 'check_balance')], // Changed label
+    [Markup.button.callback('🆕 Registrar unidad', 'register_unit')], 
+    [Markup.button.callback('⛽ Registrar carga', 'register_fuel_start')], 
+    [Markup.button.callback('💰 Consultar saldo', 'check_balance')], 
     [Markup.button.callback('📊 Generar reporte', 'generate_report')],
     [Markup.button.callback('❓ Ayuda', 'show_help')]
   ]);
@@ -94,6 +92,7 @@ export function getFuelConfirmKeyboard() {
  */
 export function getReportOptionsKeyboard(filters = {}) {
   const buttons = [];
+  const hasFilters = Object.keys(filters || {}).length > 0;
   
   // Opciones de filtrado
   buttons.push([Markup.button.callback('📅 Filtrar por fechas', 'filter_by_date')]);
@@ -101,11 +100,16 @@ export function getReportOptionsKeyboard(filters = {}) {
   buttons.push([Markup.button.callback('⛽ Filtrar por tipo de combustible', 'filter_by_fuel_type')]);
   buttons.push([Markup.button.callback('💰 Filtrar por estatus de pago', 'filter_by_payment_status')]);
   
-  // Opción de reporte global (reemplaza los botones individuales)
-  buttons.push([Markup.button.callback('📊 Generar Reporte Global', 'generate_global_report')]);
+  // Si hay filtros aplicados, mostrar botón para generar reporte global
+  if (hasFilters) {
+    buttons.push([Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')]);
+  } else {
+    // Si no hay filtros, mostrar solo la opción general
+    buttons.push([Markup.button.callback('📊 Generar Reporte Global', 'generate_global_report')]);
+  }
   
   // Botón para limpiar filtros (si hay filtros aplicados)
-  if (Object.keys(filters || {}).length > 0) {
+  if (hasFilters) {
     buttons.push([Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')]);
   }
   

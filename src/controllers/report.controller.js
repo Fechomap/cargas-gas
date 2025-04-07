@@ -4,7 +4,7 @@ import { reportService } from '../services/report.service.js';
 import { unitService } from '../services/unit.service.js';
 import { updateConversationState } from '../state/conversation.js';
 import { logger } from '../utils/logger.js';
-import { getReportOptionsKeyboard, getPostOperationKeyboard } from '../views/keyboards.js'; // Import shared keyboards
+import { getReportOptionsKeyboard, getPostOperationKeyboard } from '../views/keyboards.js';
 
 /**
  * Controlador para gestionar la generación de reportes
@@ -26,13 +26,13 @@ class ReportController {
       logger.info('Estado actualizado correctamente');
       
       // Obtener el teclado de opciones de reporte usando la función importada
-      const { reply_markup } = getReportOptionsKeyboard(ctx.session.data.filters); // Pass current filters
+      const { reply_markup } = getReportOptionsKeyboard(ctx.session.data.filters);
       logger.info(`Teclado generado: ${JSON.stringify(reply_markup)}`);
       
       // Mostrar opciones de filtrado
       await ctx.reply('🔍 *Generación de Reportes* 📊\nSelecciona un filtro o genera el reporte:', {
         parse_mode: 'Markdown',
-        reply_markup: reply_markup // Usar el teclado obtenido
+        reply_markup: reply_markup
       });
       logger.info('Mensaje de opciones de reporte enviado');
     } catch (error) {
@@ -150,11 +150,19 @@ class ReportController {
       // Notificar que el filtro ha sido aplicado
       await ctx.reply(`✅ Filtro de fechas aplicado: ${formatDate(ctx.session.data.filters.startDate)} - ${formatDate(ctx.session.data.filters.endDate)}`);
       
-      // Mostrar opciones de filtrado actualizadas
-      // Mostrar opciones de filtrado actualizadas usando la función importada
-      await ctx.reply('¿Deseas aplicar más filtros o generar el reporte?', {
-        reply_markup: getReportOptionsKeyboard(ctx.session.data.filters)
-      });
+      // Mostrar botones directos para generar reporte
+      await ctx.reply('Generar reporte con los filtros aplicados:', 
+        Markup.inlineKeyboard([
+          [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
+          [
+            Markup.button.callback('📄 PDF', 'generate_pdf_report'),
+            Markup.button.callback('📊 Excel', 'generate_excel_report')
+          ],
+          [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
+          [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
+          [Markup.button.callback('❌ Cancelar', 'cancel_report')]
+        ])
+      );
     } catch (error) {
       logger.error(`Error en entrada de fecha final: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, ingresa nuevamente la fecha final (DD/MM/AAAA):');
@@ -210,10 +218,19 @@ class ReportController {
       await ctx.answerCbQuery(`Operador seleccionado: ${operator}`);
       await ctx.reply(`✅ Filtro por operador aplicado: ${operator}`);
       
-      // Mostrar opciones de filtrado actualizadas usando la función importada
-      await ctx.reply('¿Deseas aplicar más filtros o generar el reporte?', {
-        reply_markup: getReportOptionsKeyboard(ctx.session.data.filters)
-      });
+      // Mostrar botones directos para generar reporte
+      await ctx.reply('Generar reporte con los filtros aplicados:', 
+        Markup.inlineKeyboard([
+          [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
+          [
+            Markup.button.callback('📄 PDF', 'generate_pdf_report'),
+            Markup.button.callback('📊 Excel', 'generate_excel_report')
+          ],
+          [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
+          [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
+          [Markup.button.callback('❌ Cancelar', 'cancel_report')]
+        ])
+      );
     } catch (error) {
       logger.error(`Error en selección de operador: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
@@ -260,10 +277,19 @@ class ReportController {
       await ctx.answerCbQuery(`Tipo de combustible seleccionado: ${fuelType}`);
       await ctx.reply(`✅ Filtro por tipo de combustible aplicado: ${fuelType}`);
       
-      // Mostrar opciones de filtrado actualizadas usando la función importada
-      await ctx.reply('¿Deseas aplicar más filtros o generar el reporte?', {
-        reply_markup: getReportOptionsKeyboard(ctx.session.data.filters)
-      });
+      // Mostrar botones directos para generar reporte
+      await ctx.reply('Generar reporte con los filtros aplicados:', 
+        Markup.inlineKeyboard([
+          [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
+          [
+            Markup.button.callback('📄 PDF', 'generate_pdf_report'),
+            Markup.button.callback('📊 Excel', 'generate_excel_report')
+          ],
+          [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
+          [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
+          [Markup.button.callback('❌ Cancelar', 'cancel_report')]
+        ])
+      );
     } catch (error) {
       logger.error(`Error en selección de tipo de combustible: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
@@ -301,19 +327,31 @@ class ReportController {
    */
   async handlePaymentStatusSelection(ctx, paymentStatus) {
     try {
+      // Asegurar que el formato sea correcto (doble verificación de seguridad)
+      const formattedStatus = paymentStatus === 'no_pagada' ? 'no pagada' : paymentStatus;
+      
       // Guardar estatus de pago en la sesión
-      ctx.session.data.filters.paymentStatus = paymentStatus;
+      ctx.session.data.filters.paymentStatus = formattedStatus;
       
       // Volver a la selección de filtros
       await updateConversationState(ctx, 'report_select_filters');
       
-      await ctx.answerCbQuery(`Estatus de pago seleccionado: ${paymentStatus}`);
-      await ctx.reply(`✅ Filtro por estatus de pago aplicado: ${paymentStatus}`);
+      await ctx.answerCbQuery(`Estatus de pago seleccionado: ${formattedStatus}`);
+      await ctx.reply(`✅ Filtro por estatus de pago aplicado: ${formattedStatus}`);
       
-      // Mostrar opciones de filtrado actualizadas usando la función importada
-      await ctx.reply('¿Deseas aplicar más filtros o generar el reporte?', {
-        reply_markup: getReportOptionsKeyboard(ctx.session.data.filters)
-      });
+      // Mostrar botones directos para generar reporte (igual que los otros filtros)
+      await ctx.reply('Generar reporte con los filtros aplicados:', 
+        Markup.inlineKeyboard([
+          [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
+          [
+            Markup.button.callback('📄 PDF', 'generate_pdf_report'),
+            Markup.button.callback('📊 Excel', 'generate_excel_report')
+          ],
+          [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
+          [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
+          [Markup.button.callback('❌ Cancelar', 'cancel_report')]
+        ])
+      );
     } catch (error) {
       logger.error(`Error en selección de estatus de pago: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
@@ -550,9 +588,20 @@ class ReportController {
       await updateConversationState(ctx, 'report_select_filters');
       await ctx.answerCbQuery('Filtro de fechas aplicado');
       await ctx.reply(`✅ Filtro de fechas aplicado: ${formatDate(startDate)} - ${formatDate(endDate)}`);
-      await ctx.reply('¿Deseas aplicar más filtros o generar el reporte?', {
-        reply_markup: getReportOptionsKeyboard(ctx.session.data.filters)
-      });
+      
+      // Mostrar botones directos para generar reporte
+      await ctx.reply('Generar reporte con los filtros aplicados:', 
+        Markup.inlineKeyboard([
+          [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
+          [
+            Markup.button.callback('📄 PDF', 'generate_pdf_report'),
+            Markup.button.callback('📊 Excel', 'generate_excel_report')
+          ],
+          [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
+          [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
+          [Markup.button.callback('❌ Cancelar', 'cancel_report')]
+        ])
+      );
     } catch (error) {
       logger.error(`Error al procesar rango de fechas predefinido: ${error.message}`);
       await ctx.reply('Ocurrió un error al aplicar el filtro de fechas. Por favor, intenta nuevamente.');
