@@ -71,7 +71,7 @@ export function setupDiagnosticMiddleware(bot) {
  */
 export function setupGroupRestriction(bot) {
   // IMPORTANTE: Reemplaza este ID con la ID real de tu grupo
-  const ALLOWED_GROUP_ID = -4668148184; // ID de tu grupo
+  const ALLOWED_GROUP_ID = -1002411620798; // ID de tu grupo
   
   // Middleware para restringir acceso SOLO al grupo específico
   bot.use((ctx, next) => {
