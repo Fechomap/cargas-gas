@@ -1,43 +1,46 @@
 # Bot de Telegram para Registro de Cargas de Combustible
 
-Un bot de Telegram para empresas que necesitan gestionar y dar seguimiento a las cargas de combustible de sus unidades de transporte. Permite registrar operadores, unidades, cargas de combustible y generar reportes.
+Un bot de Telegram que permite gestionar y dar seguimiento a las cargas de combustible de unidades de transporte. Registra operadores, unidades, cargas y genera reportes detallados.
 
 ## 🚀 Comandos Rápidos (Heroku)
 
 ### Gestión de Dynos
 
 ```bash
-# Escalar a 0 (apagar aplicación)
-heroku ps:scale web=0 --app nombre-de-tu-app
+# Apagar la aplicación (escalar a 0)
+heroku ps:scale web=0 --app cargas-gas
 
-# Escalar a 1 (encender aplicación)
-heroku ps:scale web=1 --app nombre-de-tu-app
+# Encender la aplicación (escalar a 1)
+heroku ps:scale web=1 --app cargas-gas
 
 # Ver estado actual de dynos
-heroku ps --app nombre-de-tu-app
+heroku ps --app cargas-gas
 ```
 
-### Reinicio Rápido
+### Reinicio y Mantenimiento
 
 ```bash
 # Reiniciar la aplicación
-heroku restart --app nombre-de-tu-app
+heroku restart --app cargas-gas
+
+# Ver logs en tiempo real
+heroku logs --tail --app cargas-gas
+
+# Abrir consola bash en el servidor
+heroku run bash --app cargas-gas
 ```
 
-### Login y Acceso
+### Acceso y Autenticación
 
 ```bash
 # Login en Heroku CLI
 heroku login
 
-# Abrir consola bash en servidor
-heroku run bash --app nombre-de-tu-app
-
-# Ver logs en tiempo real
-heroku logs --tail --app nombre-de-tu-app
+# Verificar estado de la cuenta
+heroku auth:whoami
 ```
 
-### JIT Commits (Just-In-Time)
+### GIT Commits
 
 ```bash
 # Guardar cambios y desplegar rápidamente
@@ -45,7 +48,7 @@ git add .
 git commit -m "Actualización rápida: descripción breve"
 git push heroku main
 
-# Desplegar rama específica como master
+# Desplegar rama específica
 git push heroku otra-rama:main
 ```
 
@@ -56,6 +59,7 @@ git push heroku otra-rama:main
 Crea un backup completo del sistema (MongoDB + imágenes + reporte Excel):
 
 ```bash
+# Crear backup completo
 node scripts/backup-automatico.js
 ```
 
@@ -71,92 +75,98 @@ node scripts/actualizacion.js
 node scripts/actualizacion.js
 ```
 
-## 📋 Características
+## 📋 Características Principales
 
-- ✅ Registro de operadores y unidades
+- ✅ Gestión de operadores y unidades
 - ⛽ Registro de cargas de combustible (gas/gasolina)
-- 📷 Soporte para subir fotos de tickets
-- 💰 Control de pagos (pagado/no pagado)
-- 📊 Generación de reportes en PDF y Excel
-- 🔍 Filtros para visualizar datos específicos
+- 📷 Captura de fotos de tickets
+- 💰 Control de pagos y saldos pendientes
+- 📊 Reportes detallados en PDF y Excel
+- 🔍 Filtros avanzados para análisis de datos
 
-## ⚙️ Requisitos
+## ⚙️ Requisitos Técnicos
 
 - Node.js 18.x o superior
 - MongoDB
-- Token de Bot de Telegram (obtenido a través de BotFather)
+- Token de Bot de Telegram (BotFather)
+- Cuenta en Heroku (para despliegue)
 
 ## 🛠️ Instalación Local
 
-1. Clona el repositorio:
+1. Clonar el repositorio:
    ```bash
-   git clone https://github.com/tu-usuario/telegram-gas-bot.git
-   cd telegram-gas-bot
+   git clone https://github.com/tu-usuario/cargas-gas.git
+   cd cargas-gas
    ```
 
-2. Instala las dependencias:
+2. Instalar dependencias:
    ```bash
    npm install
    ```
 
-3. Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
+3. Configurar variables de entorno (crear archivo `.env`):
    ```
    TELEGRAM_BOT_TOKEN=tu_token_aqui
    MONGODB_URI=mongodb+srv://usuario:contraseña@cluster.mongodb.net/database
-   MONGODB_DB_NAME=telegram_gas_bot
+   MONGODB_DB_NAME=cargas_gas_db
    NODE_ENV=development
    ```
 
-4. Inicia el bot en modo desarrollo:
+4. Iniciar en desarrollo:
    ```bash
    npm run dev
    ```
 
-## 🌐 Estructura del proyecto
+## 🌐 Estructura del Proyecto
 
 ```
-telegram-gas-bot/
+cargas-gas/
 ├── backups/                     # Backups generados
 ├── config/                      # Configuraciones
 ├── logs/                        # Logs generados
 ├── reports/                     # Reportes generados
 ├── scripts/                     # Scripts utilitarios
-│   ├── actualizacion.js         # Script de actualización masiva
-│   ├── backup-automatico.js     # Script de backup completo
-│   └── setup.js                 # Script de configuración inicial
+│   ├── actualizacion.js         # Actualización masiva
+│   ├── backup-automatico.js     # Backup completo
+│   └── setup.js                 # Configuración inicial
 ├── src/
 │   ├── api/                     # API de Telegram
 │   ├── commands/                # Comandos del bot
 │   ├── controllers/             # Controladores
-│   ├── db/                      # Conexión a base de datos
+│   ├── db/                      # Conexión a MongoDB
 │   ├── models/                  # Modelos de datos
 │   ├── services/                # Servicios
 │   ├── state/                   # Gestión de estados
 │   ├── utils/                   # Utilidades
-│   └── views/                   # Vistas (teclados y mensajes)
+│   └── views/                   # Vistas y teclados
 ├── temp/                        # Archivos temporales
-├── uploads/                     # Archivos subidos (tickets)
+├── uploads/                     # Tickets/imágenes
 ├── .env                         # Variables de entorno
 ├── index.js                     # Punto de entrada
 ├── package.json                 # Dependencias
-└── Procfile                     # Configuración de Heroku
+└── Procfile                     # Configuración Heroku
 ```
 
-## ⚠️ Consideraciones en Producción (Heroku)
+## ⚠️ Notas Importantes
 
-Heroku tiene un sistema de archivos efímero, lo que significa que los archivos subidos (como imágenes de tickets) se perderán en cada reinicio de dyno. Para un entorno de producción adecuado:
+### Sistema de Archivos en Heroku
 
-1. Configura un almacenamiento en la nube (S3, Cloudinary, Firebase Storage)
-2. Modifica el servicio `storageService` para utilizar este almacenamiento
-3. Programa backups periódicos con el script proporcionado
+Heroku tiene un sistema de archivos efímero. Los archivos subidos (como imágenes de tickets) se perderán en cada reinicio de dyno. Para producción:
 
-## 🤝 Contribuir
+1. Integrar almacenamiento en la nube (AWS S3, Cloudinary, Firebase)
+2. Modificar `storageService` para utilizar este almacenamiento
+3. Programar backups periódicos con el script proporcionado
 
-1. Haz un fork del repositorio
-2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Realiza tus cambios y haz commit (`git commit -am 'Añade nueva funcionalidad'`)
-4. Haz push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Crea un nuevo Pull Request
+### MongoDB Atlas
+
+Para gestionar la base de datos:
+```bash
+# Ver estadísticas de la base de datos
+heroku run node scripts/db-stats.js --app cargas-gas
+
+# Ver MongoDB connection string
+heroku config:get MONGODB_URI --app cargas-gas
+```
 
 ## 📄 Licencia
 
