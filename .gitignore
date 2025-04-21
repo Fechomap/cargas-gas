@@ -1,24 +1,65 @@
 # Dependencias
 node_modules/
 npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
 
 # Entorno
 .env
+.env.local
+.env.development
+.env.test
+.env.production
 
 # Logs
 logs/
 *.log
+npm-debug.log*
 
-# Carpetas de archivos temporales
+# Directorios de datos y archivos temporales
 uploads/
 temp/
+temp_backup/
 
-# OS
+# Backups y reportes
+backups/
+reports/
+*.xlsx
+*.zip
+*.pdf
+
+# Archivos de actualización
+scripts/actualizacion.xlsx
+
+# Heroku
+.git
+.heroku
+*.heroku
+
+# Sistema operativo
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# IDE
+# IDEs y editores
 .idea/
 .vscode/
 *.sublime-project
 *.sublime-workspace
+*.swp
+*.swo
+.history/
+
+# MongoDB
+*.dump
+dump/
+mongodump/
+
+# Debug
+.node-xmlhttprequest-*
+.nyc_output
+coverage/
+
+# Archivos de configuración local
+config.local.js

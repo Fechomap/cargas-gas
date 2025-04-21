@@ -4,6 +4,8 @@ import PdfPrinter from 'pdfmake';
 import { fuelService } from './fuel.service.js';
 import { storageService } from './storage.service.js';
 import { logger } from '../utils/logger.js';
+import ExcelJS from 'exceljs';
+
 
 // AGREGAR AQUÍ - Función formatDate
 /**
@@ -95,47 +97,92 @@ class ReportService {
       // Obtener datos para el reporte
       const reportData = await fuelService.generateReport(filters);
       
-      // Crear libro de Excel
-      const workbook = XLSX.utils.book_new();
+      // Crear libro de Excel con ExcelJS
+      const workbook = new ExcelJS.Workbook();
+      
+      // Configurar propiedades del documento
+      workbook.creator = 'Cargas de Gas Bot';
+      workbook.created = new Date();
       
       // Crear hoja de datos
-      const worksheetData = reportData.entries.map(entry => ({
-        'Fecha': formatDate(new Date(entry.recordDate)),
-        'Operador': entry.operatorName,
-        'Unidad': entry.unitNumber,
-        'Tipo': entry.fuelType,
-        'Litros': entry.liters,
-        'Monto': entry.amount,
-        'Estatus': entry.paymentStatus,
-        'Fecha Pago': entry.paymentDate ? formatDate(new Date(entry.paymentDate)) : 'N/A'
-      }));
+      const worksheet = workbook.addWorksheet('Cargas');
       
-      const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-      
-      // Añadir hoja al libro
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Cargas');
-      
-      // Crear hoja de resumen
-      const summaryData = [
-        { 'Concepto': 'Total de registros', 'Valor': reportData.summary.totalEntries },
-        { 'Concepto': 'Total de litros', 'Valor': reportData.summary.totalLiters.toFixed(2) },
-        { 'Concepto': 'Monto total', 'Valor': `$${reportData.summary.totalAmount.toFixed(2)}` },
-        { 'Concepto': 'Cargas de gas', 'Valor': reportData.summary.countByFuelType.gas },
-        { 'Concepto': 'Cargas de gasolina', 'Valor': reportData.summary.countByFuelType.gasolina },
-        { 'Concepto': 'Cargas pagadas', 'Valor': reportData.summary.countByPaymentStatus.pagada },
-        { 'Concepto': 'Cargas no pagadas', 'Valor': reportData.summary.countByPaymentStatus['no pagada'] }
+      // Definir columnas con tipos específicos
+      worksheet.columns = [
+        { header: 'Fecha', key: 'fecha', width: 20 },
+        { header: 'Operador', key: 'operador', width: 15 },
+        { header: 'Unidad', key: 'unidad', width: 10 },
+        { header: 'Tipo', key: 'tipo', width: 10 },
+        { header: 'Litros', key: 'litros', width: 10 },
+        { header: 'Monto', key: 'monto', width: 12 },
+        { header: 'Estatus', key: 'estatus', width: 12 },
+        { header: 'Fecha Pago', key: 'fechaPago', width: 20 }
       ];
       
-      const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+      // Estilo para los encabezados
+      worksheet.getRow(1).font = { bold: true };
       
-      // Añadir hoja de resumen al libro
-      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
+      // Añadir datos
+      reportData.entries.forEach(entry => {
+        const row = worksheet.addRow({
+          fecha: new Date(entry.recordDate),
+          operador: entry.operatorName,
+          unidad: entry.unitNumber,
+          tipo: entry.fuelType,
+          litros: entry.liters,
+          monto: entry.amount,
+          estatus: entry.paymentStatus,
+          fechaPago: entry.paymentDate ? new Date(entry.paymentDate) : null
+        });
+        
+        // Formatear columnas numéricas
+        row.getCell('litros').numFmt = '0.00';
+        row.getCell('monto').numFmt = '$#,##0.00';
+        
+        // Formatear fechas (MUY IMPORTANTE - esto hará que Excel las reconozca como fechas)
+        row.getCell('fecha').numFmt = 'dd/mm/yyyy hh:mm:ss';
+        if (entry.paymentDate) {
+          row.getCell('fechaPago').numFmt = 'dd/mm/yyyy hh:mm:ss';
+        }
+      });
       
-      // Convertir a buffer
-      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+      // Crear hoja de resumen
+      const summarySheet = workbook.addWorksheet('Resumen');
+      
+      // Configurar columnas de resumen
+      summarySheet.columns = [
+        { header: 'Concepto', key: 'concepto', width: 25 },
+        { header: 'Valor', key: 'valor', width: 15 }
+      ];
+      
+      // Estilo para los encabezados del resumen
+      summarySheet.getRow(1).font = { bold: true };
+      
+      // Añadir datos de resumen
+      const summaryRows = [
+        { concepto: 'Total de registros', valor: reportData.summary.totalEntries },
+        { concepto: 'Total de litros', valor: reportData.summary.totalLiters },
+        { concepto: 'Monto total', valor: reportData.summary.totalAmount },
+        { concepto: 'Cargas de gas', valor: reportData.summary.countByFuelType.gas },
+        { concepto: 'Cargas de gasolina', valor: reportData.summary.countByFuelType.gasolina },
+        { concepto: 'Cargas pagadas', valor: reportData.summary.countByPaymentStatus.pagada },
+        { concepto: 'Cargas no pagadas', valor: reportData.summary.countByPaymentStatus['no pagada'] }
+      ];
+      
+      summaryRows.forEach(item => {
+        const row = summarySheet.addRow(item);
+        if (item.concepto === 'Total de litros') {
+          row.getCell('valor').numFmt = '0.00';
+        } else if (item.concepto === 'Monto total') {
+          row.getCell('valor').numFmt = '$#,##0.00';
+        }
+      });
+      
+      // Crear buffer para guardar archivo
+      const buffer = await workbook.xlsx.writeBuffer();
       
       // Crear archivo temporal
-      const tempFile = await storageService.createTempFile(excelBuffer, 'xlsx');
+      const tempFile = await storageService.createTempFile(buffer, 'xlsx');
       
       return {
         ...tempFile,

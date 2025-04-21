@@ -2,7 +2,76 @@
 
 Un bot de Telegram para empresas que necesitan gestionar y dar seguimiento a las cargas de combustible de sus unidades de transporte. Permite registrar operadores, unidades, cargas de combustible y generar reportes.
 
-## Características
+## 🚀 Comandos Rápidos (Heroku)
+
+### Gestión de Dynos
+
+```bash
+# Escalar a 0 (apagar aplicación)
+heroku ps:scale web=0 --app nombre-de-tu-app
+
+# Escalar a 1 (encender aplicación)
+heroku ps:scale web=1 --app nombre-de-tu-app
+
+# Ver estado actual de dynos
+heroku ps --app nombre-de-tu-app
+```
+
+### Reinicio Rápido
+
+```bash
+# Reiniciar la aplicación
+heroku restart --app nombre-de-tu-app
+```
+
+### Login y Acceso
+
+```bash
+# Login en Heroku CLI
+heroku login
+
+# Abrir consola bash en servidor
+heroku run bash --app nombre-de-tu-app
+
+# Ver logs en tiempo real
+heroku logs --tail --app nombre-de-tu-app
+```
+
+### JIT Commits (Just-In-Time)
+
+```bash
+# Guardar cambios y desplegar rápidamente
+git add .
+git commit -m "Actualización rápida: descripción breve"
+git push heroku main
+
+# Desplegar rama específica como master
+git push heroku otra-rama:main
+```
+
+## 💾 Scripts de Mantenimiento
+
+### Backup Automático
+
+Crea un backup completo del sistema (MongoDB + imágenes + reporte Excel):
+
+```bash
+node scripts/backup-automatico.js
+```
+
+### Actualización Masiva desde Excel
+
+Permite actualizar registros en la base de datos desde un archivo Excel:
+
+```bash
+# Modo simulación (no realiza cambios)
+node scripts/actualizacion.js
+
+# Modo real (modificar variable MODO_SIMULACION=false en el script)
+node scripts/actualizacion.js
+```
+
+## 📋 Características
 
 - ✅ Registro de operadores y unidades
 - ⛽ Registro de cargas de combustible (gas/gasolina)
@@ -11,21 +80,13 @@ Un bot de Telegram para empresas que necesitan gestionar y dar seguimiento a las
 - 📊 Generación de reportes en PDF y Excel
 - 🔍 Filtros para visualizar datos específicos
 
-## Comandos disponibles
-
-- `/start` - Inicia el bot y muestra el menú principal
-- `/registrar` - Registra una nueva unidad
-- `/saldo` - Consulta el saldo pendiente total
-- `/reporte` - Genera reportes según filtros
-- `/ayuda` - Muestra instrucciones de uso
-
-## Requisitos
+## ⚙️ Requisitos
 
 - Node.js 18.x o superior
 - MongoDB
 - Token de Bot de Telegram (obtenido a través de BotFather)
 
-## Instalación local
+## 🛠️ Instalación Local
 
 1. Clona el repositorio:
    ```bash
@@ -51,153 +112,18 @@ Un bot de Telegram para empresas que necesitan gestionar y dar seguimiento a las
    npm run dev
    ```
 
-## Despliegue en Heroku
-
-### Preparación para Heroku
-
-1. Instala Heroku CLI:
-   ```bash
-   npm install -g heroku
-   ```
-
-2. Inicia sesión en Heroku:
-   ```bash
-   heroku login
-   ```
-
-3. Crea una aplicación en Heroku:
-   ```bash
-   heroku create nombre-de-tu-bot
-   ```
-
-### Configuración de variables de entorno
-
-```bash
-heroku config:set TELEGRAM_BOT_TOKEN=tu_token_aqui
-heroku config:set MONGODB_URI=tu_uri_de_mongodb_aqui
-heroku config:set MONGODB_DB_NAME=nombre_db
-heroku config:set NODE_ENV=production
-heroku config:set APP_URL=$(heroku info -s | grep web_url | cut -d= -f2 | sed 's/\/$//g')
-```
-
-### Despliegue
-
-```bash
-git push heroku main
-```
-
-### Monitoreo y mantenimiento
-
-- Ver logs:
-  ```bash
-  heroku logs --tail
-  ```
-
-- Reiniciar el bot:
-  ```bash
-  heroku restart
-  ```
-
-- Escalar dyno:
-  ```bash
-  heroku ps:scale web=1:basic
-  ```
-
-## Comandos útiles de Heroku
-
-### Despliegue
-
-- Desplegar a Heroku:
-  ```bash
-  git push heroku main
-  ```
-
-- Desplegar desde una rama diferente:
-  ```bash
-  git push heroku otra-rama:main
-  ```
-
-### Configuración
-
-- Ver configuración actual:
-  ```bash
-  heroku config
-  ```
-
-- Establecer variable de entorno:
-  ```bash
-  heroku config:set NOMBRE_VARIABLE=valor
-  ```
-
-- Eliminar variable de entorno:
-  ```bash
-  heroku config:unset NOMBRE_VARIABLE
-  ```
-
-### Gestión
-
-- Ver estado de los dynos:
-  ```bash
-  heroku ps
-  ```
-
-- Reiniciar la aplicación:
-  ```bash
-  heroku restart
-  ```
-
-- Ejecutar un comando en el servidor:
-  ```bash
-  heroku run npm list
-  ```
-
-- Abrir la aplicación en el navegador:
-  ```bash
-  heroku open
-  ```
-
-### Logs y diagnóstico
-
-- Ver logs en tiempo real:
-  ```bash
-  heroku logs --tail
-  ```
-
-- Ver últimos N logs:
-  ```bash
-  heroku logs -n 200
-  ```
-
-- Ver logs con marca de tiempo:
-  ```bash
-  heroku logs --tail --timestamps
-  ```
-
-### Mantenimiento
-
-- Activar modo mantenimiento:
-  ```bash
-  heroku maintenance:on
-  ```
-
-- Desactivar modo mantenimiento:
-  ```bash
-  heroku maintenance:off
-  ```
-
-- Obtener información de la app:
-  ```bash
-  heroku info
-  ```
-
-## Estructura del proyecto
+## 🌐 Estructura del proyecto
 
 ```
 telegram-gas-bot/
+├── backups/                     # Backups generados
 ├── config/                      # Configuraciones
 ├── logs/                        # Logs generados
 ├── reports/                     # Reportes generados
 ├── scripts/                     # Scripts utilitarios
+│   ├── actualizacion.js         # Script de actualización masiva
+│   ├── backup-automatico.js     # Script de backup completo
+│   └── setup.js                 # Script de configuración inicial
 ├── src/
 │   ├── api/                     # API de Telegram
 │   ├── commands/                # Comandos del bot
@@ -216,48 +142,15 @@ telegram-gas-bot/
 └── Procfile                     # Configuración de Heroku
 ```
 
-## Solución de problemas
+## ⚠️ Consideraciones en Producción (Heroku)
 
-### El bot no responde
+Heroku tiene un sistema de archivos efímero, lo que significa que los archivos subidos (como imágenes de tickets) se perderán en cada reinicio de dyno. Para un entorno de producción adecuado:
 
-1. Verifica los logs:
-   ```bash
-   heroku logs --tail
-   ```
+1. Configura un almacenamiento en la nube (S3, Cloudinary, Firebase Storage)
+2. Modifica el servicio `storageService` para utilizar este almacenamiento
+3. Programa backups periódicos con el script proporcionado
 
-2. Asegúrate de que el token es correcto:
-   ```bash
-   heroku config:get TELEGRAM_BOT_TOKEN
-   ```
-
-3. Confirma que la URL del webhook está bien configurada:
-   ```bash
-   heroku config:get APP_URL
-   ```
-
-### Problemas con MongoDB
-
-1. Verifica la cadena de conexión:
-   ```bash
-   heroku config:get MONGODB_URI
-   ```
-
-2. Asegúrate de que la IP de Heroku está en la lista de acceso de MongoDB Atlas.
-
-### Restricción de grupo
-
-Si quieres que el bot solo funcione en un grupo específico:
-
-1. Añade el bot al grupo y observa los logs para obtener el ID del grupo.
-2. Modifica el archivo `src/utils/middleware.js` y actualiza la constante `ALLOWED_GROUPS` con el ID del grupo.
-3. Despliega los cambios:
-   ```bash
-   git add .
-   git commit -m "Añadir restricción de grupo"
-   git push heroku main
-   ```
-
-## Contribuir
+## 🤝 Contribuir
 
 1. Haz un fork del repositorio
 2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
@@ -265,6 +158,6 @@ Si quieres que el bot solo funcione en un grupo específico:
 4. Haz push a la rama (`git push origin feature/nueva-funcionalidad`)
 5. Crea un nuevo Pull Request
 
-## Licencia
+## 📄 Licencia
 
 Este proyecto está licenciado bajo [MIT License](LICENSE).
