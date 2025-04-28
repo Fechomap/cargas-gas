@@ -203,6 +203,34 @@ class FuelService {
       throw error;
     }
   }
+  /**
+   * Actualiza la fecha de registro de una carga de combustible
+   * @param {string} fuelId - ID de la carga de combustible
+   * @param {Date} newDate - Nueva fecha de registro
+   * @returns {Promise<Object>} - Carga actualizada
+   */
+  async updateRecordDate(fuelId, newDate) {
+    try {
+      logger.info(`Actualizando fecha de registro para carga ${fuelId} a ${newDate}`);
+      
+      // Buscar la carga por ID
+      const fuel = await this.getFuelById(fuelId);
+      
+      if (!fuel) {
+        throw new Error(`Carga con ID ${fuelId} no encontrada`);
+      }
+      
+      // Actualizar la fecha de registro
+      fuel.recordDate = newDate;
+      await fuel.save();
+      
+      logger.info(`Fecha de registro actualizada correctamente: ${newDate}`);
+      return fuel;
+    } catch (error) {
+      logger.error(`Error en servicio de combustible (updateRecordDate): ${error.message}`);
+      throw error;
+    }
+  }
 }
 
 export const fuelService = new FuelService();

@@ -255,17 +255,10 @@ class FuelController {
       
       await ctx.answerCbQuery('Carga guardada correctamente');
       await ctx.reply(`✅ Carga registrada correctamente con ID: ${savedFuel._id}`);
-      
-      // Limpiar estado de conversación
-      await updateConversationState(ctx, 'idle', {});
-      
-      // Mostrar menú principal o permitir otra captura
-      await ctx.reply('¿Qué deseas hacer ahora?', 
-        Markup.inlineKeyboard([
-          [Markup.button.callback('📝 Registrar otra carga', ctx.session.data.unitButtonId || 'show_units')],
-          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
-        ])
-      );
+
+      // Iniciar verificación de fecha de registro
+      await this.checkRecordDate(ctx, savedFuel);
+      return;
     } catch (error) {
       logger.error(`Error al guardar carga: ${error.message}`);
       logger.error(error.stack || 'No stack trace disponible');
@@ -274,6 +267,199 @@ class FuelController {
       
       // Añadir botón para volver al menú principal incluso después de error
       await ctx.reply('¿Qué deseas hacer ahora?', 
+        Markup.inlineKeyboard([
+          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+        ])
+      );
+    }
+  }
+
+  /**
+   * Verifica si la fecha de registro debe ser ajustada
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {Object} savedFuel - Registro de combustible guardado
+   */
+  async checkRecordDate(ctx, savedFuel) {
+    try {
+      logger.info(`Verificando fecha de registro para carga ${savedFuel._id}`);
+      
+      // Guardar el ID de la carga guardada en la sesión para referencia posterior
+      ctx.session.data.savedFuelId = savedFuel._id;
+      await updateConversationState(ctx, 'fuel_date_confirm');
+      
+      // Preguntar si la carga se realizó hoy
+      await ctx.reply('¿La recarga se realizó hoy?',
+        Markup.inlineKeyboard([
+          [Markup.button.callback('✅ Sí, es de hoy', 'fuel_date_today')],
+          [Markup.button.callback('❌ No, es de otra fecha', 'fuel_date_other')]
+        ])
+      );
+    } catch (error) {
+      logger.error(`Error al verificar fecha de registro: ${error.message}`);
+      // En caso de error, consideramos que la fecha es correcta y continuamos
+      await this.completeFuelRegistration(ctx);
+    }
+  }
+
+  /**
+   * Muestra opciones para seleccionar una fecha reciente
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async showDateOptions(ctx) {
+    try {
+      await ctx.answerCbQuery('Selecciona la fecha real de la carga');
+      await updateConversationState(ctx, 'fuel_date_select');
+      
+      const buttons = [];
+      const formatDate = this.formatDate;
+      // Ayer
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      buttons.push([Markup.button.callback(
+        `Ayer (${formatDate(yesterday)})`,
+        `fuel_date_day_1`
+      )]);
+      // Antier
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+      buttons.push([Markup.button.callback(
+        `Antier (${formatDate(twoDaysAgo)})`,
+        `fuel_date_day_2`
+      )]);
+      // Días 3 al 7
+      for (let i = 3; i <= 7; i++) {
+        const pastDate = new Date();
+        pastDate.setDate(pastDate.getDate() - i);
+        buttons.push([Markup.button.callback(
+          `Hace ${i} días (${formatDate(pastDate)})`,
+          `fuel_date_day_${i}`
+        )]);
+      }
+      // Opción personalizada y cancelar
+      buttons.push([Markup.button.callback('📅 Elegir otra fecha', 'fuel_date_custom')]);
+      buttons.push([Markup.button.callback('Cancelar (usar fecha actual)', 'fuel_date_cancel')]);
+      
+      await ctx.reply('Selecciona la fecha real de la carga:',
+        Markup.inlineKeyboard(buttons)
+      );
+    } catch (error) {
+      logger.error(`Error al mostrar opciones de fecha: ${error.message}`);
+      await ctx.reply('Ocurrió un error al procesar la selección de fecha.');
+      await this.completeFuelRegistration(ctx);
+    }
+  }
+
+  /**
+   * Ajusta la fecha de registro según los días seleccionados
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {number} daysAgo - Días hacia atrás desde hoy
+   */
+  async updateRecordDate(ctx, daysAgo) {
+    try {
+      if (!ctx.session.data.savedFuelId) {
+        throw new Error('No se encontró referencia a la carga guardada');
+      }
+      const newDate = new Date();
+      newDate.setDate(newDate.getDate() - daysAgo);
+      newDate.setHours(12, 0, 0, 0);
+      
+      const updatedFuel = await fuelService.updateRecordDate(
+        ctx.session.data.savedFuelId,
+        newDate
+      );
+      
+      await ctx.answerCbQuery('Fecha actualizada correctamente');
+      await ctx.reply(`✅ Fecha de carga actualizada a: ${this.formatDate(newDate)}`);
+      await this.completeFuelRegistration(ctx);
+    } catch (error) {
+      logger.error(`Error al actualizar fecha de registro: ${error.message}`);
+      await ctx.answerCbQuery('Error al actualizar fecha');
+      await ctx.reply('Ocurrió un error al actualizar la fecha. La carga se registró con la fecha actual.');
+      await this.completeFuelRegistration(ctx);
+    }
+  }
+
+  /**
+   * Solicita al usuario ingresar una fecha manual
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async requestCustomDate(ctx) {
+    try {
+      await ctx.answerCbQuery('Ingresa la fecha manualmente');
+      await updateConversationState(ctx, 'fuel_date_custom_input');
+      await ctx.reply(
+        'Por favor, ingresa la fecha en formato DD/MM/AAAA\n' +
+        'Ejemplo: 25/04/2025\n\n' +
+        'La fecha no puede ser posterior a hoy ni anterior a 30 días'
+      );
+    } catch (error) {
+      logger.error(`Error al solicitar fecha personalizada: ${error.message}`);
+      await ctx.reply('Ocurrió un error al procesar la solicitud.');
+      await this.completeFuelRegistration(ctx);
+    }
+  }
+
+  /**
+   * Procesa la entrada de fecha manual del usuario
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async handleCustomDateInput(ctx) {
+    try {
+      const dateText = ctx.message.text.trim();
+      const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+      const match = dateText.match(dateRegex);
+      if (!match) {
+        return await ctx.reply(
+          '❌ Formato de fecha incorrecto.\n' +
+          'Por favor, usa el formato DD/MM/AAAA (ejemplo: 25/04/2025):'
+        );
+      }
+      const [, day, month, year] = match;
+      const inputDate = new Date(year, month - 1, day, 12, 0, 0, 0);
+      if (isNaN(inputDate.getTime())) {
+        return await ctx.reply('❌ Fecha inválida. Por favor, ingresa una fecha real:');
+      }
+      const today = new Date();
+      if (inputDate > today) {
+        return await ctx.reply('❌ La fecha no puede ser posterior a hoy. Por favor, ingresa otra fecha:');
+      }
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      if (inputDate < thirtyDaysAgo) {
+        return await ctx.reply('❌ La fecha no puede ser anterior a 30 días. Por favor, ingresa otra fecha:');
+      }
+      if (!ctx.session.data.savedFuelId) {
+        throw new Error('No se encontró referencia a la carga guardada');
+      }
+      const updatedFuel = await fuelService.updateRecordDate(
+        ctx.session.data.savedFuelId,
+        inputDate
+      );
+      await ctx.reply(`✅ Fecha de carga actualizada a: ${this.formatDate(inputDate)}`);
+      await this.completeFuelRegistration(ctx);
+    } catch (error) {
+      logger.error(`Error al procesar fecha personalizada: ${error.message}`);
+      await ctx.reply('Ocurrió un error al procesar la fecha. La carga se registró con la fecha actual.');
+      await this.completeFuelRegistration(ctx);
+    }
+  }
+
+  /**
+   * Finaliza el proceso de registro después de la verificación de fecha
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async completeFuelRegistration(ctx) {
+    try {
+      await updateConversationState(ctx, 'idle', {});
+      await ctx.reply('¿Qué deseas hacer ahora?',
+        Markup.inlineKeyboard([
+          [Markup.button.callback('📝 Registrar otra carga', ctx.session.data.unitButtonId || 'show_units')],
+          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+        ])
+      );
+    } catch (error) {
+      logger.error(`Error al completar registro: ${error.message}`);
+      await ctx.reply('¿Qué deseas hacer ahora?',
         Markup.inlineKeyboard([
           [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
         ])
@@ -321,5 +507,17 @@ class FuelController {
     }
   }
 }
+
+// Función auxiliar para formatear fechas
+function formatDate(date) {
+  return date.toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+}
+
+// Para acceso desde métodos de clase
+FuelController.prototype.formatDate = formatDate;
 
 export const fuelController = new FuelController();
