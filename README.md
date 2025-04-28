@@ -2,9 +2,11 @@
 
 Un bot de Telegram que permite gestionar y dar seguimiento a las cargas de combustible de unidades de transporte. Registra operadores, unidades, cargas y genera reportes detallados.
 
-## 🚀 Comandos Rápidos (Heroku)
+## 🚀 Comandos de Plataformas Cloud
 
-### Gestión de Dynos
+### Heroku
+
+#### Gestión de Dynos
 
 ```bash
 # Apagar la aplicación (escalar a 0)
@@ -17,7 +19,7 @@ heroku ps:scale web=1 --app cargas-gas
 heroku ps --app cargas-gas
 ```
 
-### Reinicio y Mantenimiento
+#### Reinicio y Mantenimiento
 
 ```bash
 # Reiniciar la aplicación
@@ -30,7 +32,7 @@ heroku logs --tail --app cargas-gas
 heroku run bash --app cargas-gas
 ```
 
-### Acceso y Autenticación
+#### Acceso y Autenticación
 
 ```bash
 # Login en Heroku CLI
@@ -40,7 +42,7 @@ heroku login
 heroku auth:whoami
 ```
 
-### GIT Commits
+#### GIT y Despliegue
 
 ```bash
 # Guardar cambios y desplegar rápidamente
@@ -50,6 +52,96 @@ git push heroku main
 
 # Desplegar rama específica
 git push heroku otra-rama:main
+```
+
+#### Variables de Entorno
+
+```bash
+# Ver todas las variables de entorno
+heroku config --app cargas-gas
+
+# Establecer una variable de entorno
+heroku config:set NOMBRE_VARIABLE=valor --app cargas-gas
+
+# Consultar una variable específica
+heroku config:get MONGODB_URI --app cargas-gas
+```
+
+### Railway
+
+#### Instalación y Autenticación
+
+```bash
+# Instalar Railway CLI
+npm i -g @railway/cli
+
+# Iniciar sesión en Railway
+railway login
+
+# Verificar estado de sesión
+railway whoami
+```
+
+#### Gestión del Proyecto
+
+```bash
+# Listar proyectos disponibles
+railway projects
+
+# Enlazar con un proyecto existente
+railway link
+
+# Iniciar un nuevo proyecto
+railway init
+```
+
+#### Despliegue y Actualización
+
+```bash
+# Desplegar aplicación actual
+railway up
+
+# Desplegar con variables de entorno locales
+railway up --env-file .env.local
+
+# Desplegar desde una rama git específica
+railway up --detach
+```
+
+#### Variables de Entorno
+
+```bash
+# Ver variables de entorno
+railway variables
+
+# Agregar/actualizar variables
+railway variables set NOMBRE_VARIABLE=valor
+
+# Eliminar una variable
+railway variables delete NOMBRE_VARIABLE
+```
+
+#### Monitoreo y Depuración
+
+```bash
+# Ver logs en tiempo real
+railway logs
+
+# Abrir panel de control en el navegador
+railway open
+
+# Ejecutar comando en la instancia remota
+railway run <comando>
+```
+
+#### Base de Datos
+
+```bash
+# Conectar a bases de datos provisionales
+railway connect
+
+# Realizar backup de MongoDB
+railway run mongodump --uri="$MONGODB_URI" --archive > backup_$(date +%Y%m%d).archive
 ```
 
 ## 💾 Scripts de Mantenimiento
@@ -83,13 +175,14 @@ node scripts/actualizacion.js
 - 💰 Control de pagos y saldos pendientes
 - 📊 Reportes detallados en PDF y Excel
 - 🔍 Filtros avanzados para análisis de datos
+- 📅 Selección de fecha manual para registros retroactivos
 
 ## ⚙️ Requisitos Técnicos
 
 - Node.js 18.x o superior
 - MongoDB
 - Token de Bot de Telegram (BotFather)
-- Cuenta en Heroku (para despliegue)
+- Cuenta en Heroku o Railway (para despliegue)
 
 ## 🛠️ Instalación Local
 
@@ -149,7 +242,9 @@ cargas-gas/
 
 ## ⚠️ Notas Importantes
 
-### Sistema de Archivos en Heroku
+### Sistema de Archivos en Plataformas Cloud
+
+#### Heroku
 
 Heroku tiene un sistema de archivos efímero. Los archivos subidos (como imágenes de tickets) se perderán en cada reinicio de dyno. Para producción:
 
@@ -157,15 +252,38 @@ Heroku tiene un sistema de archivos efímero. Los archivos subidos (como imágen
 2. Modificar `storageService` para utilizar este almacenamiento
 3. Programar backups periódicos con el script proporcionado
 
+#### Railway
+
+Railway también tiene un sistema de archivos efímero, similar a Heroku. Sin embargo, ofrece volúmenes persistentes que pueden configurarse para almacenar archivos de forma permanente:
+
+1. Crear un volumen persistente desde el panel de Railway
+2. Montar el volumen en la ruta `/app/uploads`
+3. Configurar la aplicación para utilizar esta ruta para almacenamiento
+
 ### MongoDB Atlas
 
 Para gestionar la base de datos:
 ```bash
 # Ver estadísticas de la base de datos
-heroku run node scripts/db-stats.js --app cargas-gas
+node scripts/db-stats.js
 
-# Ver MongoDB connection string
+# Ver MongoDB connection string (Heroku)
 heroku config:get MONGODB_URI --app cargas-gas
+
+# Ver MongoDB connection string (Railway)
+railway variables get MONGODB_URI
+```
+
+### Sincronización entre Entornos
+
+Para mantener sincronizados los entornos de Heroku y Railway:
+
+```bash
+# Exportar variables de entorno de Heroku
+heroku config --app cargas-gas -s > .env.heroku
+
+# Importar variables a Railway (requiere procesamiento del archivo)
+cat .env.heroku | grep -v '^#' | sed 's/^/railway variables set /' | sh
 ```
 
 ## 📄 Licencia
