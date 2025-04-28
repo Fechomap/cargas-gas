@@ -115,6 +115,7 @@ class ReportService {
         { header: 'Tipo', key: 'tipo', width: 10 },
         { header: 'Litros', key: 'litros', width: 10 },
         { header: 'Monto', key: 'monto', width: 12 },
+        { header: 'Número de Venta', key: 'numeroVenta', width: 15 },
         { header: 'Estatus', key: 'estatus', width: 12 },
         { header: 'Fecha Pago', key: 'fechaPago', width: 20 }
       ];
@@ -131,6 +132,7 @@ class ReportService {
           tipo: entry.fuelType,
           litros: entry.liters,
           monto: entry.amount,
+          numeroVenta: entry.saleNumber || 'N/A',
           estatus: entry.paymentStatus,
           fechaPago: entry.paymentDate ? new Date(entry.paymentDate) : null
         });
@@ -234,7 +236,7 @@ class ReportService {
   createPdfDocDefinition(reportData, filters) {
     // Convertir datos a formato tabular para PDF
     const tableBody = [
-      ['Fecha', 'Operador', 'Unidad', 'Tipo', 'Litros', 'Monto', 'Estatus']
+      ['Fecha', 'Operador', 'Unidad', 'Tipo', 'Litros', 'Monto', 'Núm. Venta', 'Estatus']
     ];
 
     reportData.entries.forEach(entry => {
@@ -245,6 +247,7 @@ class ReportService {
         entry.fuelType,
         entry.liters.toFixed(2),
         `$${entry.amount.toFixed(2)}`,
+        entry.saleNumber || 'N/A',
         entry.paymentStatus
       ]);
     });
@@ -295,7 +298,7 @@ class ReportService {
         {
           table: {
             headerRows: 1,
-            widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
+            widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
             body: tableBody
           },
           layout: 'lightHorizontalLines',

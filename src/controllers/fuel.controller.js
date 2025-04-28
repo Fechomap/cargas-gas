@@ -137,6 +137,44 @@ class FuelController {
       
       // Guardar URL de la foto en la sesión
       ctx.session.data.ticketPhoto = photoUrl;
+      
+      // Actualizar el estado para solicitar el número de venta
+      await updateConversationState(ctx, 'fuel_entry_sale_number');
+      
+      // Solicitar el número de venta
+      await ctx.reply('Por favor, ingresa el número de venta (4 dígitos impresos en la nota):');
+      
+    } catch (error) {
+      logger.error(`Error en manejo de foto: ${error.message}`);
+      await ctx.reply('Ocurrió un error con la foto. Continuaremos sin foto del ticket.');
+      
+      // Continuar sin foto
+      ctx.session.data.ticketPhoto = null;
+      
+      // Actualizar estado para pedir número de venta
+      await updateConversationState(ctx, 'fuel_entry_sale_number');
+      
+      // Solicitar el número de venta
+      await ctx.reply('Por favor, ingresa el número de venta (4 dígitos impresos en la nota):');
+    }
+  }
+  
+  /**
+   * Procesa la entrada del número de venta
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async handleSaleNumberEntry(ctx) {
+    try {
+      const saleNumber = ctx.message.text.trim();
+      
+      // Validar formato: 4 dígitos exactos
+      const saleNumberRegex = /^\d{4}$/;
+      if (!saleNumberRegex.test(saleNumber)) {
+        return await ctx.reply('❌ Formato inválido. Ingresa un número de 4 dígitos sin espacios ni letras.');
+      }
+      
+      // Guardar número de venta en la sesión
+      ctx.session.data.saleNumber = saleNumber;
       await updateConversationState(ctx, 'fuel_entry_payment');
       
       // Solicitar estatus de pago
@@ -147,19 +185,8 @@ class FuelController {
         ])
       );
     } catch (error) {
-      logger.error(`Error en manejo de foto: ${error.message}`);
-      await ctx.reply('Ocurrió un error con la foto. Continuaremos sin foto del ticket.');
-      
-      // Continuar sin foto
-      ctx.session.data.ticketPhoto = null;
-      await updateConversationState(ctx, 'fuel_entry_payment');
-      
-      await ctx.reply('¿Cuál es el estatus de pago?', 
-        Markup.inlineKeyboard([
-          Markup.button.callback('Pagada', 'payment_status_pagada'),
-          Markup.button.callback('No pagada', 'payment_status_no_pagada')
-        ])
-      );
+      logger.error(`Error en entrada de número de venta: ${error.message}`);
+      await ctx.reply('Ocurrió un error. Por favor, ingresa nuevamente el número de venta.');
     }
   }
   
@@ -178,14 +205,15 @@ class FuelController {
       
       // Mostrar resumen y solicitar confirmación
       const summary = `
-  📝 *Resumen de la carga*
-  👤 Operador: ${ctx.session.data.operatorName}
-  🚚 Unidad: ${ctx.session.data.unitNumber}
-  ⛽ Tipo: ${ctx.session.data.fuelType}
-  🔢 Litros: ${ctx.session.data.liters}
-  💰 Monto: $${ctx.session.data.amount.toFixed(2)}
-  💳 Estatus: ${ctx.session.data.paymentStatus}
-  🧾 Ticket: ${ctx.session.data.ticketPhoto ? 'Incluido' : 'No incluido'}
+📝 *Resumen de la carga*
+👤 Operador: ${ctx.session.data.operatorName}
+🚚 Unidad: ${ctx.session.data.unitNumber}
+⛽ Tipo: ${ctx.session.data.fuelType}
+🔢 Litros: ${ctx.session.data.liters}
+💰 Monto: $${ctx.session.data.amount.toFixed(2)}
+🧾 Número de venta: ${ctx.session.data.saleNumber || 'No proporcionado'}
+💳 Estatus: ${ctx.session.data.paymentStatus}
+🧾 Ticket: ${ctx.session.data.ticketPhoto ? 'Incluido' : 'No incluido'}
       `;
       
       // IMPORTANTE: Usar Markup explícitamente con botones de callback correctos
@@ -229,6 +257,7 @@ class FuelController {
         liters: Number(ctx.session.data.liters) || 0,
         amount: Number(ctx.session.data.amount) || 0,
         fuelType: ctx.session.data.fuelType || 'gas',
+        saleNumber: ctx.session.data.saleNumber || null,  // Incluir número de venta
         paymentStatus: ctx.session.data.paymentStatus || 'no pagada',
         ticketPhoto: ctx.session.data.ticketPhoto || null,
         operatorName: ctx.session.data.operatorName,

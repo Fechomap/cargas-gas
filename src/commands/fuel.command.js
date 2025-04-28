@@ -119,6 +119,12 @@ export function setupFuelCommand(bot) {
       return;
     }
     
+    // Nuevo manejador para el número de venta
+    if (isInState(ctx, 'fuel_entry_sale_number')) {
+      await fuelController.handleSaleNumberEntry(ctx);
+      return;
+    }
+    
     // Continuar con el siguiente middleware si no estamos en un estado de carga
     return next();
   });

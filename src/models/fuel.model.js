@@ -26,6 +26,13 @@ const fuelSchema = new mongoose.Schema({
     required: [true, 'El tipo de combustible es obligatorio']
   },
   
+  // Número de venta (nuevo campo)
+  saleNumber: {
+    type: String,
+    match: [/^\d{4}$/, 'El número de venta debe ser de 4 dígitos exactos'],
+    default: null
+  },
+  
   // Gestión de pagos
   paymentStatus: {
     type: String,
@@ -58,7 +65,8 @@ const fuelSchema = new mongoose.Schema({
     { paymentStatus: 1 },
     { fuelType: 1 },
     { recordDate: 1 },
-    { operatorName: 1 }
+    { operatorName: 1 },
+    { saleNumber: 1 }  // Nuevo índice para facilitar búsquedas por número de venta
   ]
 });
 

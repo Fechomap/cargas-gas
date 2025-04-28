@@ -33,6 +33,7 @@ class FuelService {
         liters: Number(fuelData.liters) || 0,
         amount: Number(fuelData.amount) || 0,
         fuelType: fuelData.fuelType || 'gas',
+        saleNumber: fuelData.saleNumber || null,  // Incluir el número de venta
         paymentStatus: fuelData.paymentStatus || 'no pagada',
         ticketPhoto: fuelData.ticketPhoto || null,
         operatorName: fuelData.operatorName || unit.operatorName,
