@@ -71,7 +71,7 @@ export function setupDiagnosticMiddleware(bot) {
  */
 export function setupGroupRestriction(bot) {
   // IMPORTANTE: Reemplaza este ID con la ID real de tu grupo
-  const ALLOWED_GROUP_ID = -1002411620798; // ID de tu grupo
+  const ALLOWED_GROUP_IDS = [-1002411620798, -4527368480]; // ID de tu grupo
   
   // Middleware para restringir acceso SOLO al grupo específico
   bot.use((ctx, next) => {
@@ -81,7 +81,7 @@ export function setupGroupRestriction(bot) {
     }
     
     // Si no hay chat o no es el grupo autorizado, ignorar
-    if (!ctx.chat || ctx.chat.id !== ALLOWED_GROUP_ID) {
+    if (!ctx.chat || !ALLOWED_GROUP_IDS.includes(ctx.chat.id)) {
       logger.warn(`Acceso denegado - ID: ${ctx.chat?.id || 'desconocido'}, Tipo: ${ctx.chat?.type || 'desconocido'}`);
       return; // Bloquear silenciosamente, no responder al usuario
     }
