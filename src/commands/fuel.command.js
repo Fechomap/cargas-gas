@@ -23,7 +23,6 @@ export function setupFuelCommand(bot) {
       await ctx.answerCbQuery('Selecciona la unidad para la carga...');
       
       // Llamar al controlador de unidades para mostrar la selección
-      // Asumiendo que existe un método para esto en unitController
       await unitController.requestUnitSelectionForFuel(ctx); 
       
     } catch (error) {
@@ -41,7 +40,6 @@ export function setupFuelCommand(bot) {
   bot.command('saldo', async (ctx) => {
     try {
       logger.info(`Usuario ${ctx.from.id} solicitó saldo pendiente`);
-      // CORRECCIÓN: Añadir logs antes y después de la llamada para trazar posible fallo
       logger.info('Llamando a fuelController.getTotalPendingBalance()');
       const totalAmount = await fuelController.getTotalPendingBalance();
       logger.info(`Saldo recuperado: ${totalAmount}`);
@@ -50,7 +48,6 @@ export function setupFuelCommand(bot) {
         parse_mode: 'Markdown'
       });
       
-      // CORRECCIÓN: Mostrar menú después de la acción
       await ctx.reply('¿Qué deseas hacer ahora?', {
         reply_markup: getMainKeyboard()
       });
@@ -70,7 +67,6 @@ export function setupFuelCommand(bot) {
       logger.info(`Usuario ${ctx.from.id} solicitó saldo pendiente mediante botón`);
       await ctx.answerCbQuery('Consultando saldo pendiente...');
       
-      // CORRECCIÓN: Añadir logs para trazar
       logger.info('Llamando a fuelController.getTotalPendingBalance()');
       const totalAmount = await fuelController.getTotalPendingBalance();
       logger.info(`Saldo recuperado: ${totalAmount}`);
@@ -79,7 +75,6 @@ export function setupFuelCommand(bot) {
         parse_mode: 'Markdown'
       });
       
-      // CORRECCIÓN: Mostrar menú después de la acción
       await ctx.reply('¿Qué deseas hacer ahora?', {
         reply_markup: getMainKeyboard()
       });
@@ -119,9 +114,13 @@ export function setupFuelCommand(bot) {
       return;
     }
     
-    // Nuevo manejador para el número de venta
     if (isInState(ctx, 'fuel_entry_sale_number')) {
       await fuelController.handleSaleNumberEntry(ctx);
+      return;
+    }
+    
+    if (isInState(ctx, 'fuel_date_custom_input')) {
+      await fuelController.handleCustomDateInput(ctx);
       return;
     }
     
@@ -166,7 +165,6 @@ export function setupFuelCommand(bot) {
   });
   
   // Manejar confirmación final
-  // Manejar confirmación final
   bot.action('fuel_confirm_save', async (ctx) => {
     logger.info(`BOTÓN DE CONFIRMACIÓN PRESIONADO: fuel_confirm_save`);
     try {
@@ -210,9 +208,7 @@ export function setupFuelCommand(bot) {
     });
   });
   
-  // Manejar el botón main_menu de forma adecuada 
-  // NOTE: This handler might be redundant if already defined elsewhere (e.g., start.command.js)
-  // Consider consolidating main_menu handling later if needed.
+  // Manejar el botón main_menu de forma adecuada
   bot.action('main_menu', async (ctx) => {
     try {
       await ctx.answerCbQuery('Volviendo al menú principal');
@@ -320,15 +316,4 @@ export function setupFuelCommand(bot) {
       }
     });
   }
-
-  // Manejador para entrada de texto (fecha manual)
-  bot.on('text', async (ctx, next) => {
-    if (isInState(ctx, 'fuel_date_custom_input')) {
-      await fuelController.handleCustomDateInput(ctx);
-      return;
-    }
-    
-    // Continuar con otros manejadores si no estamos en este estado
-    return next();
-  });
 }

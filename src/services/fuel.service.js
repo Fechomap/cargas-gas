@@ -144,7 +144,6 @@ class FuelService {
     try {
       logger.info('Iniciando cálculo de saldo pendiente');
       
-      // CORRECCIÓN: Implementar cálculo directo para mayor confiabilidad
       const result = await Fuel.aggregate([
         { $match: { paymentStatus: 'no pagada' } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
@@ -157,7 +156,6 @@ class FuelService {
       return total;
     } catch (error) {
       logger.error(`Error en servicio de combustible (getTotalUnpaidAmount): ${error.message}`, error);
-      // CORRECCIÓN: Retornar 0 en caso de error para evitar que el flujo se rompa
       return 0;
     }
   }
@@ -204,6 +202,7 @@ class FuelService {
       throw error;
     }
   }
+
   /**
    * Actualiza la fecha de registro de una carga de combustible
    * @param {string} fuelId - ID de la carga de combustible

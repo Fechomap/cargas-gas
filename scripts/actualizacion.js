@@ -10,19 +10,16 @@ import { logger } from '../src/utils/logger.js';
 // ============================================================
 // CONFIGURACIÓN DE SEGURIDAD
 // ============================================================
-// ✓ MODO SIMULACIÓN: true = solo simula cambios (no guarda), false = aplica cambios
 const MODO_SIMULACION = false;
-// ✓ LÍMITE DE REGISTROS: Limita la cantidad de registros a procesar (0 = sin límite)
 const LIMITE_REGISTROS = 0;
+const DEBUG = true;
 // ============================================================
 
-// Ruta al archivo Excel
 const FILE_PATH = path.resolve(process.cwd(), 'scripts', 'actualizacion.xlsx');
 
 // Función para leer el archivo Excel
 async function readExcelFile() {
   try {
-    // Verificar si el archivo existe
     if (!fs.existsSync(FILE_PATH)) {
       throw new Error(`El archivo actualizacion.xlsx no existe en ${FILE_PATH}`);
     }
@@ -32,7 +29,6 @@ async function readExcelFile() {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(FILE_PATH);
     
-    // Asumimos que los datos están en la primera hoja ("Cargas")
     const worksheet = workbook.getWorksheet('Cargas');
     if (!worksheet) {
       throw new Error('No se encontró la hoja "Cargas" en el archivo Excel');
@@ -46,36 +42,51 @@ async function readExcelFile() {
       headers[colNumber] = cell.value;
     });
     
+    // Mostrar encabezados encontrados
+    logger.info('=== ENCABEZADOS ENCONTRADOS EN EL EXCEL ===');
+    headers.forEach((header, index) => {
+      if (header) logger.info(`Columna ${index}: "${header}"`);
+    });
+    logger.info('==========================================');
+    
     // Obtener datos
     worksheet.eachRow((row, rowNumber) => {
-      // Omitir fila de encabezados
       if (rowNumber > 1) {
         const rowData = {};
         
-        row.eachCell((cell, colNumber) => {
+        // IMPORTANTE: Usar forEach para asegurar que leemos TODAS las celdas
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
           const header = headers[colNumber];
           if (header) {
-            // Manejar tipos de datos específicamente
+            // Manejar diferentes tipos de celdas
             if (cell.type === ExcelJS.ValueType.Date) {
-              rowData[header] = cell.value; // ExcelJS ya convierte a Date
-            } else {
               rowData[header] = cell.value;
+            } else if (cell.type === ExcelJS.ValueType.Number) {
+              rowData[header] = cell.value;
+            } else if (cell.type === ExcelJS.ValueType.String) {
+              rowData[header] = cell.value;
+            } else if (cell.value !== null && cell.value !== undefined) {
+              rowData[header] = cell.value.toString();
+            } else {
+              rowData[header] = null; // Explícitamente establecer null para celdas vacías
             }
           }
         });
+        
+        // Debug: Mostrar primera fila completa
+        if (rowNumber === 2 && DEBUG) {
+          logger.info('=== PRIMERA FILA DE DATOS ===');
+          Object.entries(rowData).forEach(([key, value]) => {
+            logger.info(`${key}: "${value}" (tipo: ${typeof value})`);
+          });
+          logger.info('============================');
+        }
         
         rows.push(rowData);
       }
     });
     
     logger.info(`Se leyeron ${rows.length} registros del archivo Excel`);
-    
-    // Aplicar límite de registros si está configurado
-    if (LIMITE_REGISTROS > 0 && rows.length > LIMITE_REGISTROS) {
-      logger.info(`⚠️ LIMITANDO A ${LIMITE_REGISTROS} REGISTROS POR SEGURIDAD`);
-      return rows.slice(0, LIMITE_REGISTROS);
-    }
-    
     return rows;
   } catch (error) {
     logger.error(`Error al leer archivo Excel: ${error.message}`);
@@ -91,13 +102,10 @@ async function findRecord(rowData) {
       return await Fuel.findById(rowData._id);
     }
     
-    // Opción 2: Buscar por combinación de campos
     const query = {};
     
-    // Verificar campos clave disponibles para la búsqueda
     if (rowData.Fecha) {
       if (rowData.Fecha instanceof Date) {
-        // Crear un rango de 1 minuto alrededor de la fecha para manejar diferencias de precisión
         const startDate = new Date(rowData.Fecha);
         const endDate = new Date(rowData.Fecha);
         startDate.setMinutes(startDate.getMinutes() - 1);
@@ -108,10 +116,8 @@ async function findRecord(rowData) {
           $lte: endDate
         };
       } else {
-        // Si no es un objeto Date, intentar convertirlo
         const date = new Date(rowData.Fecha);
         if (!isNaN(date.getTime())) {
-          // Mismo enfoque de rango
           const startDate = new Date(date);
           const endDate = new Date(date);
           startDate.setMinutes(startDate.getMinutes() - 1);
@@ -137,7 +143,6 @@ async function findRecord(rowData) {
       query.fuelType = rowData.Tipo;
     }
     
-    // Verificar que tenemos suficientes campos para una búsqueda precisa
     const requiredFields = ['recordDate', 'operatorName', 'unitNumber'];
     const missingFields = requiredFields.filter(field => !query[field]);
     
@@ -145,15 +150,11 @@ async function findRecord(rowData) {
       throw new Error(`No se pueden identificar registros sin los campos: ${missingFields.join(', ')}`);
     }
     
-    // Buscar registros que coincidan
     const records = await Fuel.find(query);
     
-    // Verificar unicidad
     if (records.length === 0) {
-      return null; // No se encontró registro
+      return null;
     } else if (records.length > 1) {
-      // Intento adicional para reducir ambigüedad
-      // Filtrar por litros y monto si están disponibles
       const filteredRecords = records.filter(record => {
         let match = true;
         
@@ -172,7 +173,7 @@ async function findRecord(rowData) {
         return filteredRecords[0];
       }
       
-      throw new Error(`Se encontraron múltiples registros (${records.length}) para la consulta. No se puede actualizar de forma segura.`);
+      throw new Error(`Se encontraron múltiples registros (${records.length}) para la consulta.`);
     }
     
     return records[0];
@@ -182,13 +183,34 @@ async function findRecord(rowData) {
   }
 }
 
-// Función para comparar y actualizar un registro
+// Función corregida para actualizar registro
 async function updateRecord(record, rowData) {
   try {
     let modified = false;
     const changes = [];
     
-    // Mapeo de campos del Excel a campos del modelo
+    // ACTUALIZADO: Posibles nombres de columna para número de venta
+    const possibleSaleNumberColumns = [
+      'Número de Venta',
+      'Numero de Venta',
+      'Número de venta',
+      'Numero de venta',
+      'Num. Venta',
+      'Núm. Venta',
+      'No. Venta',
+      'NumVenta'
+    ];
+    
+    // Buscar la columna de número de venta con cualquiera de los nombres posibles
+    let saleNumberColumnName = null;
+    for (const colName of possibleSaleNumberColumns) {
+      if (rowData.hasOwnProperty(colName)) {
+        saleNumberColumnName = colName;
+        break;
+      }
+    }
+    
+    // Mapeo de campos
     const fieldMappings = {
       'Fecha': 'recordDate',
       'Operador': 'operatorName',
@@ -200,58 +222,122 @@ async function updateRecord(record, rowData) {
       'Fecha Pago': 'paymentDate'
     };
     
-    // Clonar el registro original para simulación
+    // Añadir el mapeo de número de venta si encontramos la columna
+    if (saleNumberColumnName) {
+      fieldMappings[saleNumberColumnName] = 'saleNumber';
+    }
+    
+    if (DEBUG) {
+      logger.info(`\n=== PROCESANDO REGISTRO ID: ${record._id} ===`);
+      logger.info(`Campos en Excel: ${Object.keys(rowData).join(', ')}`);
+      if (saleNumberColumnName) {
+        logger.info(`Columna de número de venta encontrada: "${saleNumberColumnName}"`);
+      } else {
+        logger.warn('No se encontró columna de número de venta');
+      }
+    }
+    
     const originalRecord = JSON.parse(JSON.stringify(record.toObject()));
     
     // Verificar y actualizar cada campo
     for (const [excelField, modelField] of Object.entries(fieldMappings)) {
-      if (rowData[excelField] !== undefined) {
-        let newValue = rowData[excelField];
+      if (DEBUG) {
+        logger.info(`\nProcesando campo: ${excelField} -> ${modelField}`);
+      }
+      
+      // Obtener valor del Excel
+      let excelValue = rowData[excelField];
+      
+      // Log especial para número de venta
+      if (modelField === 'saleNumber' && DEBUG) {
+        logger.info(`Valor raw del Excel para número de venta: "${excelValue}" (tipo: ${typeof excelValue})`);
+      }
+      
+      // Verificar si hay un valor para procesar
+      if (excelValue !== undefined) {
+        let newValue = excelValue;
         
-        // Conversiones específicas
-        if (modelField === 'liters' || modelField === 'amount') {
-          newValue = parseFloat(newValue);
-        } else if (modelField === 'paymentStatus') {
-          // Normalizar estatus
-          newValue = newValue.toLowerCase() === 'pagada' || newValue.toLowerCase() === 'pagado' ? 'pagada' : 'no pagada';
+        if (DEBUG) {
+          logger.info(`Valor en Excel para ${excelField}: "${newValue}" (tipo: ${typeof newValue})`);
+          logger.info(`Valor actual en BD para ${modelField}: "${record[modelField]}" (tipo: ${typeof record[modelField]})`);
         }
         
-        // Manejar campos de fecha
-        if (modelField === 'recordDate' || modelField === 'paymentDate') {
-          if (newValue) {
-            // Si es una fecha válida, usarla
-            if (newValue instanceof Date) {
-              // Ya es un objeto Date, no necesita conversión
-            } else {
-              // Intentar convertir a Date
-              newValue = new Date(newValue);
-              
-              // Verificar si es una fecha válida
-              if (isNaN(newValue.getTime())) {
-                logger.warn(`Se proporcionó un valor de fecha inválido para ${excelField}: ${rowData[excelField]}`);
-                continue; // Saltar este campo
-              }
-            }
+        // Conversiones según tipo de campo
+        if (modelField === 'liters' || modelField === 'amount') {
+          newValue = parseFloat(newValue);
+          if (isNaN(newValue)) {
+            logger.warn(`Valor numérico inválido para ${excelField}: ${excelValue}`);
+            continue;
+          }
+        } else if (modelField === 'paymentStatus') {
+          if (newValue === null || newValue === '') {
+            continue; // Saltar si está vacío
+          }
+          newValue = newValue.toString().toLowerCase().trim();
+          newValue = (newValue === 'pagada' || newValue === 'pagado') ? 'pagada' : 'no pagada';
+        } else if (modelField === 'saleNumber') {
+          // Manejo especial para número de venta
+          if (newValue === null || newValue === '' || newValue === undefined) {
+            newValue = null;
           } else {
-            // Si el campo está vacío y es fecha de pago, establecer como null
-            if (modelField === 'paymentDate') {
+            // Convertir a string y limpiar
+            newValue = newValue.toString().trim();
+            
+            // Validar formato (1-6 caracteres alfanuméricos)
+            if (!/^[A-Za-z0-9-]{1,6}$/.test(newValue)) {
+              logger.warn(`Número de venta inválido: "${newValue}"`);
               newValue = null;
-            } else if (modelField === 'recordDate') {
-              // No actualizar fecha de registro si está vacía
+            }
+          }
+          
+          if (DEBUG) {
+            logger.info(`Número de venta procesado: "${newValue}"`);
+          }
+        } else if (modelField === 'operatorName' || modelField === 'unitNumber' || modelField === 'fuelType') {
+          if (newValue === null || newValue === '') {
+            continue;
+          }
+          newValue = newValue.toString().trim();
+        }
+        
+        // Manejar fechas
+        if (modelField === 'recordDate' || modelField === 'paymentDate') {
+          if (newValue && newValue !== '') {
+            if (!(newValue instanceof Date)) {
+              newValue = new Date(newValue);
+            }
+            
+            if (isNaN(newValue.getTime())) {
+              logger.warn(`Fecha inválida para ${excelField}: ${excelValue}`);
               continue;
             }
+          } else if (modelField === 'paymentDate') {
+            newValue = null;
+          } else if (modelField === 'recordDate') {
+            continue;
           }
         }
         
-        // Comparar valores y actualizar si es diferente
+        // Comparar valores
         const oldValue = record[modelField];
         let valuesDiffer = false;
         
-        // Manejo especial para fechas
         if (oldValue instanceof Date && newValue instanceof Date) {
           valuesDiffer = oldValue.getTime() !== newValue.getTime();
+        } else if (modelField === 'liters' || modelField === 'amount') {
+          valuesDiffer = Math.abs((oldValue || 0) - newValue) > 0.001;
+        } else if (modelField === 'saleNumber') {
+          // Comparación especial para número de venta
+          const oldValueStr = oldValue ? oldValue.toString() : null;
+          const newValueStr = newValue ? newValue.toString() : null;
+          valuesDiffer = oldValueStr !== newValueStr;
+          
+          if (DEBUG) {
+            logger.info(`Comparando número de venta: "${oldValueStr}" vs "${newValueStr}" - Diferente: ${valuesDiffer}`);
+          }
         } else {
-          valuesDiffer = JSON.stringify(oldValue) !== JSON.stringify(newValue);
+          // Comparación general
+          valuesDiffer = String(oldValue || '') !== String(newValue || '');
         }
         
         if (valuesDiffer) {
@@ -264,11 +350,15 @@ async function updateRecord(record, rowData) {
           });
           
           modified = true;
+          
+          if (DEBUG) {
+            logger.info(`CAMBIO DETECTADO: ${modelField} de "${oldValue}" a "${newValue}"`);
+          }
         }
       }
     }
     
-    // Si se estableció el estatus a "pagada" pero no hay fecha de pago, añadir la fecha actual
+    // Lógica para fecha de pago automática
     if (record.paymentStatus === 'pagada' && !record.paymentDate) {
       record.paymentDate = new Date();
       changes.push({
@@ -279,7 +369,6 @@ async function updateRecord(record, rowData) {
       modified = true;
     }
     
-    // Si se cambió el estatus a "no pagada", eliminar la fecha de pago
     if (record.paymentStatus === 'no pagada' && record.paymentDate) {
       const oldValue = record.paymentDate;
       record.paymentDate = null;
@@ -291,16 +380,23 @@ async function updateRecord(record, rowData) {
       modified = true;
     }
     
-    // Guardar cambios si hubo modificaciones y NO estamos en modo simulación
-    if (modified && !MODO_SIMULACION) {
-      await record.save();
-    } else if (modified && MODO_SIMULACION) {
-      // En modo simulación, restaurar el registro original
-      Object.keys(originalRecord).forEach(key => {
-        if (key !== '_id') {
-          record[key] = originalRecord[key];
+    // Guardar cambios
+    if (modified) {
+      if (!MODO_SIMULACION) {
+        await record.save();
+        if (DEBUG) {
+          logger.info('Cambios guardados en la base de datos');
         }
-      });
+      } else {
+        Object.keys(originalRecord).forEach(key => {
+          if (key !== '_id') {
+            record[key] = originalRecord[key];
+          }
+        });
+        if (DEBUG) {
+          logger.info('MODO SIMULACIÓN: Cambios NO guardados');
+        }
+      }
     }
     
     return {
@@ -313,19 +409,18 @@ async function updateRecord(record, rowData) {
   }
 }
 
-// Función para formatear valor para log
+// El resto de las funciones sin cambios...
 function formatValueForLog(value) {
   if (value === null || value === undefined) {
     return 'null';
   } else if (value instanceof Date) {
-    return value.toISOString();
+    return value.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
   } else if (typeof value === 'object') {
     return JSON.stringify(value);
   }
   return value.toString();
 }
 
-// Función para solicitar confirmación al usuario
 function solicitarConfirmacion() {
   return new Promise(resolve => {
     process.stdout.write('\n');
@@ -348,7 +443,6 @@ function solicitarConfirmacion() {
   });
 }
 
-// Función principal que ejecuta el proceso
 async function main() {
   try {
     logger.info('=== INICIANDO PROCESO DE ACTUALIZACIÓN ===');
@@ -359,52 +453,43 @@ async function main() {
       logger.info('⚠️ EJECUTANDO EN MODO REAL - Se guardarán cambios permanentemente');
     }
     
-    // Solicitar confirmación antes de continuar
     const confirmado = await solicitarConfirmacion();
     if (!confirmado) {
       logger.info('🛑 Proceso cancelado por el usuario');
       process.exit(0);
     }
     
-    // Leer archivo Excel
     const rows = await readExcelFile();
-    
-    // Conectar a la base de datos
     await connectToDatabase();
     
-    // Estadísticas de proceso
     let totalRecords = 0;
     let recordsUpdated = 0;
     let recordsSkipped = 0;
     let recordsNotFound = 0;
     
-    // Procesar cada fila
     for (const [index, rowData] of rows.entries()) {
       totalRecords++;
       
       try {
-        // Buscar registro en la base de datos
         const record = await findRecord(rowData);
         
         if (!record) {
-          logger.warn(`⚠ Registro no encontrado para: operador "${rowData.Operador}", fecha "${rowData.Fecha}"`);
+          logger.warn(`⚠ Registro no encontrado para: operador "${rowData.Operador}", fecha "${rowData.Fecha}", fila ${index + 2}`);
           recordsNotFound++;
           continue;
         }
         
-        // Identificación para log
         const recordIdentifier = `operador "${record.operatorName}", fecha "${record.recordDate}", ID: ${record._id}`;
-        logger.info(`✔ Registro identificado correctamente para: ${recordIdentifier}`);
+        logger.info(`\n✔ Registro identificado correctamente: ${recordIdentifier}`);
         
-        // Actualizar registro
         const { modified, changes } = await updateRecord(record, rowData);
         
         if (modified) {
-          // Mostrar cambios realizados
+          logger.info(`📝 Se detectaron ${changes.length} cambios:`);
           for (const change of changes) {
             const oldValueFormatted = formatValueForLog(change.oldValue);
             const newValueFormatted = formatValueForLog(change.newValue);
-            logger.info(`↻ Campo modificado: ${change.field} (de ${oldValueFormatted} → ${newValueFormatted})`);
+            logger.info(`   ↻ ${change.field}: "${oldValueFormatted}" → "${newValueFormatted}"`);
           }
           
           if (MODO_SIMULACION) {
@@ -418,28 +503,25 @@ async function main() {
           recordsSkipped++;
         }
       } catch (error) {
-        logger.error(`Error al procesar fila ${index + 2}: ${error.message}`);
-        continue; // Continuar con el siguiente registro
+        logger.error(`❌ Error al procesar fila ${index + 2}: ${error.message}`);
+        continue;
       }
     }
     
-    // Mostrar resumen final
-    logger.info('=== RESUMEN DE ACTUALIZACIÓN ===');
+    logger.info('\n=== RESUMEN DE ACTUALIZACIÓN ===');
     if (MODO_SIMULACION) {
       logger.info('🔍 RESULTADO DE SIMULACIÓN (ningún cambio fue guardado)');
     }
     logger.info(`Total de registros procesados: ${totalRecords}`);
-    logger.info(`Registros que serían actualizados: ${recordsUpdated}`);
+    logger.info(`Registros actualizados: ${recordsUpdated}`);
     logger.info(`Registros sin cambios: ${recordsSkipped}`);
     logger.info(`Registros no encontrados: ${recordsNotFound}`);
     
-    // Desconectar de la base de datos
     await disconnectFromDatabase();
-    logger.info('=== PROCESO DE ACTUALIZACIÓN COMPLETADO ===');
+    logger.info('=== PROCESO DE ACTUALIZACIÓN COMPLETADO ===\n');
   } catch (error) {
     logger.error(`Error en proceso principal: ${error.message}`);
     
-    // Intentar desconectar de la base de datos en caso de error
     try {
       await disconnectFromDatabase();
     } catch (disconnectError) {
@@ -450,5 +532,4 @@ async function main() {
   }
 }
 
-// Ejecutar script
 main();

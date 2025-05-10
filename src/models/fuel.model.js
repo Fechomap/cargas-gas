@@ -26,10 +26,10 @@ const fuelSchema = new mongoose.Schema({
     required: [true, 'El tipo de combustible es obligatorio']
   },
   
-  // Número de venta (nuevo campo)
+  // Número de venta (1-6 caracteres alfanuméricos)
   saleNumber: {
     type: String,
-    match: [/^\d{4}$/, 'El número de venta debe ser de 4 dígitos exactos'],
+    match: [/^[A-Za-z0-9-]{1,6}$/, 'El número de venta debe ser de 1 a 6 caracteres alfanuméricos'],
     default: null
   },
   
@@ -51,7 +51,7 @@ const fuelSchema = new mongoose.Schema({
   },
   
   // Metadatos
-  operatorName: String,  // Datos denormalizados para facilitar consultas
+  operatorName: String,
   unitNumber: String,
   recordDate: {
     type: Date,
@@ -66,7 +66,7 @@ const fuelSchema = new mongoose.Schema({
     { fuelType: 1 },
     { recordDate: 1 },
     { operatorName: 1 },
-    { saleNumber: 1 }  // Nuevo índice para facilitar búsquedas por número de venta
+    { saleNumber: 1 }  // Índice para número de venta
   ]
 });
 

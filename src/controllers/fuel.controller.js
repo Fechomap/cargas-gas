@@ -142,7 +142,7 @@ class FuelController {
       await updateConversationState(ctx, 'fuel_entry_sale_number');
       
       // Solicitar el número de venta
-      await ctx.reply('Por favor, ingresa el número de venta (4 dígitos impresos en la nota):');
+      await ctx.reply('Por favor, ingresa el número de venta (1 a 6 dígitos impresos en la nota):');
       
     } catch (error) {
       logger.error(`Error en manejo de foto: ${error.message}`);
@@ -155,7 +155,7 @@ class FuelController {
       await updateConversationState(ctx, 'fuel_entry_sale_number');
       
       // Solicitar el número de venta
-      await ctx.reply('Por favor, ingresa el número de venta (4 dígitos impresos en la nota):');
+      await ctx.reply('Por favor, ingresa el número de venta (1 a 6 dígitos impresos en la nota):');
     }
   }
   
@@ -167,10 +167,10 @@ class FuelController {
     try {
       const saleNumber = ctx.message.text.trim();
       
-      // Validar formato: 4 dígitos exactos
-      const saleNumberRegex = /^\d{4}$/;
+      // Validar formato: 1-6 caracteres alfanuméricos con guiones
+      const saleNumberRegex = /^[A-Za-z0-9-]{1,6}$/;
       if (!saleNumberRegex.test(saleNumber)) {
-        return await ctx.reply('❌ Formato inválido. Ingresa un número de 4 dígitos sin espacios ni letras.');
+        return await ctx.reply('❌ Formato inválido. Ingresa un número de venta de 1 a 6 caracteres (números, letras o guiones).');
       }
       
       // Guardar número de venta en la sesión
@@ -257,7 +257,7 @@ class FuelController {
         liters: Number(ctx.session.data.liters) || 0,
         amount: Number(ctx.session.data.amount) || 0,
         fuelType: ctx.session.data.fuelType || 'gas',
-        saleNumber: ctx.session.data.saleNumber || null,  // Incluir número de venta
+        saleNumber: ctx.session.data.saleNumber || null,
         paymentStatus: ctx.session.data.paymentStatus || 'no pagada',
         ticketPhoto: ctx.session.data.ticketPhoto || null,
         operatorName: ctx.session.data.operatorName,
@@ -340,30 +340,33 @@ class FuelController {
       await updateConversationState(ctx, 'fuel_date_select');
       
       const buttons = [];
-      const formatDate = this.formatDate;
+      
       // Ayer
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       buttons.push([Markup.button.callback(
-        `Ayer (${formatDate(yesterday)})`,
+        `Ayer (${this.formatDate(yesterday)})`,
         `fuel_date_day_1`
       )]);
+      
       // Antier
       const twoDaysAgo = new Date();
       twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
       buttons.push([Markup.button.callback(
-        `Antier (${formatDate(twoDaysAgo)})`,
+        `Antier (${this.formatDate(twoDaysAgo)})`,
         `fuel_date_day_2`
       )]);
+      
       // Días 3 al 7
       for (let i = 3; i <= 7; i++) {
         const pastDate = new Date();
         pastDate.setDate(pastDate.getDate() - i);
         buttons.push([Markup.button.callback(
-          `Hace ${i} días (${formatDate(pastDate)})`,
+          `Hace ${i} días (${this.formatDate(pastDate)})`,
           `fuel_date_day_${i}`
         )]);
       }
+      
       // Opción personalizada y cancelar
       buttons.push([Markup.button.callback('📅 Elegir otra fecha', 'fuel_date_custom')]);
       buttons.push([Markup.button.callback('Cancelar (usar fecha actual)', 'fuel_date_cancel')]);
@@ -388,6 +391,7 @@ class FuelController {
       if (!ctx.session.data.savedFuelId) {
         throw new Error('No se encontró referencia a la carga guardada');
       }
+      
       const newDate = new Date();
       newDate.setDate(newDate.getDate() - daysAgo);
       newDate.setHours(12, 0, 0, 0);
@@ -437,33 +441,41 @@ class FuelController {
       const dateText = ctx.message.text.trim();
       const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
       const match = dateText.match(dateRegex);
+      
       if (!match) {
         return await ctx.reply(
           '❌ Formato de fecha incorrecto.\n' +
           'Por favor, usa el formato DD/MM/AAAA (ejemplo: 25/04/2025):'
         );
       }
+      
       const [, day, month, year] = match;
       const inputDate = new Date(year, month - 1, day, 12, 0, 0, 0);
+      
       if (isNaN(inputDate.getTime())) {
         return await ctx.reply('❌ Fecha inválida. Por favor, ingresa una fecha real:');
       }
+      
       const today = new Date();
       if (inputDate > today) {
         return await ctx.reply('❌ La fecha no puede ser posterior a hoy. Por favor, ingresa otra fecha:');
       }
+      
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       if (inputDate < thirtyDaysAgo) {
         return await ctx.reply('❌ La fecha no puede ser anterior a 30 días. Por favor, ingresa otra fecha:');
       }
+      
       if (!ctx.session.data.savedFuelId) {
         throw new Error('No se encontró referencia a la carga guardada');
       }
+      
       const updatedFuel = await fuelService.updateRecordDate(
         ctx.session.data.savedFuelId,
         inputDate
       );
+      
       await ctx.reply(`✅ Fecha de carga actualizada a: ${this.formatDate(inputDate)}`);
       await this.completeFuelRegistration(ctx);
     } catch (error) {
@@ -494,6 +506,19 @@ class FuelController {
         ])
       );
     }
+  }
+
+  /**
+   * Formatea una fecha para mostrar
+   * @param {Date} date - Fecha a formatear
+   * @returns {string} - Fecha formateada
+   */
+  formatDate(date) {
+    return date.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   }
   
   /**
@@ -536,17 +561,5 @@ class FuelController {
     }
   }
 }
-
-// Función auxiliar para formatear fechas
-function formatDate(date) {
-  return date.toLocaleDateString('es-MX', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
-}
-
-// Para acceso desde métodos de clase
-FuelController.prototype.formatDate = formatDate;
 
 export const fuelController = new FuelController();

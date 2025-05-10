@@ -6,15 +6,8 @@ import { storageService } from './storage.service.js';
 import { logger } from '../utils/logger.js';
 import ExcelJS from 'exceljs';
 
-
-// AGREGAR AQUÍ - Función formatDate
-/**
- * Formatea una fecha según la zona horaria de CDMX
- * @param {Date} date - Fecha a formatear
- * @returns {string} - Fecha formateada dd-mm-aaaa hh:mm am/pm
- */
+// Función formatDate
 function formatDate(date) {
-  // Establecer zona horaria para CDMX (UTC-6)
   const options = {
     day: '2-digit',
     month: '2-digit',
@@ -25,7 +18,6 @@ function formatDate(date) {
     timeZone: 'America/Mexico_City'
   };
 
-  // Formatear como DD-MM-AAAA
   const formattedDate = new Intl.DateTimeFormat('es-MX', options).format(date);
   return formattedDate.replace(/\//g, '-');
 }
@@ -107,7 +99,7 @@ class ReportService {
       // Crear hoja de datos
       const worksheet = workbook.addWorksheet('Cargas');
       
-      // Definir columnas con tipos específicos
+      // Definir columnas con tipos específicos (INCLUIR NÚMERO DE VENTA)
       worksheet.columns = [
         { header: 'Fecha', key: 'fecha', width: 20 },
         { header: 'Operador', key: 'operador', width: 15 },
@@ -115,7 +107,7 @@ class ReportService {
         { header: 'Tipo', key: 'tipo', width: 10 },
         { header: 'Litros', key: 'litros', width: 10 },
         { header: 'Monto', key: 'monto', width: 12 },
-        { header: 'Número de Venta', key: 'numeroVenta', width: 15 },
+        { header: 'Número de Venta', key: 'numeroVenta', width: 15 }, // NUEVA COLUMNA
         { header: 'Estatus', key: 'estatus', width: 12 },
         { header: 'Fecha Pago', key: 'fechaPago', width: 20 }
       ];
@@ -132,7 +124,7 @@ class ReportService {
           tipo: entry.fuelType,
           litros: entry.liters,
           monto: entry.amount,
-          numeroVenta: entry.saleNumber || 'N/A',
+          numeroVenta: entry.saleNumber || 'N/A', // INCLUIR NÚMERO DE VENTA
           estatus: entry.paymentStatus,
           fechaPago: entry.paymentDate ? new Date(entry.paymentDate) : null
         });
@@ -141,7 +133,7 @@ class ReportService {
         row.getCell('litros').numFmt = '0.00';
         row.getCell('monto').numFmt = '$#,##0.00';
         
-        // Formatear fechas (MUY IMPORTANTE - esto hará que Excel las reconozca como fechas)
+        // Formatear fechas
         row.getCell('fecha').numFmt = 'dd/mm/yyyy hh:mm:ss';
         if (entry.paymentDate) {
           row.getCell('fechaPago').numFmt = 'dd/mm/yyyy hh:mm:ss';
@@ -234,7 +226,7 @@ class ReportService {
    * @returns {Object} - Definición del documento para PDFMake
    */
   createPdfDocDefinition(reportData, filters) {
-    // Convertir datos a formato tabular para PDF
+    // Convertir datos a formato tabular para PDF (INCLUIR NÚMERO DE VENTA)
     const tableBody = [
       ['Fecha', 'Operador', 'Unidad', 'Tipo', 'Litros', 'Monto', 'Núm. Venta', 'Estatus']
     ];
@@ -247,7 +239,7 @@ class ReportService {
         entry.fuelType,
         entry.liters.toFixed(2),
         `$${entry.amount.toFixed(2)}`,
-        entry.saleNumber || 'N/A',
+        entry.saleNumber || 'N/A', // INCLUIR NÚMERO DE VENTA
         entry.paymentStatus
       ]);
     });
@@ -275,7 +267,7 @@ class ReportService {
     const summary = [
       `Total de registros: ${reportData.summary.totalEntries}`,
       `Total de litros: ${reportData.summary.totalLiters.toFixed(2)}`,
-      `Monto total: ${reportData.summary.totalAmount.toFixed(2)}`,
+      `Monto total: $${reportData.summary.totalAmount.toFixed(2)}`,
       `Cargas de gas: ${reportData.summary.countByFuelType.gas}`,
       `Cargas de gasolina: ${reportData.summary.countByFuelType.gasolina}`,
       `Cargas pagadas: ${reportData.summary.countByPaymentStatus.pagada}`,
@@ -294,7 +286,7 @@ class ReportService {
         filtersApplied.length > 0 ? 
           { ul: filtersApplied } : {},
         
-        // Mostrar tabla de datos
+        // Mostrar tabla de datos con columnas ajustadas para incluir número de venta
         {
           table: {
             headerRows: 1,
@@ -333,7 +325,9 @@ class ReportService {
       },
       defaultStyle: {
         fontSize: 10
-      }
+      },
+      pageSize: 'A4',
+      pageOrientation: 'landscape' // Cambiar a horizontal para acomodar mejor las columnas
     };
   }
   
@@ -343,7 +337,6 @@ class ReportService {
    */
   getReportDateString() {
     const now = new Date();
-    // Crear opciones para formato en CDMX
     const options = { timeZone: 'America/Mexico_City' };
     const cdmxDate = new Date(now.toLocaleString('en-US', options));
     
