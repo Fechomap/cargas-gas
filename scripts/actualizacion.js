@@ -277,7 +277,7 @@ async function updateRecord(record, rowData) {
           newValue = (newValue === 'pagada' || newValue === 'pagado') ? 'pagada' : 'no pagada';
         } else if (modelField === 'saleNumber') {
           // Manejo especial para número de venta
-          if (newValue === null || newValue === '' || newValue === undefined) {
+          if (newValue === null || newValue === '' || newValue === undefined || newValue === 'N/A' || newValue === 'null') {
             newValue = null;
           } else {
             // Convertir a string y limpiar
