@@ -657,15 +657,16 @@ class FuelController {
       
       // Mostrar resumen de la nota
       const noteDetails = `
-  📝 *Nota encontrada*
-  🔢 *Número:* ${fuel.saleNumber}
-  👤 *Operador:* ${fuel.operatorName}
-  🚚 *Unidad:* ${fuel.unitNumber}
-  ⛽ *Tipo:* ${fuel.fuelType}
-  📅 *Fecha:* ${this.formatDate(fuel.recordDate)}
-  💰 *Monto:* $${fuel.amount.toFixed(2)}
-  🔢 *Litros:* ${fuel.liters.toFixed(2)}
-  💳 *Estatus:* ${fuel.paymentStatus}`;
+*💳 STATUS: ${fuel.paymentStatus.toUpperCase()}*
+
+*📝 Nota encontrada*
+*Número:* ${fuel.saleNumber}
+*Operador:* ${fuel.operatorName}
+*Unidad:* ${fuel.unitNumber}
+*Tipo de combustible:* ${fuel.fuelType}
+*Fecha:* ${this.formatDate(fuel.recordDate)}
+*Monto:* *$${fuel.amount.toFixed(2)}*
+*Litros:* ${fuel.liters.toFixed(2)}`;
       
       // Usar formato explícito para asegurar que los botones se muestren
       await ctx.reply(noteDetails, {
