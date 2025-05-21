@@ -202,6 +202,38 @@ class FuelService {
       throw error;
     }
   }
+  
+  /**
+   * Busca una carga por su número de venta
+   * @param {string} saleNumber - Número de venta a buscar
+   * @returns {Promise<Object|null>} - Carga encontrada o null
+   */
+  async findBySaleNumber(saleNumber) {
+    try {
+      logger.info(`Buscando carga con número de venta: ${saleNumber}`);
+      
+      if (!saleNumber) {
+        throw new Error('El número de venta es requerido para la búsqueda');
+      }
+      
+      // Normalizar el número de venta (trim y convertir a string)
+      const normalizedSaleNumber = saleNumber.toString().trim();
+      
+      // Buscar en la base de datos
+      const fuel = await Fuel.findOne({ saleNumber: normalizedSaleNumber });
+      
+      if (fuel) {
+        logger.info(`Carga encontrada con ID: ${fuel._id}`);
+      } else {
+        logger.info(`No se encontró carga con número de venta: ${saleNumber}`);
+      }
+      
+      return fuel;
+    } catch (error) {
+      logger.error(`Error en servicio de combustible (findBySaleNumber): ${error.message}`);
+      throw error;
+    }
+  }
 
   /**
    * Actualiza la fecha de registro de una carga de combustible

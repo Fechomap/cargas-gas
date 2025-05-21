@@ -10,6 +10,7 @@ export function getMainKeyboard() {
     [Markup.button.callback('🆕 Registrar unidad', 'register_unit')], 
     [Markup.button.callback('⛽ Registrar carga', 'register_fuel_start')], 
     [Markup.button.callback('💰 Consultar saldo', 'check_balance')], 
+    [Markup.button.callback('🔍 Buscar nota para pago', 'search_note_for_payment')],
     [Markup.button.callback('📊 Generar reporte', 'generate_report')],
     [Markup.button.callback('❓ Ayuda', 'show_help')]
   ]);

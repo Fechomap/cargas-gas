@@ -13,6 +13,11 @@ logger.info("⭐ Registrando manejadores de fuel.command.js");
  * Configura los comandos de carga de combustible
  * @param {Telegraf} bot - Instancia del bot de Telegram
  */
+
+/**
+ * Configura los comandos de carga de combustible
+ * @param {Telegraf} bot - Instancia del bot de Telegram
+ */
 export function setupFuelCommand(bot) {
   logger.info("⭐ Configurando manejadores de combustible");
 
@@ -35,6 +40,58 @@ export function setupFuelCommand(bot) {
       });
     }
   });
+
+  // NUEVA ACCIÓN: Buscar nota por número para pago
+  bot.action('search_note_for_payment', async (ctx) => {
+    try {
+      logger.info(`Usuario ${ctx.from.id} inició búsqueda de nota para pago`);
+      await ctx.answerCbQuery('Iniciando búsqueda de nota...');
+      
+      // Llamar al controlador para iniciar la búsqueda
+      await fuelController.startNoteSearch(ctx);
+    } catch (error) {
+      logger.error(`Error en acción search_note_for_payment: ${error.message}`, error);
+      await ctx.answerCbQuery('Error al iniciar búsqueda');
+      await ctx.reply('Ocurrió un error al iniciar la búsqueda de nota. Intenta de nuevo.');
+      // Mostrar menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
+    }
+  });
+
+  // NUEVA ACCIÓN: Marcar nota como pagada
+  bot.action('mark_note_as_paid', async (ctx) => {
+    try {
+      logger.info(`Usuario ${ctx.from.id} solicitó marcar nota como pagada`);
+      await fuelController.markNoteAsPaid(ctx);
+    } catch (error) {
+      logger.error(`Error en acción mark_note_as_paid: ${error.message}`, error);
+      await ctx.answerCbQuery('Error al marcar como pagada');
+      await ctx.reply('Ocurrió un error al marcar la nota como pagada. Intenta de nuevo.');
+      // Mostrar menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
+    }
+  });
+  
+  // NUEVA ACCIÓN: Cancelar búsqueda de nota
+  bot.action('cancel_note_search', async (ctx) => {
+    try {
+      logger.info(`Usuario ${ctx.from.id} canceló búsqueda de nota`);
+      await fuelController.cancelNoteSearch(ctx);
+    } catch (error) {
+      logger.error(`Error en acción cancel_note_search: ${error.message}`, error);
+      await ctx.answerCbQuery('Error al cancelar búsqueda');
+      await ctx.reply('Ocurrió un error al cancelar la búsqueda. Intenta de nuevo.');
+      // Mostrar menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
+    }
+  });
+    
   
   // Comando para mostrar saldo pendiente
   bot.command('saldo', async (ctx) => {
@@ -121,6 +178,12 @@ export function setupFuelCommand(bot) {
     
     if (isInState(ctx, 'fuel_date_custom_input')) {
       await fuelController.handleCustomDateInput(ctx);
+      return;
+    }
+    
+    // NUEVO ESTADO: Manejo de entrada de búsqueda de nota
+    if (isInState(ctx, 'search_note_input')) {
+      await fuelController.handleNoteSearchInput(ctx);
       return;
     }
     
