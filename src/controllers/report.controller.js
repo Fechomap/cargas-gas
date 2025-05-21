@@ -89,10 +89,15 @@ class ReportController {
     try {
       await ctx.answerCbQuery('Seleccionando rango de fechas');
       
-      // Actualizar estado de conversación
-      await updateConversationState(ctx, 'report_select_date_range');
+      // Guardar el estado actual y los filtros aplicados
+      const currentFilters = ctx.session?.data?.filters || {};
       
-      // Mostrar teclado con opciones de rangos predefinidos
+      // Actualizar estado de conversación manteniendo los filtros actuales
+      await updateConversationState(ctx, 'report_select_date_range', {
+        filters: currentFilters
+      });
+      
+      // Mostrar teclado con opciones de rangos predefinidos como submenú temporal
       await ctx.reply('Selecciona un rango de fechas:', 
         Markup.inlineKeyboard([
           [Markup.button.callback('📅 Hoy', 'date_range_today')],
@@ -108,6 +113,9 @@ class ReportController {
     } catch (error) {
       logger.error(`Error en selección de filtro por fecha: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
+      
+      // En caso de error, volver al menú principal de reportes
+      await this.startReportGeneration(ctx);
     }
   }
   
@@ -135,15 +143,25 @@ class ReportController {
         return await ctx.reply('Fecha inválida. Por favor, ingresa una fecha real en formato DD/MM/AAAA:');
       }
       
-      // Guardar fecha inicial en la sesión
+      // Guardar fecha inicial en la sesión y mantener los filtros actuales
       ctx.session.data.filters.startDate = date;
-      await updateConversationState(ctx, 'report_date_to');
+      const currentFilters = ctx.session?.data?.filters || {};
+      
+      // Actualizar estado manteniendo los filtros
+      await updateConversationState(ctx, 'report_date_to', {
+        filters: currentFilters
+      });
       
       // Solicitar fecha final
       await ctx.reply('Ingresa la fecha final (DD/MM/AAAA):');
     } catch (error) {
       logger.error(`Error en entrada de fecha inicial: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, ingresa nuevamente la fecha inicial (DD/MM/AAAA):');
+      
+      // En caso de error grave, volver al menú principal de reportes
+      if (error.message !== 'Invalid date format') {
+        await this.startReportGeneration(ctx);
+      }
     }
   }
   
@@ -177,24 +195,19 @@ class ReportController {
       // Guardar fecha final en la sesión
       ctx.session.data.filters.endDate = date;
       
-      // Volver a la selección de filtros
-      await updateConversationState(ctx, 'report_select_filters');
-      
       // Notificar que el filtro ha sido aplicado
       await ctx.reply(`✅ Filtro de fechas aplicado: ${formatDate(ctx.session.data.filters.startDate)} - ${formatDate(ctx.session.data.filters.endDate)}`);
       
-      // Mostrar botones directos para generar reporte
-      await ctx.reply('Generar reporte con los filtros aplicados:', 
-        Markup.inlineKeyboard([
-          [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
-          [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
-          [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
-          [Markup.button.callback('❌ Cancelar', 'cancel_report')]
-        ])
-      );
+      // Volver directamente al menú principal de reportes con el filtro aplicado
+      await this.startReportGeneration(ctx);
     } catch (error) {
       logger.error(`Error en entrada de fecha final: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, ingresa nuevamente la fecha final (DD/MM/AAAA):');
+      
+      // En caso de error grave, volver al menú principal de reportes
+      if (error.message !== 'Invalid date format') {
+        await this.startReportGeneration(ctx);
+      }
     }
   }
   
@@ -206,13 +219,17 @@ class ReportController {
     try {
       await ctx.answerCbQuery('Seleccionando operador');
       
+      // Guardar el estado actual y los filtros aplicados
+      const currentFilters = ctx.session?.data?.filters || {};
+      
       // Obtener todos los operadores (a partir de las unidades registradas)
       const units = await unitService.getAllActiveUnits();
       const operators = [...new Set(units.map(unit => unit.operatorName))];
       
       if (operators.length === 0) {
         await ctx.reply('No hay operadores registrados.');
-        return;
+        // Volver al menú principal de reportes si no hay operadores
+        return await this.startReportGeneration(ctx);
       }
       
       // Crear botones para cada operador
@@ -223,11 +240,18 @@ class ReportController {
       // Añadir botón para cancelar
       buttons.push([Markup.button.callback('Cancelar', 'cancel_operator_filter')]);
       
-      await updateConversationState(ctx, 'report_select_operator');
+      // Actualizar estado de conversación manteniendo los filtros actuales
+      await updateConversationState(ctx, 'report_select_operator', {
+        filters: currentFilters
+      });
+      
       await ctx.reply('Selecciona un operador:', Markup.inlineKeyboard(buttons));
     } catch (error) {
       logger.error(`Error en selección de filtro por operador: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
+      
+      // En caso de error, volver al menú principal de reportes
+      await this.startReportGeneration(ctx);
     }
   }
   
@@ -241,24 +265,33 @@ class ReportController {
       // Guardar operador en la sesión
       ctx.session.data.filters.operatorName = operator;
       
-      // Volver a la selección de filtros
-      await updateConversationState(ctx, 'report_select_filters');
-      
       await ctx.answerCbQuery(`Operador seleccionado: ${operator}`);
-      await ctx.reply(`✅ Filtro por operador aplicado: ${operator}`);
       
-      // Mostrar botones directos para generar reporte
-      await ctx.reply('Generar reporte con los filtros aplicados:', 
-        Markup.inlineKeyboard([
-          [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
-          [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
-          [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
-          [Markup.button.callback('❌ Cancelar', 'cancel_report')]
-        ])
-      );
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+      }
+      
+      // Mostrar confirmación de selección
+      const confirmMsg = await ctx.reply(`✅ Filtro por operador aplicado: ${operator}`);
+      
+      // Volver directamente al menú principal de reportes con el filtro aplicado
+      await this.startReportGeneration(ctx);
+      
+      // Opcional: eliminar el mensaje de confirmación después de un breve retraso
+      setTimeout(async () => {
+        try {
+          await ctx.deleteMessage(confirmMsg.message_id);
+        } catch (err) {
+          // Ignorar errores al eliminar mensajes
+        }
+      }, 2000); // 2 segundos
     } catch (error) {
       logger.error(`Error en selección de operador: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
+      
+      // En caso de error, volver al menú principal de reportes
+      await this.startReportGeneration(ctx);
     }
   }
   
@@ -270,9 +303,15 @@ class ReportController {
     try {
       await ctx.answerCbQuery('Seleccionando tipo de combustible');
       
-      await updateConversationState(ctx, 'report_select_fuel_type');
+      // Guardar el estado actual y los filtros aplicados
+      const currentFilters = ctx.session?.data?.filters || {};
       
-      // Opciones de tipo de combustible
+      // Actualizar estado de conversación manteniendo los filtros actuales
+      await updateConversationState(ctx, 'report_select_fuel_type', {
+        filters: currentFilters
+      });
+      
+      // Opciones de tipo de combustible como submenú temporal
       await ctx.reply('Selecciona el tipo de combustible:', 
         Markup.inlineKeyboard([
           [Markup.button.callback('Gas', 'select_fuel_type_gas')],
@@ -283,6 +322,9 @@ class ReportController {
     } catch (error) {
       logger.error(`Error en selección de filtro por tipo de combustible: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
+      
+      // En caso de error, volver al menú principal de reportes
+      await this.startReportGeneration(ctx);
     }
   }
   
@@ -296,24 +338,33 @@ class ReportController {
       // Guardar tipo de combustible en la sesión
       ctx.session.data.filters.fuelType = fuelType;
       
-      // Volver a la selección de filtros
-      await updateConversationState(ctx, 'report_select_filters');
-      
       await ctx.answerCbQuery(`Tipo de combustible seleccionado: ${fuelType}`);
-      await ctx.reply(`✅ Filtro por tipo de combustible aplicado: ${fuelType}`);
       
-      // Mostrar botones directos para generar reporte
-      await ctx.reply('Generar reporte con los filtros aplicados:', 
-        Markup.inlineKeyboard([
-          [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
-          [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
-          [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
-          [Markup.button.callback('❌ Cancelar', 'cancel_report')]
-        ])
-      );
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+      }
+      
+      // Mostrar confirmación de selección
+      const confirmMsg = await ctx.reply(`✅ Filtro por tipo de combustible aplicado: ${fuelType}`);
+      
+      // Volver directamente al menú principal de reportes con el filtro aplicado
+      await this.startReportGeneration(ctx);
+      
+      // Opcional: eliminar el mensaje de confirmación después de un breve retraso
+      setTimeout(async () => {
+        try {
+          await ctx.deleteMessage(confirmMsg.message_id);
+        } catch (err) {
+          // Ignorar errores al eliminar mensajes
+        }
+      }, 2000); // 2 segundos
     } catch (error) {
       logger.error(`Error en selección de tipo de combustible: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
+      
+      // En caso de error, volver al menú principal de reportes
+      await this.startReportGeneration(ctx);
     }
   }
   
@@ -325,9 +376,15 @@ class ReportController {
     try {
       await ctx.answerCbQuery('Seleccionando estatus de pago');
       
-      await updateConversationState(ctx, 'report_select_payment_status');
+      // Guardar el estado actual y los filtros aplicados
+      const currentFilters = ctx.session?.data?.filters || {};
       
-      // Opciones de estatus de pago
+      // Actualizar estado de conversación manteniendo los filtros actuales
+      await updateConversationState(ctx, 'report_select_payment_status', {
+        filters: currentFilters
+      });
+      
+      // Opciones de estatus de pago como submenú temporal
       await ctx.reply('Selecciona el estatus de pago:', 
         Markup.inlineKeyboard([
           [Markup.button.callback('Pagado', 'select_payment_status_pagada')],
@@ -338,6 +395,9 @@ class ReportController {
     } catch (error) {
       logger.error(`Error en selección de filtro por estatus de pago: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
+      
+      // En caso de error, volver al menú principal de reportes
+      await this.startReportGeneration(ctx);
     }
   }
   
@@ -354,24 +414,33 @@ class ReportController {
       // Guardar estatus de pago en la sesión
       ctx.session.data.filters.paymentStatus = formattedStatus;
       
-      // Volver a la selección de filtros
-      await updateConversationState(ctx, 'report_select_filters');
-      
       await ctx.answerCbQuery(`Estatus de pago seleccionado: ${formattedStatus}`);
-      await ctx.reply(`✅ Filtro por estatus de pago aplicado: ${formattedStatus}`);
       
-      // Mostrar botones directos para generar reporte (igual que los otros filtros)
-      await ctx.reply('Generar reporte con los filtros aplicados:', 
-        Markup.inlineKeyboard([
-          [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
-          [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
-          [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
-          [Markup.button.callback('❌ Cancelar', 'cancel_report')]
-        ])
-      );
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+      }
+      
+      // Mostrar confirmación de selección
+      const confirmMsg = await ctx.reply(`✅ Filtro por estatus de pago aplicado: ${formattedStatus}`);
+      
+      // Volver directamente al menú principal de reportes con el filtro aplicado
+      await this.startReportGeneration(ctx);
+      
+      // Opcional: eliminar el mensaje de confirmación después de un breve retraso
+      setTimeout(async () => {
+        try {
+          await ctx.deleteMessage(confirmMsg.message_id);
+        } catch (err) {
+          // Ignorar errores al eliminar mensajes
+        }
+      }, 2000); // 2 segundos
     } catch (error) {
       logger.error(`Error en selección de estatus de pago: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
+      
+      // En caso de error, volver al menú principal de reportes
+      await this.startReportGeneration(ctx);
     }
   }
   
@@ -560,79 +629,143 @@ class ReportController {
    */
   async handlePredefinedDateRange(ctx, rangeType) {
     try {
-      // Calcular fechas según el rango seleccionado
+      const today = new Date();
       let startDate = new Date();
       let endDate = new Date();
       
+      // Configurar fechas según el rango seleccionado
       switch (rangeType) {
         case 'today':
-          startDate.setHours(0, 0, 0, 0);
+          // Hoy (startDate ya está configurado con la fecha actual)
           break;
+          
         case 'this_week':
-          const dayOfWeek = startDate.getDay();
-          const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-          startDate.setDate(startDate.getDate() - diff);
-          startDate.setHours(0, 0, 0, 0);
+          // Esta semana (desde el domingo hasta hoy)
+          const dayOfWeek = today.getDay(); // 0 = Domingo, 1 = Lunes, etc.
+          startDate = new Date(today);
+          startDate.setDate(today.getDate() - dayOfWeek); // Retroceder al domingo
           break;
+          
         case 'last_2_weeks':
-          const dayOfWeek2 = startDate.getDay();
-          const diff2 = dayOfWeek2 === 0 ? 6 : dayOfWeek2 - 1;
-          startDate.setDate(startDate.getDate() - diff2 - 7);
-          startDate.setHours(0, 0, 0, 0);
+          // Últimas 2 semanas
+          startDate = new Date(today);
+          startDate.setDate(today.getDate() - 14);
           break;
+          
         case 'last_3_weeks':
-          const dayOfWeek3 = startDate.getDay();
-          const diff3 = dayOfWeek3 === 0 ? 6 : dayOfWeek3 - 1;
-          startDate.setDate(startDate.getDate() - diff3 - 14);
-          startDate.setHours(0, 0, 0, 0);
+          // Últimas 3 semanas
+          startDate = new Date(today);
+          startDate.setDate(today.getDate() - 21);
           break;
+          
         case 'this_month':
-          startDate.setDate(1);
-          startDate.setHours(0, 0, 0, 0);
+          // Este mes (desde el primer día del mes actual)
+          startDate = new Date(today.getFullYear(), today.getMonth(), 1);
           break;
+          
         case 'last_3_months':
-          startDate.setMonth(startDate.getMonth() - 2);
-          startDate.setDate(1);
-          startDate.setHours(0, 0, 0, 0);
+          // Últimos 3 meses
+          startDate = new Date(today);
+          startDate.setMonth(today.getMonth() - 3);
           break;
+          
+        default:
+          return await ctx.reply('Rango de fechas no válido. Por favor, selecciona otro.');
       }
       
+      // Ajustar horas para inclusividad
+      startDate.setHours(0, 0, 0, 0);
       endDate.setHours(23, 59, 59, 999);
       
+      // Guardar fechas en la sesión
       ctx.session.data.filters.startDate = startDate;
       ctx.session.data.filters.endDate = endDate;
       
-      await updateConversationState(ctx, 'report_select_filters');
-      await ctx.answerCbQuery('Filtro de fechas aplicado');
-      await ctx.reply(`✅ Filtro de fechas aplicado: ${formatDate(startDate)} - ${formatDate(endDate)}`);
+      await ctx.answerCbQuery(`Fechas seleccionadas: ${formatDate(startDate)} - ${formatDate(endDate)}`);
       
-      // Mostrar botones directos para generar reporte
-      await ctx.reply('Generar reporte con los filtros aplicados:', 
-        Markup.inlineKeyboard([
-          [Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')],
-          [Markup.button.callback('➕ Aplicar más filtros', 'continue_filtering')],
-          [Markup.button.callback('🗑️ Limpiar filtros', 'clear_all_filters')],
-          [Markup.button.callback('❌ Cancelar', 'cancel_report')]
-        ])
-      );
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+      }
+      
+      // Mostrar confirmación de selección
+      const confirmMsg = await ctx.reply(`✅ Filtro de fechas aplicado: ${formatDate(startDate)} - ${formatDate(endDate)}`);
+      
+      // Volver directamente al menú principal de reportes con el filtro aplicado
+      await this.startReportGeneration(ctx);
+      
+      // Opcional: eliminar el mensaje de confirmación después de un breve retraso
+      setTimeout(async () => {
+        try {
+          await ctx.deleteMessage(confirmMsg.message_id);
+        } catch (err) {
+          // Ignorar errores al eliminar mensajes
+        }
+      }, 2000); // 2 segundos
     } catch (error) {
-      logger.error(`Error al procesar rango de fechas predefinido: ${error.message}`);
-      await ctx.reply('Ocurrió un error al aplicar el filtro de fechas. Por favor, intenta nuevamente.');
+      logger.error(`Error al seleccionar rango predefinido: ${error.message}`);
+      await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
+      
+      // En caso de error, volver al menú principal de reportes
+      await this.startReportGeneration(ctx);
     }
   }
- 
+  
+  /**
+   * Genera reporte por filtros
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async generateReportByFilters(ctx) {
+    try {
+      // Mostrar mensaje de espera
+      const waitMessage = await ctx.reply('⏳ Generando reporte por filtros, por favor espera...');
+      
+      // Generar reporte usando el servicio
+      const reportFile = await reportService.generateReportByFilters(ctx.session.data.filters);
+      
+      // Eliminar mensaje de espera
+      await ctx.deleteMessage(waitMessage.message_id);
+      
+      // Enviar el archivo
+      await ctx.replyWithDocument({ source: reportFile.path, filename: reportFile.filename });
+      
+      // Limpiar estado de conversación
+      await updateConversationState(ctx, 'idle', {});
+      
+      // Mostrar menú post-operación
+      await ctx.reply('¿Qué deseas hacer ahora?', getPostOperationKeyboard());
+    } catch (error) {
+      logger.error(`Error al generar reporte por filtros: ${error.message}`);
+      await ctx.reply('Ocurrió un error al generar el reporte. Por favor, intenta nuevamente.');
+      
+      // Mostrar menú post-operación como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', getPostOperationKeyboard());
+    }
+  }
+  
   /**
    * Inicia el flujo para ingreso de fechas personalizadas
    * @param {TelegrafContext} ctx - Contexto de Telegraf
    */
   async handleCustomDateRangeSelection(ctx) {
     try {
-      await ctx.answerCbQuery('Ingresando fechas personalizadas');
-      await updateConversationState(ctx, 'report_date_from');
+      await ctx.answerCbQuery('Ingresa fechas personalizadas');
+      
+      // Guardar los filtros actuales antes de cambiar el estado
+      const currentFilters = ctx.session?.data?.filters || {};
+      
+      // Actualizar estado manteniendo los filtros
+      await updateConversationState(ctx, 'report_date_from', {
+        filters: currentFilters
+      });
+      
       await ctx.reply('Ingresa la fecha inicial (DD/MM/AAAA):');
     } catch (error) {
       logger.error(`Error al iniciar selección de fechas personalizadas: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
+      
+      // En caso de error, volver al menú principal de reportes
+      await this.startReportGeneration(ctx);
     }
   }
 }

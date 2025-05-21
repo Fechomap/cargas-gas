@@ -95,18 +95,38 @@ export function getReportOptionsKeyboard(filters = {}) {
   const buttons = [];
   const hasFilters = Object.keys(filters || {}).length > 0;
   
-  // Opciones de filtrado
-  buttons.push([Markup.button.callback('📅 Filtrar por fechas', 'filter_by_date')]);
-  buttons.push([Markup.button.callback('👤 Filtrar por operador', 'filter_by_operator')]);
-  buttons.push([Markup.button.callback('⛽ Filtrar por tipo de combustible', 'filter_by_fuel_type')]);
-  buttons.push([Markup.button.callback('💰 Filtrar por estatus de pago', 'filter_by_payment_status')]);
+  // Opciones de filtrado con indicadores visuales para filtros activos
+  const hasDateFilter = filters.startDate && filters.endDate;
+  const hasOperatorFilter = !!filters.operatorName;
+  const hasFuelTypeFilter = !!filters.fuelType;
+  const hasPaymentStatusFilter = !!filters.paymentStatus;
   
-  // Si hay filtros aplicados, mostrar botón para generar reporte global
+  buttons.push([Markup.button.callback(
+    `${hasDateFilter ? '✅ ' : ''}📅 Filtrar por fechas`, 
+    'filter_by_date'
+  )]);
+  
+  buttons.push([Markup.button.callback(
+    `${hasOperatorFilter ? '✅ ' : ''}👤 Filtrar por operador`, 
+    'filter_by_operator'
+  )]);
+  
+  buttons.push([Markup.button.callback(
+    `${hasFuelTypeFilter ? '✅ ' : ''}⛽ Filtrar por tipo de combustible`, 
+    'filter_by_fuel_type'
+  )]);
+  
+  buttons.push([Markup.button.callback(
+    `${hasPaymentStatusFilter ? '✅ ' : ''}💰 Filtrar por estatus de pago`, 
+    'filter_by_payment_status'
+  )]);
+  
+  // Botón para generar reporte global (siempre visible)
+  buttons.push([Markup.button.callback('📊 Generar Reporte Global', 'generate_global_report')]);
+  
+  // Botón para generar reporte por filtros (solo visible cuando hay filtros)
   if (hasFilters) {
-    buttons.push([Markup.button.callback('✅ Generar Reporte Completo', 'generate_global_report')]);
-  } else {
-    // Si no hay filtros, mostrar solo la opción general
-    buttons.push([Markup.button.callback('📊 Generar Reporte Global', 'generate_global_report')]);
+    buttons.push([Markup.button.callback('🔍 Generar Reporte por Filtros', 'generate_filtered_report')]);
   }
   
   // Botón para limpiar filtros (si hay filtros aplicados)

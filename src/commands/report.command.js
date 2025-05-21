@@ -54,8 +54,25 @@ export function setupReportCommand(bot) {
   bot.action('cancel_date_filter', async (ctx) => {
     if (isInState(ctx, 'report_select_date_range')) {
       await ctx.answerCbQuery('Selección cancelada');
-      await ctx.reply('Selección de fechas cancelada.');
+      
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+      }
+      
+      const cancelMsg = await ctx.reply('Selección de fechas cancelada.');
+      
+      // Volver al menú principal
       await reportController.startReportGeneration(ctx);
+      
+      // Eliminar mensaje de cancelación después de un breve retraso
+      setTimeout(async () => {
+        try {
+          await ctx.deleteMessage(cancelMsg.message_id);
+        } catch (err) {
+          // Ignorar errores al eliminar mensajes
+        }
+      }, 2000); // 2 segundos
     }
   });
 
@@ -122,8 +139,25 @@ export function setupReportCommand(bot) {
   bot.action('cancel_operator_filter', async (ctx) => {
     if (isInState(ctx, 'report_select_operator')) {
       await ctx.answerCbQuery('Selección cancelada');
-      await ctx.reply('Selección de operador cancelada.');
+      
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+      }
+      
+      const cancelMsg = await ctx.reply('Selección de operador cancelada.');
+      
+      // Volver al menú principal
       await reportController.startReportGeneration(ctx);
+      
+      // Eliminar mensaje de cancelación después de un breve retraso
+      setTimeout(async () => {
+        try {
+          await ctx.deleteMessage(cancelMsg.message_id);
+        } catch (err) {
+          // Ignorar errores al eliminar mensajes
+        }
+      }, 2000); // 2 segundos
     }
   });
   
@@ -146,8 +180,25 @@ export function setupReportCommand(bot) {
   bot.action('cancel_fuel_type_filter', async (ctx) => {
     if (isInState(ctx, 'report_select_fuel_type')) {
       await ctx.answerCbQuery('Selección cancelada');
-      await ctx.reply('Selección de tipo de combustible cancelada.');
+      
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+      }
+      
+      const cancelMsg = await ctx.reply('Selección de tipo de combustible cancelada.');
+      
+      // Volver al menú principal
       await reportController.startReportGeneration(ctx);
+      
+      // Eliminar mensaje de cancelación después de un breve retraso
+      setTimeout(async () => {
+        try {
+          await ctx.deleteMessage(cancelMsg.message_id);
+        } catch (err) {
+          // Ignorar errores al eliminar mensajes
+        }
+      }, 2000); // 2 segundos
     }
   });
   
@@ -172,8 +223,25 @@ export function setupReportCommand(bot) {
   bot.action('cancel_payment_status_filter', async (ctx) => {
     if (isInState(ctx, 'report_select_payment_status')) {
       await ctx.answerCbQuery('Selección cancelada');
-      await ctx.reply('Selección de estatus de pago cancelada.');
+      
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+      }
+      
+      const cancelMsg = await ctx.reply('Selección de estatus de pago cancelada.');
+      
+      // Volver al menú principal
       await reportController.startReportGeneration(ctx);
+      
+      // Eliminar mensaje de cancelación después de un breve retraso
+      setTimeout(async () => {
+        try {
+          await ctx.deleteMessage(cancelMsg.message_id);
+        } catch (err) {
+          // Ignorar errores al eliminar mensajes
+        }
+      }, 2000); // 2 segundos
     }
   });
   
@@ -246,6 +314,13 @@ export function setupReportCommand(bot) {
   bot.action('generate_global_report', async (ctx) => {
     if (isInState(ctx, 'report_select_filters')) {
       await reportController.generateGlobalReport(ctx);
+    }
+  });
+  
+  // Generar reporte por filtros aplicados
+  bot.action('generate_filtered_report', async (ctx) => {
+    if (isInState(ctx, 'report_select_filters')) {
+      await reportController.generateReportByFilters(ctx);
     }
   });
 
