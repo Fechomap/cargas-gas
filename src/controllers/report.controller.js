@@ -63,11 +63,29 @@ class ReportController {
         messageText += 'Selecciona un filtro o genera el reporte:';
       }
       
-      await ctx.reply(messageText, {
+      // Eliminar el mensaje del menú principal anterior si existe
+      if (ctx.session?.data?.mainMenuMessageId) {
+        try {
+          await ctx.telegram.deleteMessage(
+            ctx.chat.id,
+            ctx.session.data.mainMenuMessageId
+          );
+          logger.info(`Menú principal anterior eliminado: ${ctx.session.data.mainMenuMessageId}`);
+        } catch (deleteError) {
+          logger.warn(`No se pudo eliminar el menú principal anterior: ${deleteError.message}`);
+        }
+      }
+      
+      // Enviar nuevo mensaje del menú principal
+      const sentMessage = await ctx.reply(messageText, {
         parse_mode: 'Markdown',
         reply_markup: reply_markup
       });
-      logger.info('Mensaje de opciones de reporte enviado');
+      
+      // Guardar el ID del nuevo mensaje en la sesión
+      if (!ctx.session.data) ctx.session.data = {};
+      ctx.session.data.mainMenuMessageId = sentMessage.message_id;
+      logger.info(`Nuevo menú principal enviado con ID: ${sentMessage.message_id}`);
     } catch (error) {
       logger.error(`Error al iniciar generación de reporte: ${error.message}`, error);
       await ctx.reply('Ocurrió un error al iniciar la generación del reporte. Por favor, intenta nuevamente.');
@@ -388,7 +406,7 @@ class ReportController {
       await ctx.reply('Selecciona el estatus de pago:', 
         Markup.inlineKeyboard([
           [Markup.button.callback('Pagado', 'select_payment_status_pagada')],
-          [Markup.button.callback('No pagado', 'select_payment_status_no_pagada')],
+          [Markup.button.callback('No pagado', 'select_payment_status_no pagada')],
           [Markup.button.callback('Cancelar', 'cancel_payment_status_filter')]
         ])
       );
@@ -418,7 +436,14 @@ class ReportController {
       
       // Eliminar el mensaje del submenú
       if (ctx.callbackQuery && ctx.callbackQuery.message) {
-        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de estatus de pago eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (err) {
+          // El mensaje ya pudo haber sido eliminado o no existe
+          logger.warn(`No se pudo eliminar el submenú de estatus de pago: ${err.message}`);
+          // Continuar con el flujo normal a pesar del error
+        }
       }
       
       // Mostrar confirmación de selección
@@ -718,16 +743,20 @@ class ReportController {
   async generateReportByFilters(ctx) {
     try {
       // Mostrar mensaje de espera
-      const waitMessage = await ctx.reply('⏳ Generando reporte por filtros, por favor espera...');
+      const waitMessage = await ctx.reply('⏳ Generando reportes PDF y Excel, por favor espera...');
       
-      // Generar reporte usando el servicio
-      const reportFile = await reportService.generateReportByFilters(ctx.session.data.filters);
+      // Generar reportes usando el servicio (ahora devuelve un array con [pdfReport, excelReport])
+      const [pdfReport, excelReport] = await reportService.generateReportByFilters(ctx.session.data.filters);
       
       // Eliminar mensaje de espera
       await ctx.deleteMessage(waitMessage.message_id);
       
-      // Enviar el archivo
-      await ctx.replyWithDocument({ source: reportFile.path, filename: reportFile.filename });
+      // Enviar confirmación
+      await ctx.reply('✅ Reportes generados correctamente:');
+      
+      // Enviar ambos archivos
+      await ctx.replyWithDocument({ source: pdfReport.path, filename: pdfReport.filename });
+      await ctx.replyWithDocument({ source: excelReport.path, filename: excelReport.filename });
       
       // Limpiar estado de conversación
       await updateConversationState(ctx, 'idle', {});

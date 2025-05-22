@@ -79,36 +79,96 @@ export function setupReportCommand(bot) {
   // Manejar rangos predefinidos
   bot.action('date_range_today', async (ctx) => {
     if (isInState(ctx, 'report_select_date_range')) {
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de fechas eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (err) {
+          logger.warn(`No se pudo eliminar el submenú de fechas: ${err.message}`);
+        }
+      }
+      
       await reportController.handlePredefinedDateRange(ctx, 'today');
     }
   });
 
   bot.action('date_range_this_week', async (ctx) => {
     if (isInState(ctx, 'report_select_date_range')) {
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de fechas eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (err) {
+          logger.warn(`No se pudo eliminar el submenú de fechas: ${err.message}`);
+        }
+      }
+      
       await reportController.handlePredefinedDateRange(ctx, 'this_week');
     }
   });
 
   bot.action('date_range_last_2_weeks', async (ctx) => {
     if (isInState(ctx, 'report_select_date_range')) {
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de fechas eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (err) {
+          logger.warn(`No se pudo eliminar el submenú de fechas: ${err.message}`);
+        }
+      }
+      
       await reportController.handlePredefinedDateRange(ctx, 'last_2_weeks');
     }
   });
 
   bot.action('date_range_last_3_weeks', async (ctx) => {
     if (isInState(ctx, 'report_select_date_range')) {
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de fechas eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (err) {
+          logger.warn(`No se pudo eliminar el submenú de fechas: ${err.message}`);
+        }
+      }
+      
       await reportController.handlePredefinedDateRange(ctx, 'last_3_weeks');
     }
   });
 
   bot.action('date_range_this_month', async (ctx) => {
     if (isInState(ctx, 'report_select_date_range')) {
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de fechas eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (err) {
+          logger.warn(`No se pudo eliminar el submenú de fechas: ${err.message}`);
+        }
+      }
+      
       await reportController.handlePredefinedDateRange(ctx, 'this_month');
     }
   });
 
   bot.action('date_range_last_3_months', async (ctx) => {
     if (isInState(ctx, 'report_select_date_range')) {
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de fechas eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (err) {
+          logger.warn(`No se pudo eliminar el submenú de fechas: ${err.message}`);
+        }
+      }
+      
       await reportController.handlePredefinedDateRange(ctx, 'last_3_months');
     }
   });
@@ -116,6 +176,16 @@ export function setupReportCommand(bot) {
   // Manejar selección de fechas personalizadas
   bot.action('date_range_custom', async (ctx) => {
     if (isInState(ctx, 'report_select_date_range')) {
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de fechas eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (err) {
+          logger.warn(`No se pudo eliminar el submenú de fechas: ${err.message}`);
+        }
+      }
+      
       await reportController.handleCustomDateRangeSelection(ctx);
     }
   });
@@ -130,6 +200,16 @@ export function setupReportCommand(bot) {
   // Selección de operador
   bot.action(/^select_operator_(.+)$/, async (ctx) => {
     if (isInState(ctx, 'report_select_operator')) {
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de operadores eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (err) {
+          logger.warn(`No se pudo eliminar el submenú de operadores: ${err.message}`);
+        }
+      }
+      
       const operator = ctx.match[1];
       await reportController.handleOperatorSelection(ctx, operator);
     }
@@ -171,6 +251,16 @@ export function setupReportCommand(bot) {
   // Selección de tipo de combustible
   bot.action(/^select_fuel_type_(gas|gasolina)$/, async (ctx) => {
     if (isInState(ctx, 'report_select_fuel_type')) {
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de tipo de combustible eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (err) {
+          logger.warn(`No se pudo eliminar el submenú de tipo de combustible: ${err.message}`);
+        }
+      }
+      
       const fuelType = ctx.match[1];
       await reportController.handleFuelTypeSelection(ctx, fuelType);
     }
@@ -210,12 +300,20 @@ export function setupReportCommand(bot) {
   });
   
   // Selección de estatus de pago
-  bot.action(/^select_payment_status_(pagada|no_pagada)$/, async (ctx) => {
+  bot.action(/^select_payment_status_(pagada|no pagada)$/, async (ctx) => {
     if (isInState(ctx, 'report_select_payment_status')) {
+      // Eliminar el mensaje del submenú
+      if (ctx.callbackQuery && ctx.callbackQuery.message) {
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de estatus de pago eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (err) {
+          logger.warn(`No se pudo eliminar el submenú de estatus de pago: ${err.message}`);
+        }
+      }
+      
       const paymentStatus = ctx.match[1];
-      // Convertir 'no_pagada' a 'no pagada' para coincidir con la base de datos
-      const formattedStatus = paymentStatus === 'no_pagada' ? 'no pagada' : paymentStatus;
-      await reportController.handlePaymentStatusSelection(ctx, formattedStatus);
+      await reportController.handlePaymentStatusSelection(ctx, paymentStatus);
     }
   });
   
@@ -263,17 +361,53 @@ export function setupReportCommand(bot) {
   bot.action('clear_all_filters', async (ctx) => {
     if (isInState(ctx, 'report_select_filters')) {
       await ctx.answerCbQuery('Limpiando filtros...');
+      
       // Reset de filtros en la sesión
       ctx.session.data.filters = {};
-      await ctx.reply('✅ Todos los filtros han sido eliminados.');
+      
+      // Mostrar notificación temporal de que se han limpiado los filtros
+      const notificationMsg = await ctx.reply('✅ Todos los filtros han sido eliminados.');
+      
+      // Actualizar el menú principal sin filtros
       await reportController.startReportGeneration(ctx);
+      
+      // Eliminar el mensaje de notificación después de un breve retraso
+      setTimeout(async () => {
+        try {
+          await ctx.deleteMessage(notificationMsg.message_id);
+        } catch (err) {
+          // Ignorar errores al eliminar mensajes
+        }
+      }, 2000); // 2 segundos
     }
   });
   
   // Cancelar generación de reporte
   bot.action('cancel_report', async (ctx) => {
     await ctx.answerCbQuery('Generación de reporte cancelada');
+    
+    // Eliminar el mensaje del menú principal si existe
+    if (ctx.session?.data?.mainMenuMessageId) {
+      try {
+        await ctx.deleteMessage(ctx.session.data.mainMenuMessageId);
+        // Eliminar la referencia al mensaje
+        ctx.session.data.mainMenuMessageId = null;
+      } catch (error) {
+        logger.warn(`No se pudo eliminar el mensaje del menú principal: ${error.message}`);
+      }
+    }
+    
+    // Eliminar el mensaje actual (botón de cancelar)
+    if (ctx.callbackQuery && ctx.callbackQuery.message) {
+      try {
+        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+      } catch (error) {
+        logger.warn(`No se pudo eliminar el mensaje de cancelación: ${error.message}`);
+      }
+    }
+    
     await ctx.reply('Has cancelado la generación del reporte.');
+    
     // Volver al menú principal
     ctx.telegram.sendMessage(ctx.chat.id, '¿Qué deseas hacer ahora?', {
       reply_markup: {

@@ -348,6 +348,54 @@ class ReportService {
     
     return `${day}${month}${year}_${hours}${minutes}`;
   }
+  
+  /**
+   * Genera un reporte por filtros aplicados (combina PDF y Excel)
+   * @param {Object} filters - Filtros aplicados al reporte
+   * @returns {Promise<Object[]>} - Archivos generados [pdfReport, excelReport]
+   */
+  async generateReportByFilters(filters) {
+    try {
+      // Generar nombre descriptivo basado en los filtros aplicados
+      let reportName = 'reporte_filtrado';
+      
+      // Añadir información de filtros al nombre
+      if (filters.operatorName) {
+        reportName += `_${filters.operatorName}`;
+      }
+      
+      if (filters.fuelType) {
+        reportName += `_${filters.fuelType}`;
+      }
+      
+      if (filters.paymentStatus) {
+        reportName += `_${filters.paymentStatus.replace(' ', '_')}`;
+      }
+      
+      if (filters.startDate && filters.endDate) {
+        const startStr = formatDate(new Date(filters.startDate)).split(' ')[0].replace(/[\/:]/g, '-');
+        const endStr = formatDate(new Date(filters.endDate)).split(' ')[0].replace(/[\/:]/g, '-');
+        reportName += `_${startStr}_a_${endStr}`;
+      }
+      
+      // Generar reporte PDF
+      logger.info('Generando reporte PDF con filtros...');
+      const pdfReport = await this.generatePdfReport(filters);
+      logger.info('Reporte PDF generado correctamente');
+      
+      // Generar reporte Excel
+      logger.info('Generando reporte Excel con filtros...');
+      const excelReport = await this.generateExcelReport(filters);
+      logger.info('Reporte Excel generado correctamente');
+      
+      // Devolver ambos reportes
+      return [pdfReport, excelReport];
+    } catch (error) {
+      logger.error(`Error al generar reporte por filtros: ${error.message}`, error);
+      throw new Error(`Error al generar reporte por filtros: ${error.message}`);
+    }
+  }
+  
 }
 
 export const reportService = new ReportService();
