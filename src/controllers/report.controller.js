@@ -115,6 +115,19 @@ class ReportController {
         filters: currentFilters
       });
       
+      // Eliminar el mensaje del menú principal si existe
+      if (ctx.session?.data?.mainMenuMessageId) {
+        try {
+          await ctx.telegram.deleteMessage(
+            ctx.chat.id,
+            ctx.session.data.mainMenuMessageId
+          );
+          logger.info(`Menú principal eliminado: ${ctx.session.data.mainMenuMessageId}`);
+        } catch (deleteError) {
+          logger.warn(`No se pudo eliminar el menú principal: ${deleteError.message}`);
+        }
+      }
+      
       // Mostrar teclado con opciones de rangos predefinidos como submenú temporal
       await ctx.reply('Selecciona un rango de fechas:', 
         Markup.inlineKeyboard([
@@ -263,6 +276,19 @@ class ReportController {
         filters: currentFilters
       });
       
+      // Eliminar el mensaje del menú principal si existe
+      if (ctx.session?.data?.mainMenuMessageId) {
+        try {
+          await ctx.telegram.deleteMessage(
+            ctx.chat.id,
+            ctx.session.data.mainMenuMessageId
+          );
+          logger.info(`Menú principal eliminado: ${ctx.session.data.mainMenuMessageId}`);
+        } catch (deleteError) {
+          logger.warn(`No se pudo eliminar el menú principal: ${deleteError.message}`);
+        }
+      }
+      
       await ctx.reply('Selecciona un operador:', Markup.inlineKeyboard(buttons));
     } catch (error) {
       logger.error(`Error en selección de filtro por operador: ${error.message}`);
@@ -285,9 +311,16 @@ class ReportController {
       
       await ctx.answerCbQuery(`Operador seleccionado: ${operator}`);
       
-      // Eliminar el mensaje del submenú
+      // Eliminar el mensaje del submenú (si no fue eliminado ya en el action handler)
       if (ctx.callbackQuery && ctx.callbackQuery.message) {
-        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de fechas eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (deleteError) {
+          // El mensaje ya pudo haber sido eliminado en el action handler
+          logger.warn(`No se pudo eliminar el submenú de fechas: ${deleteError.message}`);
+          // Continuar con el flujo normal a pesar del error
+        }
       }
       
       // Mostrar confirmación de selección
@@ -329,6 +362,19 @@ class ReportController {
         filters: currentFilters
       });
       
+      // Eliminar el mensaje del menú principal si existe
+      if (ctx.session?.data?.mainMenuMessageId) {
+        try {
+          await ctx.telegram.deleteMessage(
+            ctx.chat.id,
+            ctx.session.data.mainMenuMessageId
+          );
+          logger.info(`Menú principal eliminado: ${ctx.session.data.mainMenuMessageId}`);
+        } catch (deleteError) {
+          logger.warn(`No se pudo eliminar el menú principal: ${deleteError.message}`);
+        }
+      }
+      
       // Opciones de tipo de combustible como submenú temporal
       await ctx.reply('Selecciona el tipo de combustible:', 
         Markup.inlineKeyboard([
@@ -358,9 +404,16 @@ class ReportController {
       
       await ctx.answerCbQuery(`Tipo de combustible seleccionado: ${fuelType}`);
       
-      // Eliminar el mensaje del submenú
+      // Eliminar el mensaje del submenú (si no fue eliminado ya en el action handler)
       if (ctx.callbackQuery && ctx.callbackQuery.message) {
-        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de fechas eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (deleteError) {
+          // El mensaje ya pudo haber sido eliminado en el action handler
+          logger.warn(`No se pudo eliminar el submenú de fechas: ${deleteError.message}`);
+          // Continuar con el flujo normal a pesar del error
+        }
       }
       
       // Mostrar confirmación de selección
@@ -401,6 +454,19 @@ class ReportController {
       await updateConversationState(ctx, 'report_select_payment_status', {
         filters: currentFilters
       });
+      
+      // Eliminar el mensaje del menú principal si existe
+      if (ctx.session?.data?.mainMenuMessageId) {
+        try {
+          await ctx.telegram.deleteMessage(
+            ctx.chat.id,
+            ctx.session.data.mainMenuMessageId
+          );
+          logger.info(`Menú principal eliminado: ${ctx.session.data.mainMenuMessageId}`);
+        } catch (deleteError) {
+          logger.warn(`No se pudo eliminar el menú principal: ${deleteError.message}`);
+        }
+      }
       
       // Opciones de estatus de pago como submenú temporal
       await ctx.reply('Selecciona el estatus de pago:', 
@@ -708,9 +774,16 @@ class ReportController {
       
       await ctx.answerCbQuery(`Fechas seleccionadas: ${formatDate(startDate)} - ${formatDate(endDate)}`);
       
-      // Eliminar el mensaje del submenú
+      // Eliminar el mensaje del submenú (si no fue eliminado ya en el action handler)
       if (ctx.callbackQuery && ctx.callbackQuery.message) {
-        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+          logger.info(`Submenú de fechas eliminado: ${ctx.callbackQuery.message.message_id}`);
+        } catch (deleteError) {
+          // El mensaje ya pudo haber sido eliminado en el action handler
+          logger.warn(`No se pudo eliminar el submenú de fechas: ${deleteError.message}`);
+          // Continuar con el flujo normal a pesar del error
+        }
       }
       
       // Mostrar confirmación de selección
