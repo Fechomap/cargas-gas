@@ -3,7 +3,7 @@ import { Markup } from 'telegraf';
 import { setupStartCommand } from './start.command.js';
 import { setupRegisterUnitCommand } from './register.command.js';
 import { setupFuelCommand } from './fuel.command.js';
-import { setupReportCommand } from './report.command.js';
+import { setupUnifiedReportCommand } from './unified-report.command.js';
 import { logger } from '../utils/logger.js';
 import { unitController } from '../controllers/unit.controller.js';
 
@@ -132,8 +132,13 @@ function setupGlobalCallbacks(bot) {
     try {
       await ctx.answerCbQuery('Iniciando generación de reporte...');
       
-      // Simular el comando /reporte
-      await bot.telegram.sendMessage(ctx.chat.id, '/reporte');
+      // Importar dinámicamente el controlador para evitar dependencias circulares
+      const { unifiedReportController } = await import('../controllers/unified-report.controller.js');
+      
+      // Llamar directamente al controlador en lugar de simular el comando
+      await unifiedReportController.startReportGeneration(ctx);
+      
+      logger.info('Generador de reportes iniciado directamente desde el botón');
     } catch (error) {
       logger.error(`Error al iniciar reporte: ${error.message}`);
       await ctx.reply('Ocurrió un error al iniciar la generación del reporte.');
@@ -167,7 +172,7 @@ export function registerCommands(bot) {
     setupFuelCommand(bot);
     
     logger.info('Configurando comando report');
-    setupReportCommand(bot);
+    setupUnifiedReportCommand(bot);
     
     // Configurar callbacks globales
     setupGlobalCallbacks(bot);

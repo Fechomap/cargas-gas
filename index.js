@@ -7,6 +7,7 @@ import { registerCommands } from './src/commands/index.js';
 import { setupMiddleware, setupGroupRestriction } from './src/utils/middleware.js';
 import { logger } from './src/utils/logger.js';
 
+
 async function startBot() {
   try {
     logger.info('=== INICIANDO BOT DE TELEGRAM ===');
