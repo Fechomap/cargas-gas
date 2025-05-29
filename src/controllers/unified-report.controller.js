@@ -1,4 +1,4 @@
-// src/controllers/unified-report.controller.js - VERSIÓN CORREGIDA
+// src/controllers/unified-report.controller.js - VERSIÓN CON INTERFAZ LIMPIA
 import { Markup } from 'telegraf';
 import { filterService } from '../services/filter.service.js';
 import { reportService } from '../services/report.service.js';
@@ -6,7 +6,7 @@ import { updateConversationState } from '../state/conversation.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * Controlador unificado para reportes con sistema de filtros simplificado
+ * Controlador unificado para reportes con sistema de filtros simplificado y limpio
  */
 class UnifiedReportController {
   /**
@@ -20,7 +20,8 @@ class UnifiedReportController {
       const existingFilters = ctx.session?.data?.filters || {};
       
       await updateConversationState(ctx, 'report_unified', {
-        filters: existingFilters
+        filters: existingFilters,
+        mainMessageId: null // Para guardar el ID del mensaje principal
       });
       
       await this.showFilterOptions(ctx);
@@ -33,7 +34,7 @@ class UnifiedReportController {
   /**
    * Muestra las opciones de filtros disponibles
    */
-  async showFilterOptions(ctx) {
+  async showFilterOptions(ctx, isEdit = false) {
     try {
       logger.info('Iniciando showFilterOptions');
       
@@ -41,45 +42,103 @@ class UnifiedReportController {
       logger.info(`Filtros actuales: ${JSON.stringify(filters)}`);
       
       // Construir mensaje
-      let messageText = '🔍 *Generación de Reportes*\n\n';
+      let messageText = '📊 *GENERADOR DE REPORTES*\n';
+      messageText += '━━━━━━━━━━━━━━━━━━━━\n\n';
       
-      // Mostrar filtros aplicados
+      // Mostrar filtros aplicados con formato mejorado
       if (Object.keys(filters).length > 0) {
-        messageText += '*Filtros aplicados:*\n';
+        messageText += '✅ *Filtros Activos:*\n';
         const descriptions = filterService.filtersToText(filters);
-        descriptions.forEach(desc => messageText += `• ${desc}\n`);
+        descriptions.forEach(desc => messageText += `   ${desc}\n`);
         messageText += '\n';
+      } else {
+        messageText += '💡 *Sin filtros aplicados*\n';
+        messageText += '_Se generará un reporte global_\n\n';
       }
       
-      messageText += 'Selecciona una opción:';
+      messageText += '📌 *Selecciona una opción:*';
       
-      // CORREGIDO: Usar teclado hardcodeado pero con callback_data correctos
+      // Construir teclado con estado visual de filtros
+      const hasDateFilter = filters.startDate && filters.endDate;
+      const hasOperatorFilter = !!filters.operator;
+      const hasFuelTypeFilter = !!filters.fuelType;
+      const hasPaymentStatusFilter = !!filters.paymentStatus;
+      
       const keyboard = {
         inline_keyboard: [
-          [{ text: '📅 Filtrar por Fechas', callback_data: 'filter_date' }],
-          [{ text: '👤 Filtrar por Operador', callback_data: 'filter_operator' }],
-          [{ text: '⛽ Filtrar por Tipo de combustible', callback_data: 'filter_fuelType' }],
-          [{ text: '💰 Filtrar por Estatus de pago', callback_data: 'filter_paymentStatus' }],
-          [{ text: '📊 Generar Reporte Global', callback_data: 'generate_unified_report' }],
-          [{ text: '❌ Cancelar', callback_data: 'cancel_report' }]
+          [{ 
+            text: `${hasDateFilter ? '✅' : '⬜'} Filtrar por Fechas`, 
+            callback_data: 'filter_date' 
+          }],
+          [{ 
+            text: `${hasOperatorFilter ? '✅' : '⬜'} Filtrar por Operador`, 
+            callback_data: 'filter_operator' 
+          }],
+          [{ 
+            text: `${hasFuelTypeFilter ? '✅' : '⬜'} Filtrar por Tipo de combustible`, 
+            callback_data: 'filter_fuelType' 
+          }],
+          [{ 
+            text: `${hasPaymentStatusFilter ? '✅' : '⬜'} Filtrar por Estatus de pago`, 
+            callback_data: 'filter_paymentStatus' 
+          }]
         ]
       };
       
+      // Separador visual
+      keyboard.inline_keyboard.push([{ text: '━━━━━━━━━━━━━━━━━━━━', callback_data: 'ignore' }]);
+      
+      // Botones de acción
       if (Object.keys(filters).length > 0) {
-        // Si hay filtros, cambiar el botón de generar reporte
-        keyboard.inline_keyboard[4] = [{ text: '✅ Generar Reporte', callback_data: 'generate_unified_report' }];
-        // Y agregar botón de limpiar filtros antes del último botón
-        keyboard.inline_keyboard.splice(5, 0, [{ text: '🗑️ Limpiar filtros', callback_data: 'clear_filters' }]);
+        keyboard.inline_keyboard.push([{ 
+          text: '🚀 GENERAR REPORTE', 
+          callback_data: 'generate_unified_report' 
+        }]);
+        keyboard.inline_keyboard.push([{ 
+          text: '🗑️ Limpiar todos los filtros', 
+          callback_data: 'clear_filters' 
+        }]);
+      } else {
+        keyboard.inline_keyboard.push([{ 
+          text: '📊 Generar Reporte Global', 
+          callback_data: 'generate_unified_report' 
+        }]);
       }
+      
+      keyboard.inline_keyboard.push([{ 
+        text: '❌ Cancelar', 
+        callback_data: 'cancel_report' 
+      }]);
       
       logger.info(`Teclado construido: ${JSON.stringify(keyboard)}`);
       
-      await ctx.reply(messageText, {
-        parse_mode: 'Markdown',
-        reply_markup: keyboard
-      });
+      // Decidir si editar o enviar nuevo mensaje
+      if (isEdit && ctx.session.data.mainMessageId && ctx.callbackQuery) {
+        try {
+          await ctx.editMessageText(messageText, {
+            parse_mode: 'Markdown',
+            reply_markup: keyboard
+          });
+          logger.info('Mensaje principal editado correctamente');
+        } catch (editError) {
+          logger.warn(`No se pudo editar mensaje: ${editError.message}`);
+          // Si no se puede editar, enviar nuevo
+          const sentMessage = await ctx.reply(messageText, {
+            parse_mode: 'Markdown',
+            reply_markup: keyboard
+          });
+          ctx.session.data.mainMessageId = sentMessage.message_id;
+        }
+      } else {
+        // Enviar nuevo mensaje y guardar ID
+        const sentMessage = await ctx.reply(messageText, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        });
+        ctx.session.data.mainMessageId = sentMessage.message_id;
+        logger.info(`Nuevo mensaje principal creado con ID: ${sentMessage.message_id}`);
+      }
       
-      logger.info('Mensaje enviado correctamente');
     } catch (error) {
       logger.error(`Error al mostrar opciones de filtros: ${error.message}`, error);
       
@@ -108,7 +167,10 @@ class UnifiedReportController {
     try {
       logger.info(`Manejando selección de filtro: ${filterKey}`);
       
-      // CORREGIDO: Obtener definición usando el servicio
+      // Responder al callback inmediatamente
+      await ctx.answerCbQuery('Cargando opciones...');
+      
+      // Obtener definición del filtro
       const definition = filterService.getFilterDefinition(filterKey);
       if (!definition) {
         logger.error(`Filtro no encontrado: ${filterKey}`);
@@ -116,8 +178,6 @@ class UnifiedReportController {
         return;
       }
 
-      await ctx.answerCbQuery(`Configurando filtro: ${definition.name}`);
-      
       // Guardar el filtro actual en el estado
       ctx.session.data.currentFilter = filterKey;
       await updateConversationState(ctx, 'report_filter_input', ctx.session.data);
@@ -137,17 +197,17 @@ class UnifiedReportController {
         default:
           logger.warn(`Tipo de filtro no reconocido: ${definition.type}`);
           await ctx.reply('Tipo de filtro no soportado.');
-          await this.showFilterOptions(ctx);
+          await this.showFilterOptions(ctx, true);
       }
     } catch (error) {
       logger.error(`Error al manejar selección de filtro: ${error.message}`, error);
       await ctx.reply('Error al procesar el filtro.');
-      await this.showFilterOptions(ctx);
+      await this.showFilterOptions(ctx, true);
     }
   }
 
   /**
-   * Muestra opciones estáticas (ej: tipo de combustible)
+   * Muestra opciones estáticas (ej: tipo de combustible) - EDITANDO EL MENSAJE
    */
   async showStaticOptions(ctx, definition) {
     try {
@@ -160,20 +220,32 @@ class UnifiedReportController {
       };
       
       // Agregar botón de cancelar
-      keyboard.inline_keyboard.push([{ text: '❌ Cancelar', callback_data: 'cancel_filter' }]);
+      keyboard.inline_keyboard.push([{ text: '↩️ Volver', callback_data: 'cancel_filter' }]);
 
-      await ctx.reply(`Selecciona ${definition.name}:`, {
-        reply_markup: keyboard
-      });
+      const messageText = `${definition.icon} *Selecciona ${definition.name}:*`;
+      
+      // Intentar editar el mensaje existente
+      try {
+        await ctx.editMessageText(messageText, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        });
+      } catch (editError) {
+        logger.warn(`No se pudo editar mensaje: ${editError.message}`);
+        await ctx.reply(messageText, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        });
+      }
     } catch (error) {
       logger.error(`Error al mostrar opciones estáticas: ${error.message}`);
       await ctx.reply('Error al mostrar opciones.');
-      await this.showFilterOptions(ctx);
+      await this.showFilterOptions(ctx, true);
     }
   }
 
   /**
-   * Muestra opciones dinámicas (ej: operadores)
+   * Muestra opciones dinámicas (ej: operadores) - EDITANDO EL MENSAJE
    */
   async showDynamicOptions(ctx, definition) {
     try {
@@ -182,8 +254,14 @@ class UnifiedReportController {
       const options = await filterService.processDynamicList(definition.dataSource, 'get_options');
       
       if (!options || options.length === 0) {
-        await ctx.reply(`No hay opciones disponibles para ${definition.name}.`);
-        return this.showFilterOptions(ctx);
+        await ctx.editMessageText(
+          `⚠️ No hay opciones disponibles para ${definition.name}.`,
+          { parse_mode: 'Markdown' }
+        );
+        
+        // Esperar un momento y volver
+        setTimeout(() => this.showFilterOptions(ctx, true), 1500);
+        return;
       }
 
       const keyboard = {
@@ -193,20 +271,32 @@ class UnifiedReportController {
       };
       
       // Agregar botón de cancelar
-      keyboard.inline_keyboard.push([{ text: '❌ Cancelar', callback_data: 'cancel_filter' }]);
+      keyboard.inline_keyboard.push([{ text: '↩️ Volver', callback_data: 'cancel_filter' }]);
 
-      await ctx.reply(`Selecciona ${definition.name}:`, {
-        reply_markup: keyboard
-      });
+      const messageText = `${definition.icon} *Selecciona ${definition.name}:*`;
+      
+      // Intentar editar el mensaje existente
+      try {
+        await ctx.editMessageText(messageText, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        });
+      } catch (editError) {
+        logger.warn(`No se pudo editar mensaje: ${editError.message}`);
+        await ctx.reply(messageText, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        });
+      }
     } catch (error) {
       logger.error(`Error al mostrar opciones dinámicas: ${error.message}`);
       await ctx.reply('Error al cargar las opciones.');
-      await this.showFilterOptions(ctx);
+      await this.showFilterOptions(ctx, true);
     }
   }
 
   /**
-   * Muestra opciones de fecha
+   * Muestra opciones de fecha - EDITANDO EL MENSAJE
    */
   async showDateOptions(ctx, definition) {
     try {
@@ -219,15 +309,27 @@ class UnifiedReportController {
       };
       
       // Agregar botón de cancelar
-      keyboard.inline_keyboard.push([{ text: '❌ Cancelar', callback_data: 'cancel_filter' }]);
+      keyboard.inline_keyboard.push([{ text: '↩️ Volver', callback_data: 'cancel_filter' }]);
 
-      await ctx.reply('Selecciona el rango de fechas:', {
-        reply_markup: keyboard
-      });
+      const messageText = '📅 *Selecciona el rango de fechas:*';
+      
+      // Intentar editar el mensaje existente
+      try {
+        await ctx.editMessageText(messageText, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        });
+      } catch (editError) {
+        logger.warn(`No se pudo editar mensaje: ${editError.message}`);
+        await ctx.reply(messageText, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        });
+      }
     } catch (error) {
       logger.error(`Error al mostrar opciones de fecha: ${error.message}`);
       await ctx.reply('Error al mostrar opciones de fecha.');
-      await this.showFilterOptions(ctx);
+      await this.showFilterOptions(ctx, true);
     }
   }
 
@@ -266,18 +368,17 @@ class UnifiedReportController {
       // Limpiar filtro temporal
       delete ctx.session.data.currentFilter;
       
-      // CORREGIDO: Cambiar estado de vuelta a report_unified
+      // Cambiar estado de vuelta a report_unified
       await updateConversationState(ctx, 'report_unified', ctx.session.data);
       
-      await ctx.answerCbQuery('Filtro aplicado');
-      await ctx.reply('✅ Filtro aplicado correctamente');
+      await ctx.answerCbQuery('✅ Filtro aplicado');
       
-      // Volver a mostrar opciones
-      await this.showFilterOptions(ctx);
+      // Volver a mostrar opciones EDITANDO el mensaje
+      await this.showFilterOptions(ctx, true);
     } catch (error) {
       logger.error(`Error al procesar valor de filtro: ${error.message}`, error);
       await ctx.reply('Error al aplicar el filtro.');
-      await this.showFilterOptions(ctx);
+      await this.showFilterOptions(ctx, true);
     }
   }
 
@@ -296,12 +397,14 @@ class UnifiedReportController {
       // Volver al estado de reporte unificado
       await updateConversationState(ctx, 'report_unified', ctx.session.data);
       
-      await ctx.answerCbQuery('Filtro cancelado');
-      await this.showFilterOptions(ctx);
+      await ctx.answerCbQuery('Cancelado');
+      
+      // Volver a mostrar opciones EDITANDO el mensaje
+      await this.showFilterOptions(ctx, true);
     } catch (error) {
       logger.error(`Error al cancelar filtro: ${error.message}`);
       await ctx.reply('Error al cancelar filtro.');
-      await this.showFilterOptions(ctx);
+      await this.showFilterOptions(ctx, true);
     }
   }
 
@@ -317,36 +420,68 @@ class UnifiedReportController {
       const filters = ctx.session?.data?.filters || {};
       logger.info(`Filtros originales: ${JSON.stringify(filters)}`);
       
-      // NUEVO: Mapear filtros para la base de datos
+      // Mapear filtros para la base de datos
       const mappedFilters = filterService.mapFiltersForDatabase(filters);
       logger.info(`Filtros mapeados para DB: ${JSON.stringify(mappedFilters)}`);
       
-      // Mostrar mensaje de espera
-      const waitMessage = await ctx.reply('⏳ Generando reportes PDF y Excel...');
+      // Actualizar mensaje con estado de generación
+      try {
+        await ctx.editMessageText(
+          '⏳ *Generando reportes...*\n\n' +
+          '📄 Procesando PDF...\n' +
+          '📊 Procesando Excel...\n\n' +
+          '_Por favor espera un momento_',
+          { parse_mode: 'Markdown' }
+        );
+      } catch (editError) {
+        logger.warn('No se pudo editar mensaje para mostrar progreso');
+      }
       
       try {
-        // Generar ambos reportes CON LOS FILTROS MAPEADOS
+        // Generar ambos reportes
         logger.info('Generando reportes PDF y Excel...');
         const [pdfReport, excelReport] = await Promise.all([
-          reportService.generatePdfReport(mappedFilters),  // ← Usar filtros mapeados
-          reportService.generateExcelReport(mappedFilters) // ← Usar filtros mapeados
+          reportService.generatePdfReport(mappedFilters),
+          reportService.generateExcelReport(mappedFilters)
         ]);
         
         logger.info('Reportes generados correctamente');
         
-        // Eliminar mensaje de espera
-        await ctx.deleteMessage(waitMessage.message_id);
+        // Actualizar mensaje con éxito
+        try {
+          await ctx.editMessageText(
+            '✅ *Reportes generados exitosamente*\n\n' +
+            '📄 PDF listo\n' +
+            '📊 Excel listo\n\n' +
+            '_Enviando archivos..._',
+            { parse_mode: 'Markdown' }
+          );
+        } catch (editError) {
+          logger.warn('No se pudo editar mensaje de éxito');
+        }
         
         // Enviar archivos
-        await ctx.reply('✅ Reportes generados:');
-        await ctx.replyWithDocument({ source: pdfReport.path, filename: pdfReport.filename });
-        await ctx.replyWithDocument({ source: excelReport.path, filename: excelReport.filename });
+        await ctx.replyWithDocument({ 
+          source: pdfReport.path, 
+          filename: pdfReport.filename 
+        }, {
+          caption: '📄 Reporte en formato PDF'
+        });
         
-        // Limpiar estado
-        await updateConversationState(ctx, 'idle', {});
+        await ctx.replyWithDocument({ 
+          source: excelReport.path, 
+          filename: excelReport.filename 
+        }, {
+          caption: '📊 Reporte en formato Excel'
+        });
+        
+        // Limpiar estado pero mantener filtros
+        const currentFilters = ctx.session.data.filters;
+        await updateConversationState(ctx, 'idle', { filters: currentFilters });
         
         // Mostrar opciones post-reporte
-        await ctx.reply('¿Qué deseas hacer ahora?', {
+        await ctx.reply('✅ *Reportes enviados correctamente*\n\n¿Qué deseas hacer ahora?', {
+          parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
               [{ text: '📊 Generar otro reporte', callback_data: 'generate_report' }],
@@ -357,15 +492,26 @@ class UnifiedReportController {
       } catch (reportError) {
         logger.error(`Error al generar reportes: ${reportError.message}`);
         
-        // Eliminar mensaje de espera si existe
+        // Actualizar mensaje con error
         try {
-          await ctx.deleteMessage(waitMessage.message_id);
-        } catch (deleteError) {
-          // Ignorar error al eliminar mensaje
+          await ctx.editMessageText(
+            '❌ *Error al generar reportes*\n\n' +
+            'Por favor, intenta nuevamente.',
+            { 
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '🔄 Reintentar', callback_data: 'generate_unified_report' }],
+                  [{ text: '↩️ Volver', callback_data: 'generate_report' }],
+                  [{ text: '❌ Cancelar', callback_data: 'cancel_report' }]
+                ]
+              }
+            }
+          );
+        } catch (editError) {
+          await ctx.reply('❌ Error al generar los reportes. Por favor, intenta nuevamente.');
+          await this.showFilterOptions(ctx);
         }
-        
-        await ctx.reply('❌ Error al generar los reportes. Por favor, intenta nuevamente.');
-        await this.showFilterOptions(ctx);
       }
     } catch (error) {
       logger.error(`Error al generar reporte: ${error.message}`, error);
@@ -382,9 +528,10 @@ class UnifiedReportController {
       logger.info('Limpiando filtros');
       
       ctx.session.data.filters = {};
-      await ctx.answerCbQuery('Filtros eliminados');
-      await ctx.reply('🗑️ Todos los filtros han sido eliminados');
-      await this.showFilterOptions(ctx);
+      await ctx.answerCbQuery('✅ Filtros eliminados');
+      
+      // Actualizar el mensaje principal
+      await this.showFilterOptions(ctx, true);
     } catch (error) {
       logger.error(`Error al limpiar filtros: ${error.message}`);
       await ctx.reply('Error al limpiar los filtros.');
