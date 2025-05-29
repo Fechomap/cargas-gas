@@ -1,39 +1,29 @@
-// scripts/import-tenant-data.js
+// scripts/direct-import.js
+// Script de importación directa sin interacción
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
-import readline from 'readline';
 
-// Crear interfaz para leer entrada del usuario
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
+const DATA_FILE = 'Empresa_Migrada_data.json';
+const DATABASE_URL = process.env.DATABASE_URL;
 
-// Función para preguntar al usuario
-function askQuestion(question) {
-  return new Promise(resolve => {
-    rl.question(question, answer => {
-      resolve(answer.trim());
-    });
-  });
+if (!DATABASE_URL) {
+  console.error('Error: DATABASE_URL no está definida');
+  process.exit(1);
 }
 
-async function importTenantData(filePath, railwayDatabaseUrl) {
-  console.log(`Importando datos desde: ${filePath}`);
-  
+console.log(`\n=== Importación Directa de Datos de Tenant a Railway ===\n`);
+console.log(`Usando archivo: ${DATA_FILE}`);
+console.log(`URL de base de datos: ${DATABASE_URL.replace(/:[^:]*@/, ':****@')}`);
+
+async function importTenantData() {
   // Crear una nueva instancia de Prisma con la URL de Railway
-  const prisma = new PrismaClient({
-    datasources: {
-      db: {
-        url: railwayDatabaseUrl
-      }
-    }
-  });
+  const prisma = new PrismaClient();
   
   try {
     // Leer datos del archivo JSON
-    const rawData = fs.readFileSync(filePath, 'utf8');
+    console.log(`\nLeyendo datos desde: ${DATA_FILE}`);
+    const rawData = fs.readFileSync(DATA_FILE, 'utf8');
     const tenantData = JSON.parse(rawData);
     
     console.log(`\nDatos a importar:`);
@@ -41,13 +31,6 @@ async function importTenantData(filePath, railwayDatabaseUrl) {
     console.log(`- Configuraciones: ${tenantData.tenantSettings ? 'Sí' : 'No'}`);
     console.log(`- Unidades: ${tenantData.units.length}`);
     console.log(`- Registros de combustible: ${tenantData.fuels.length}`);
-    
-    // Confirmación final
-    const confirmation = await askQuestion("\n¿Proceder con la importación? (s/n): ");
-    if (confirmation.toLowerCase() !== 's') {
-      console.log("Importación cancelada");
-      return;
-    }
     
     console.log("\n==== Iniciando proceso de importación ====");
     
@@ -120,39 +103,16 @@ async function importTenantData(filePath, railwayDatabaseUrl) {
     console.log(`El tenant '${tenant.companyName}' está ahora disponible en la base de datos de Railway`);
     
   } catch (error) {
-    console.error(`❌ Error durante la importación: ${error.message}`);
+    console.error(`\n❌ Error durante la importación: ${error.message}`);
     throw error;
   } finally {
     await prisma.$disconnect();
-    rl.close();
   }
 }
 
-async function main() {
-  try {
-    console.log("\n=== Importación de Datos de Tenant a Railway ===\n");
-    
-    // Solicitar ruta del archivo de datos
-    const filePath = await askQuestion("Ruta del archivo JSON con los datos del tenant: ");
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`El archivo no existe: ${filePath}`);
-    }
-    
-    // Solicitar URL de la base de datos de Railway
-    console.log("\nNecesitas la DATABASE_URL de tu proyecto en Railway.");
-    console.log("Puedes obtenerla desde el panel de Railway > Tu proyecto > PostgreSQL > Variables > DATABASE_URL");
-    const railwayDatabaseUrl = await askQuestion("\nIngresa la DATABASE_URL de Railway: ");
-    
-    if (!railwayDatabaseUrl.startsWith("postgresql://")) {
-      throw new Error("La URL de la base de datos no parece ser válida. Debe comenzar con 'postgresql://'");
-    }
-    
-    // Importar los datos
-    await importTenantData(filePath, railwayDatabaseUrl);
-    
-  } catch (error) {
-    console.error(`Error en la ejecución del script: ${error.message}`);
-  }
-}
-
-main();
+// Ejecutar la importación
+importTenantData()
+  .catch(e => {
+    console.error(`Error fatal: ${e.message}`);
+    process.exit(1);
+  });

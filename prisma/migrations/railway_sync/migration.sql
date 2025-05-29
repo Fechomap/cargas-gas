@@ -1,0 +1,12 @@
+
+-- Eliminar tablas existentes
+DROP TABLE IF EXISTS "Fuel" CASCADE;
+DROP TABLE IF EXISTS "Unit" CASCADE;
+DROP TABLE IF EXISTS "TenantSettings" CASCADE;
+DROP TABLE IF EXISTS "RegistrationRequest" CASCADE;
+DROP TABLE IF EXISTS "Tenant" CASCADE;
+
+-- Eliminar tipos
+DROP TYPE IF EXISTS "FuelType" CASCADE;
+DROP TYPE IF EXISTS "PaymentStatus" CASCADE;
+DROP TYPE IF EXISTS "RegistrationStatus" CASCADE;
