@@ -122,6 +122,7 @@ class ReportPrismaService {
         { header: 'Litros', key: 'liters', width: 10 },
         { header: 'Monto', key: 'amount', width: 12 },
         { header: 'Estado', key: 'status', width: 15 },
+        { header: 'Fecha de Pago', key: 'paymentDate', width: 18 },
         { header: 'Venta #', key: 'saleNumber', width: 15 }
       ];
       
@@ -133,16 +134,17 @@ class ReportPrismaService {
         fgColor: { argb: 'FFD3D3D3' }
       };
       
-      // Agregar datos
+      // Añadir filas de datos
       fuels.forEach(fuel => {
         worksheet.addRow({
-          date: fuel.recordDate,
+          date: formatDate(new Date(fuel.recordDate)),
           operator: fuel.operatorName,
           unit: fuel.unitNumber,
-          type: fuel.fuelType,
-          liters: fuel.liters,
-          amount: fuel.amount,
+          type: fuel.fuelType === 'GAS' ? 'Gas' : 'Gasolina',
+          liters: Number(fuel.liters),
+          amount: Number(fuel.amount),
           status: fuel.paymentStatus === 'PAGADA' ? 'Pagada' : 'No Pagada',
+          paymentDate: fuel.paymentDate ? formatDate(new Date(fuel.paymentDate)) : 'N/A',
           saleNumber: fuel.saleNumber || 'N/A'
         });
       });
@@ -266,17 +268,21 @@ class ReportPrismaService {
       fuel.liters.toFixed(2),
       `$${fuel.amount.toFixed(2)}`,
       fuel.paymentStatus === 'PAGADA' ? 'Pagada' : 'No Pagada',
+      fuel.paymentDate ? formatDate(new Date(fuel.paymentDate)) : 'N/A',
       fuel.saleNumber || 'N/A'
     ]);
     
     // Agregar encabezados
     tableData.unshift([
       'Fecha', 'Operador', 'Unidad', 'Tipo', 
-      'Litros', 'Monto', 'Estado', '# Venta'
+      'Litros', 'Monto', 'Estado', 'Fecha de Pago', '# Venta'
     ]);
     
     // Crear documento
     return {
+      // Configurar página en orientación horizontal
+      pageOrientation: 'landscape',
+      pageSize: 'A4',
       content: [
         { text: 'Reporte de Cargas de Combustible', style: 'header' },
         { text: `Generado: ${formatDate(new Date())}`, style: 'subheader' },
@@ -285,7 +291,7 @@ class ReportPrismaService {
         {
           table: {
             headerRows: 1,
-            widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
+            widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
             body: tableData
           }
         },

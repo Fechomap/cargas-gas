@@ -4,10 +4,9 @@ import { botConfig } from './config/bot.config.js';
 import { connectToDatabase } from './src/db/connection.js';
 import { initializeBot } from './src/api/telegram.api.js';
 import { registerCommands } from './src/commands/index.js';
-import { setupMiddleware, setupGroupRestriction } from './src/utils/middleware.js';
+import { setupMiddleware } from './src/middleware/index.js';
 import { logger } from './src/utils/logger.js';
 import { PrismaClient } from '@prisma/client';
-import { withTenant, withTenantSettings } from './src/utils/tenant-middleware.js';
 import { dbConfig } from './config/database.config.js';
 
 // Inicializar Prisma
@@ -49,12 +48,14 @@ async function startBot() {
     // Configurar middleware
     logger.info('Configurando middleware...');
     
-    // Middleware para identificar tenant
-    bot.use(withTenant);
-    bot.use(withTenantSettings);
-    setupMiddleware(bot);
-    // Añadir restricción de uso solo en grupos específicos
-    setupGroupRestriction(bot);
+    // Configurar todos los middlewares de forma centralizada
+    setupMiddleware(bot, {
+      enableDiagnostic: true,
+      enableLogging: true,
+      enableGroupRestriction: true,
+      enableTenantValidation: true,
+      enableTenantSettings: true
+    });
     logger.info('Middleware configurado');
 
     // Registrar comandos
