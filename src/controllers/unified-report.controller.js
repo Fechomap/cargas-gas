@@ -1,12 +1,12 @@
-// src/controllers/unified-report.controller.js - VERSIÓN CON INTERFAZ LIMPIA
+// src/controllers/unified-report.controller.js - VERSIÓN PARA POSTGRESQL
 import { Markup } from 'telegraf';
 import { filterService } from '../services/filter.service.js';
-import { reportService } from '../services/report.service.js';
+import { reportPrismaService } from '../services/report.prisma.service.js';
 import { updateConversationState } from '../state/conversation.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * Controlador unificado para reportes con sistema de filtros simplificado y limpio
+ * Controlador unificado para reportes con PostgreSQL
  */
 class UnifiedReportController {
   /**
@@ -251,7 +251,17 @@ class UnifiedReportController {
     try {
       logger.info(`Mostrando opciones dinámicas para: ${definition.name}`);
       
-      const options = await filterService.processDynamicList(definition.dataSource, 'get_options');
+      // Verificar que el contexto tiene un tenant
+      if (!ctx.tenant) {
+        logger.error('No se encontró tenant en el contexto');
+        await ctx.editMessageText(
+          '❌ Error al obtener opciones: No se pudo identificar el grupo.',
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+      
+      const options = await filterService.processDynamicList(definition.dataSource, 'get_options', ctx.tenant.id);
       
       if (!options || options.length === 0) {
         await ctx.editMessageText(
@@ -438,11 +448,21 @@ class UnifiedReportController {
       }
       
       try {
-        // Generar ambos reportes
+        // Verificar que el contexto tiene un tenant
+        if (!ctx.tenant) {
+          logger.error('No se encontró tenant en el contexto');
+          return ctx.reply('Error: No se pudo identificar el grupo. Por favor, contacte al administrador.');
+        }
+        
+        // Obtener el tenantId del contexto
+        const tenantId = ctx.tenant.id;
+        logger.info(`Generando reportes para tenant: ${tenantId}`);
+        
+        // Generar ambos reportes usando PostgreSQL
         logger.info('Generando reportes PDF y Excel...');
         const [pdfReport, excelReport] = await Promise.all([
-          reportService.generatePdfReport(mappedFilters),
-          reportService.generateExcelReport(mappedFilters)
+          reportPrismaService.generatePdfReport(mappedFilters, tenantId),
+          reportPrismaService.generateExcelReport(mappedFilters, tenantId)
         ]);
         
         logger.info('Reportes generados correctamente');
@@ -535,6 +555,32 @@ class UnifiedReportController {
     } catch (error) {
       logger.error(`Error al limpiar filtros: ${error.message}`);
       await ctx.reply('Error al limpiar los filtros.');
+    }
+  }
+
+  /**
+   * Marca todas las cargas no pagadas como pagadas
+   */
+  async markAllAsPaid(ctx) {
+    try {
+      // Verificar que el contexto tiene un tenant
+      if (!ctx.tenant) {
+        logger.error('No se encontró tenant en el contexto');
+        return ctx.reply('Error: No se pudo identificar el grupo. Por favor, contacte al administrador.');
+      }
+      
+      const tenantId = ctx.tenant.id;
+      const filters = { tenantId };
+      
+      await ctx.reply('⏳ Procesando pagos...');
+      
+      // Marcar todas las cargas no pagadas como pagadas
+      const result = await reportPrismaService.markAllAsPaid(filters, tenantId);
+      
+      return ctx.reply(`✅ Operación completada: ${result.message}`);
+    } catch (error) {
+      logger.error(`Error al marcar como pagadas: ${error.message}`);
+      return ctx.reply(`❌ Error: ${error.message}`);
     }
   }
 }

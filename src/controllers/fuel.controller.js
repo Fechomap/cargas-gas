@@ -1,11 +1,15 @@
 // src/controllers/fuel.controller.js
 import { Markup } from 'telegraf';
-import { fuelService } from '../services/fuel.service.js';
+// Importar servicio adaptador en lugar del servicio directo de MongoDB
+import { FuelService } from '../services/fuel.adapter.service.js';
 import { unitController } from './unit.controller.js';
 import { updateConversationState } from '../state/conversation.js';
 import { logger } from '../utils/logger.js';
 import { storageService } from '../services/storage.service.js';
 import { getMainKeyboard } from '../views/keyboards.js';
+
+// Crear instancia del servicio de combustible
+const fuelService = new FuelService();
 
 /**
  * Controlador para gestionar cargas de combustible
@@ -18,16 +22,21 @@ class FuelController {
    */
   async startFuelEntry(ctx, unitButtonId) {
     try {
-      // Obtener la unidad seleccionada
-      const unit = await unitController.getUnitByButtonId(unitButtonId);
+      logger.info(`Iniciando captura de carga para unidad: ${unitButtonId}`);
+      
+      // Obtener la unidad seleccionada - pasar el contexto que contiene el tenant
+      const unit = await unitController.getUnitByButtonId(ctx, unitButtonId);
       
       if (!unit) {
+        logger.warn(`Unidad no encontrada: ${unitButtonId}`);
         return await ctx.reply('Unidad no encontrada. Por favor, selecciona otra unidad.');
       }
       
+      logger.info(`Unidad encontrada: ${unit.operatorName} - ${unit.unitNumber}`);
+      
       // Guardar información de la unidad en la sesión
       await updateConversationState(ctx, 'fuel_entry_liters', {
-        unitId: unit._id,
+        unitId: unit.id,
         operatorName: unit.operatorName,
         unitNumber: unit.unitNumber,
         unitButtonId: unitButtonId
@@ -256,13 +265,17 @@ class FuelController {
         unitId: ctx.session.data.unitId,
         liters: Number(ctx.session.data.liters) || 0,
         amount: Number(ctx.session.data.amount) || 0,
-        fuelType: ctx.session.data.fuelType || 'gas',
+        // Convertir a mayúsculas para coincidir con el enum de Prisma
+        fuelType: (ctx.session.data.fuelType || 'gas').toUpperCase(),
         saleNumber: ctx.session.data.saleNumber || null,
-        paymentStatus: ctx.session.data.paymentStatus || 'no pagada',
+        // Convertir a formato NO_PAGADA/PAGADA para coincidir con el enum de Prisma
+        paymentStatus: ctx.session.data.paymentStatus === 'pagada' ? 'PAGADA' : 'NO_PAGADA',
         ticketPhoto: ctx.session.data.ticketPhoto || null,
         operatorName: ctx.session.data.operatorName,
         unitNumber: ctx.session.data.unitNumber
       };
+      
+      logger.info(`Valores convertidos para Prisma - fuelType: ${fuelData.fuelType}, paymentStatus: ${fuelData.paymentStatus}`);
       
       logger.info(`Objeto fuelData creado: ${JSON.stringify(fuelData)}`);
       
@@ -277,13 +290,25 @@ class FuelController {
         return;
       }
       
+      // Verificar que el contexto tiene un tenant
+      if (!ctx.tenant) {
+        logger.error('No se encontró tenant en el contexto');
+        await ctx.answerCbQuery('Error: No se pudo identificar el grupo');
+        await ctx.reply('Error: No se pudo identificar el grupo. Por favor, contacte al administrador.');
+        return;
+      }
+      
+      // Obtener tenantId del contexto
+      const tenantId = ctx.tenant.id;
+      logger.info(`Guardando carga para tenant: ${tenantId}`);
+      
       // Guardar en la base de datos con log detallado de cada paso
-      logger.info('Llamando a fuelService.createFuelEntry()');
-      const savedFuel = await fuelService.createFuelEntry(fuelData);
-      logger.info(`Carga guardada con ID: ${savedFuel._id}`);
+      logger.info('Llamando a fuelService.createFuelEntry() con tenantId');
+      const savedFuel = await fuelService.createFuelEntry(fuelData, tenantId);
+      logger.info(`Carga guardada con ID: ${savedFuel.id}`);
       
       await ctx.answerCbQuery('Carga guardada correctamente');
-      await ctx.reply(`✅ Carga registrada correctamente con ID: ${savedFuel._id}`);
+      await ctx.reply(`✅ Carga registrada correctamente con ID: ${savedFuel.id}`);
 
       // Iniciar verificación de fecha de registro
       await this.checkRecordDate(ctx, savedFuel);
@@ -524,11 +549,22 @@ class FuelController {
   
   /**
    * Obtiene el saldo total pendiente (cargas no pagadas)
+   * @param {TelegrafContext} ctx - Contexto de Telegraf (opcional)
    * @returns {Promise<number>} - Monto total pendiente
    */
-  async getTotalPendingBalance() {
+  async getTotalPendingBalance(ctx = null) {
     try {
-      return await fuelService.getTotalUnpaidAmount();
+      // Verificar si hay un tenant en el contexto
+      if (!ctx || !ctx.tenant) {
+        logger.warn('No se encontró tenant en el contexto para consultar saldo pendiente');
+      }
+      
+      // Usar el tenantId si existe, de lo contrario será null (fallback a MongoDB)
+      const tenantId = ctx?.tenant?.id || null;
+      logger.info(`Consultando saldo pendiente para tenantId: ${tenantId || 'No disponible'}`);
+      
+      // Usar el servicio adaptador que funciona con ambas bases de datos
+      return await FuelService.getTotalUnpaidAmount(tenantId);
     } catch (error) {
       logger.error(`Error al obtener saldo pendiente: ${error.message}`);
       throw error;
@@ -619,8 +655,19 @@ class FuelController {
         return await ctx.reply('Por favor, ingresa un número de venta válido:');
       }
       
-      // Buscar la nota por número de venta
-      const fuel = await fuelService.findBySaleNumber(saleNumber);
+      // Verificar que el contexto tiene un tenant
+      if (!ctx.tenant) {
+        logger.error('No se encontró tenant en el contexto para la búsqueda de nota');
+        await ctx.reply('Error: No se pudo identificar el grupo. Por favor, contacte al administrador.');
+        return;
+      }
+
+      // Obtener tenantId del contexto
+      const tenantId = ctx.tenant.id;
+      logger.info(`Buscando nota con número ${saleNumber} para tenant: ${tenantId}`);
+      
+      // Buscar la nota por número de venta con tenant
+      const fuel = await fuelService.findBySaleNumber(saleNumber, tenantId);
       
       if (!fuel) {
         await ctx.reply(`⚠️ No se encontró ninguna nota con el número: ${saleNumber}`);
@@ -628,11 +675,12 @@ class FuelController {
         return;
       }
       
-      // Guardar el ID de la nota en la sesión
-      ctx.session.data.noteId = fuel._id;
+      // Guardar el ID de la nota en la sesión (usando el campo id para PostgreSQL)
+      ctx.session.data.noteId = fuel.id;
+      logger.info(`Carga encontrada con ID: ${fuel.id}, estado: ${fuel.paymentStatus}`);
       
-      // Verificar si la nota ya está pagada
-      if (fuel.paymentStatus === 'pagada') {
+      // Verificar si la nota ya está pagada (en PostgreSQL es 'PAGADA' en mayúsculas)
+      if (fuel.paymentStatus === 'PAGADA') {
         await ctx.reply(`⚠️ Nota #${saleNumber} ya está marcada como pagada.`);
         await ctx.reply(`Fecha de pago: ${fuel.paymentDate ? this.formatDate(fuel.paymentDate) : 'No registrada'}`);
         
@@ -648,9 +696,11 @@ class FuelController {
       
       // Actualizar estado de conversación
       await updateConversationState(ctx, 'search_note_confirm', {
-        noteId: fuel._id,
+        noteId: fuel.id, // Usando fuel.id para PostgreSQL en lugar de fuel._id
         saleNumber: fuel.saleNumber
       });
+      
+      logger.info(`Estado actualizado con noteId: ${fuel.id} para saleNumber: ${fuel.saleNumber}`);
       
       // Registrar en log que vamos a mostrar los botones para nota no pagada
       logger.info(`Mostrando resumen y botones para nota no pagada #${saleNumber}`);
@@ -702,8 +752,20 @@ class FuelController {
       
       const noteId = ctx.session.data.noteId;
       
-      // Marcar como pagada
-      const updatedFuel = await fuelService.markAsPaid(noteId);
+      // Verificar que el contexto tiene un tenant
+      if (!ctx.tenant) {
+        logger.error('No se encontró tenant en el contexto para marcar nota como pagada');
+        await ctx.answerCbQuery('Error: No se pudo identificar el grupo');
+        await ctx.reply('Error: No se pudo identificar el grupo. Por favor, contacte al administrador.');
+        return;
+      }
+      
+      // Obtener tenantId del contexto
+      const tenantId = ctx.tenant.id;
+      logger.info(`Marcando como pagada la nota con ID ${noteId} para tenant: ${tenantId}`);
+      
+      // Marcar como pagada pasando el tenantId
+      const updatedFuel = await fuelService.markAsPaid(noteId, tenantId);
       
       await ctx.answerCbQuery('Nota marcada como pagada');
       
@@ -734,10 +796,10 @@ class FuelController {
   }
   
   /**
-   * Marca la nota seleccionada como pagada
+   * Maneja la acción del botón de marcar como pagada
    * @param {TelegrafContext} ctx - Contexto de Telegraf
    */
-  async markNoteAsPaid(ctx) {
+  async handleMarkAsPaid(ctx) {
     try {
       if (!ctx.session?.data?.noteId) {
         await ctx.answerCbQuery('Error: No se encontró referencia a la nota');
@@ -747,8 +809,20 @@ class FuelController {
       
       const noteId = ctx.session.data.noteId;
       
-      // Marcar como pagada
-      const updatedFuel = await fuelService.markAsPaid(noteId);
+      // Verificar que el contexto tiene un tenant
+      if (!ctx.tenant) {
+        logger.error('No se encontró tenant en el contexto para marcar nota como pagada');
+        await ctx.answerCbQuery('Error: No se pudo identificar el grupo');
+        await ctx.reply('Error: No se pudo identificar el grupo. Por favor, contacte al administrador.');
+        return;
+      }
+      
+      // Obtener tenantId del contexto
+      const tenantId = ctx.tenant.id;
+      logger.info(`Marcando como pagada la nota con ID ${noteId} para tenant: ${tenantId}`);
+      
+      // Marcar como pagada pasando el tenantId
+      const updatedFuel = await fuelService.markAsPaid(noteId, tenantId);
       
       await ctx.answerCbQuery('Nota marcada como pagada');
       

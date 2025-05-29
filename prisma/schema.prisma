@@ -1,0 +1,105 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Tabla de Tenants (Empresas)
+model Tenant {
+  id              String    @id @default(uuid())
+  chatId          String    @unique // ID del grupo de Telegram
+  companyName     String
+  isActive        Boolean   @default(true)
+  subscriptionEnd DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relaciones
+  units           Unit[]
+  fuels           Fuel[]
+  settings        TenantSettings?
+}
+
+// Configuraciones por Tenant
+model TenantSettings {
+  id                String   @id @default(uuid())
+  tenantId          String   @unique
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  
+  // Configuraciones específicas
+  currency          String   @default("MXN")
+  timezone          String   @default("America/Mexico_City")
+  allowPhotoSkip    Boolean  @default(true)
+  requireSaleNumber Boolean  @default(true)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Unidades (Operadores)
+model Unit {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  operatorName  String
+  unitNumber    String
+  buttonId      String
+  isActive      Boolean  @default(true)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relaciones
+  fuels         Fuel[]
+  
+  // Índice compuesto único por tenant
+  @@unique([tenantId, buttonId])
+  @@index([tenantId, operatorName])
+}
+
+// Cargas de Combustible
+model Fuel {
+  id             String    @id @default(uuid())
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  
+  unitId         String
+  unit           Unit      @relation(fields: [unitId], references: [id])
+  
+  liters         Decimal   @db.Decimal(10, 2)
+  amount         Decimal   @db.Decimal(10, 2)
+  fuelType       FuelType
+  saleNumber     String?
+  paymentStatus  PaymentStatus @default(NO_PAGADA)
+  paymentDate    DateTime?
+  ticketPhoto    String?
+  recordDate     DateTime  @default(now())
+  
+  // Campos desnormalizados para reportes
+  operatorName   String
+  unitNumber     String
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  @@index([tenantId, paymentStatus])
+  @@index([tenantId, recordDate])
+  @@index([tenantId, saleNumber])
+}
+
+// Enums
+enum FuelType {
+  GAS
+  GASOLINA
+}
+
+enum PaymentStatus {
+  PAGADA
+  NO_PAGADA
+}

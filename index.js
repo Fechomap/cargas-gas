@@ -6,17 +6,33 @@ import { initializeBot } from './src/api/telegram.api.js';
 import { registerCommands } from './src/commands/index.js';
 import { setupMiddleware, setupGroupRestriction } from './src/utils/middleware.js';
 import { logger } from './src/utils/logger.js';
+import { PrismaClient } from '@prisma/client';
+import { withTenant, withTenantSettings } from './src/utils/tenant-middleware.js';
+import { dbConfig } from './config/database.config.js';
+
+// Inicializar Prisma
+export const prisma = new PrismaClient();
 
 
 async function startBot() {
   try {
     logger.info('=== INICIANDO BOT DE TELEGRAM ===');
     logger.info(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`Modo base de datos: ${dbConfig.mode}`);
     
-    // Conectar a la base de datos
-    logger.info('Intentando conexión a MongoDB...');
-    await connectToDatabase();
-    logger.info('Conexión a la base de datos establecida');
+    // Conectar a MongoDB solo si no estamos en modo PostgreSQL puro
+    if (dbConfig.mode !== 'postgresql') {
+      logger.info('Intentando conexión a MongoDB...');
+      await connectToDatabase();
+      logger.info('Conexión a MongoDB establecida');
+    } else {
+      logger.info('Modo PostgreSQL puro: No se conectará a MongoDB');
+    }
+    
+    // Conectar a PostgreSQL
+    logger.info('Intentando conexión a PostgreSQL...');
+    await prisma.$connect();
+    logger.info('Conexión a PostgreSQL establecida');
 
     // Inicializar el bot
     logger.info('Inicializando bot de Telegram...');
@@ -32,6 +48,10 @@ async function startBot() {
 
     // Configurar middleware
     logger.info('Configurando middleware...');
+    
+    // Middleware para identificar tenant
+    bot.use(withTenant);
+    bot.use(withTenantSettings);
     setupMiddleware(bot);
     // Añadir restricción de uso solo en grupos específicos
     setupGroupRestriction(bot);

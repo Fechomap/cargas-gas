@@ -3,52 +3,102 @@ import { Markup } from 'telegraf';
 import { fuelController } from '../controllers/fuel.controller.js';
 import { unitController } from '../controllers/unit.controller.js';
 import { isInState, updateConversationState } from '../state/conversation.js';
-import { getMainKeyboard } from '../views/keyboards.js';
 import { logger } from '../utils/logger.js';
+import { storageService } from '../services/storage.service.js';
+import { getMainKeyboard } from '../views/keyboards.js';
+
+logger.info("⭐ Registrando manejadores de fuel.command.js");
+
+/**
+ * Configura los comandos de carga de combustible
+ * @param {Telegraf} bot - Instancia del bot de Telegram
+ */
 
 /**
  * Configura los comandos de carga de combustible
  * @param {Telegraf} bot - Instancia del bot de Telegram
  */
 export function setupFuelCommand(bot) {
-  logger.info("⭐ Registrando manejadores de fuel.command.js");
+  logger.info("⭐ Configurando manejadores de combustible");
 
   // Acción para iniciar el registro de carga de combustible (desde el menú principal)
   bot.action('register_fuel_start', async (ctx) => {
     try {
       logger.info(`Usuario ${ctx.from.id} inició registro de carga desde menú`);
-      await ctx.answerCbQuery('Iniciando registro de carga...');
-      await unitController.showRegisteredUnits(ctx, 'fuel_entry');
+      await ctx.answerCbQuery('Selecciona la unidad para la carga...');
+      
+      // Llamar al controlador de unidades para mostrar la selección
+      await unitController.requestUnitSelectionForFuel(ctx); 
+      
     } catch (error) {
-      logger.error(`Error al iniciar carga: ${error.message}`);
+      logger.error(`Error en acción register_fuel_start: ${error.message}`, error);
       await ctx.answerCbQuery('Error al iniciar registro');
-      await ctx.reply('Ocurrió un error al iniciar el registro de carga.');
+      await ctx.reply('Ocurrió un error al iniciar el registro de carga. Intenta de nuevo.');
+      // Mostrar menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
     }
   });
 
-  // Manejar la selección de unidad para carga de combustible
-  bot.action(/fuel_entry_unit_(.+)/, async (ctx) => {
+  // NUEVA ACCIÓN: Buscar nota por número para pago
+  bot.action('search_note_for_payment', async (ctx) => {
     try {
-      // Extraer el ID de la unidad del botón
-      const unitButtonId = ctx.match[1];
-      logger.info(`Usuario ${ctx.from.id} seleccionó unidad ${unitButtonId} para carga`);
+      logger.info(`Usuario ${ctx.from.id} inició búsqueda de nota para pago`);
+      await ctx.answerCbQuery('Iniciando búsqueda de nota...');
       
-      // Usar el controlador para iniciar la captura
-      await fuelController.startFuelEntry(ctx, unitButtonId);
+      // Llamar al controlador para iniciar la búsqueda
+      await fuelController.startNoteSearch(ctx);
     } catch (error) {
-      logger.error(`Error al iniciar carga: ${error.message}`);
-      await ctx.answerCbQuery('Error al seleccionar unidad');
-      await ctx.reply('Ocurrió un error al seleccionar la unidad.');
+      logger.error(`Error en acción search_note_for_payment: ${error.message}`, error);
+      await ctx.answerCbQuery('Error al iniciar búsqueda');
+      await ctx.reply('Ocurrió un error al iniciar la búsqueda de nota. Intenta de nuevo.');
+      // Mostrar menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
     }
   });
+
+  // NUEVA ACCIÓN: Marcar nota como pagada
+  bot.action('mark_note_as_paid', async (ctx) => {
+    try {
+      logger.info(`Usuario ${ctx.from.id} solicitó marcar nota como pagada`);
+      await fuelController.markNoteAsPaid(ctx);
+    } catch (error) {
+      logger.error(`Error en acción mark_note_as_paid: ${error.message}`, error);
+      await ctx.answerCbQuery('Error al marcar como pagada');
+      await ctx.reply('Ocurrió un error al marcar la nota como pagada. Intenta de nuevo.');
+      // Mostrar menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
+    }
+  });
+  
+  // NUEVA ACCIÓN: Cancelar búsqueda de nota
+  bot.action('cancel_note_search', async (ctx) => {
+    try {
+      logger.info(`Usuario ${ctx.from.id} canceló búsqueda de nota`);
+      await fuelController.cancelNoteSearch(ctx);
+    } catch (error) {
+      logger.error(`Error en acción cancel_note_search: ${error.message}`, error);
+      await ctx.answerCbQuery('Error al cancelar búsqueda');
+      await ctx.reply('Ocurrió un error al cancelar la búsqueda. Intenta de nuevo.');
+      // Mostrar menú principal como fallback
+      await ctx.reply('¿Qué deseas hacer ahora?', {
+        reply_markup: getMainKeyboard()
+      });
+    }
+  });
+    
   
   // Comando para mostrar saldo pendiente
   bot.command('saldo', async (ctx) => {
     try {
       logger.info(`Usuario ${ctx.from.id} solicitó saldo pendiente`);
-      // ACTUALIZADO: Pasar el contexto al método
-      logger.info('Llamando a fuelController.getTotalPendingBalance() con contexto');
-      const totalAmount = await fuelController.getTotalPendingBalance(ctx);
+      logger.info('Llamando a fuelController.getTotalPendingBalance()');
+      const totalAmount = await fuelController.getTotalPendingBalance();
       logger.info(`Saldo recuperado: ${totalAmount}`);
       
       await ctx.reply(`💰 *Saldo pendiente total: $${totalAmount.toFixed(2)}*`, {
@@ -74,9 +124,8 @@ export function setupFuelCommand(bot) {
       logger.info(`Usuario ${ctx.from.id} solicitó saldo pendiente mediante botón`);
       await ctx.answerCbQuery('Consultando saldo pendiente...');
       
-      // ACTUALIZADO: Pasar el contexto al método
-      logger.info('Llamando a fuelController.getTotalPendingBalance() con contexto');
-      const totalAmount = await fuelController.getTotalPendingBalance(ctx);
+      logger.info('Llamando a fuelController.getTotalPendingBalance()');
+      const totalAmount = await fuelController.getTotalPendingBalance();
       logger.info(`Saldo recuperado: ${totalAmount}`);
       
       await ctx.reply(`💰 *Saldo pendiente total: $${totalAmount.toFixed(2)}*`, {
@@ -95,6 +144,18 @@ export function setupFuelCommand(bot) {
       await ctx.reply('¿Qué deseas hacer ahora?', {
         reply_markup: getMainKeyboard()
       });
+    }
+  });
+  
+  // Manejar selección de unidad para registrar carga
+  bot.action(/^unit_.*/, async (ctx) => {
+    try {
+      const unitButtonId = ctx.match[0];
+      await fuelController.startFuelEntry(ctx, unitButtonId);
+    } catch (error) {
+      logger.error(`Error al iniciar carga: ${error.message}`);
+      await ctx.answerCbQuery('Error al seleccionar unidad');
+      await ctx.reply('Ocurrió un error al seleccionar la unidad.');
     }
   });
   
@@ -318,58 +379,4 @@ export function setupFuelCommand(bot) {
       }
     });
   }
-  
-  // Acción para buscar nota para pago
-  bot.action('search_note_for_payment', async (ctx) => {
-    try {
-      logger.info(`Usuario ${ctx.from.id} inició búsqueda de nota para pago mediante botón`);
-      await ctx.answerCbQuery('Iniciando búsqueda de nota...');
-      await fuelController.startNoteSearch(ctx);
-    } catch (error) {
-      logger.error(`Error en acción search_note_for_payment: ${error.message}`, error);
-      await ctx.answerCbQuery('Error al iniciar búsqueda');
-      await ctx.reply('Ocurrió un error al iniciar la búsqueda de nota. Por favor, intenta nuevamente.');
-      
-      // Mostrar menú principal como fallback
-      await ctx.reply('¿Qué deseas hacer ahora?', {
-        reply_markup: getMainKeyboard()
-      });
-    }
-  });
-  
-  // Acción para cancelar la búsqueda de nota
-  bot.action('cancel_note_search', async (ctx) => {
-    try {
-      logger.info(`Usuario ${ctx.from.id} canceló la búsqueda de nota`);
-      await ctx.answerCbQuery('Búsqueda cancelada');
-      await fuelController.cancelNoteSearch(ctx);
-    } catch (error) {
-      logger.error(`Error al cancelar búsqueda de nota: ${error.message}`, error);
-      await ctx.answerCbQuery('Error al cancelar');
-      
-      // Mostrar menú principal como fallback
-      await ctx.reply('¿Qué deseas hacer ahora?', {
-        reply_markup: getMainKeyboard()
-      });
-    }
-  });
-  
-  // Acción para marcar una nota como pagada
-  bot.action('mark_note_as_paid', async (ctx) => {
-    try {
-      logger.info(`Usuario ${ctx.from.id} solicitó marcar nota como pagada`);
-      await ctx.answerCbQuery('Procesando pago...');
-      logger.info('Llamando a fuelController.markNoteAsPaid()');
-      await fuelController.markNoteAsPaid(ctx);
-    } catch (error) {
-      logger.error(`Error al marcar nota como pagada: ${error.message}`, error);
-      await ctx.answerCbQuery('Error al procesar pago');
-      await ctx.reply('Ocurrió un error al marcar la nota como pagada. Por favor, intenta nuevamente.');
-      
-      // Mostrar menú principal como fallback
-      await ctx.reply('¿Qué deseas hacer ahora?', {
-        reply_markup: getMainKeyboard()
-      });
-    }
-  });
 }

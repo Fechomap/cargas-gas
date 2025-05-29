@@ -1,6 +1,6 @@
 // src/services/filter.service.js
 import { logger } from '../utils/logger.js';
-import { unitService } from './unit.service.js';
+import { unitService } from './unit.adapter.service.js';
 
 /**
  * Configuración de filtros disponibles
@@ -30,8 +30,8 @@ const FILTER_DEFINITIONS = {
     icon: '⛽',
     type: 'static_list',
     options: [
-      { label: 'Gas', value: 'gas' },
-      { label: 'Gasolina', value: 'gasolina' }
+      { label: 'Gas', value: 'GAS' },
+      { label: 'Gasolina', value: 'GASOLINA' }
     ]
   },
   paymentStatus: {
@@ -39,8 +39,8 @@ const FILTER_DEFINITIONS = {
     icon: '💰',
     type: 'static_list',
     options: [
-      { label: 'Pagado', value: 'pagada' },
-      { label: 'No pagado', value: 'no pagada' }
+      { label: 'Pagado', value: 'PAGADA' },
+      { label: 'No pagado', value: 'NO_PAGADA' }
     ]
   }
 };
@@ -153,13 +153,16 @@ class FilterService {
   }
 
   /**
-   * Obtiene datos dinámicos para listas
+   * Procesa listas dinámicas (operadores, etc)
    */
-  async processDynamicList(dataSource, value) {
+  async processDynamicList(dataSource, value, tenantId) {
     switch (dataSource) {
       case 'operators':
         if (value === 'get_options') {
-          const units = await unitService.getAllActiveUnits();
+          if (!tenantId) {
+            throw new Error('Se requiere tenantId para obtener operadores con PostgreSQL');
+          }
+          const units = await unitService.getAllActiveUnits(tenantId);
           const operators = [...new Set(units.map(unit => unit.operatorName))];
           return operators.map(op => ({ label: op, value: op }));
         }
@@ -183,20 +186,30 @@ class FilterService {
   }
 
   /**
-   * Convierte filtros aplicados a texto descriptivo
+   * Convierte los filtros aplicados en texto descriptivo
    */
   filtersToText(filters) {
     const descriptions = [];
-
+    
     for (const [key, value] of Object.entries(filters)) {
+      // Usar consistentemente getFilterDefinition 
       const definition = this.getFilterDefinition(key);
       if (!definition) continue;
-
+      
+      // Escapar caracteres especiales de Markdown en los valores
+      let safeValue = value;
+      if (typeof value === 'string') {
+        // Escapar caracteres especiales de Markdown: * _ ` [
+        safeValue = value.replace(/_/g, '\\_').replace(/\*/g, '\\*').replace(/`/g, '\\`');
+        logger.info(`Valor escapado para Markdown: ${value} -> ${safeValue}`);
+      }
+      
       if (key === 'startDate' && filters.endDate) {
-        descriptions.push(`📅 Fechas: ${this.formatDate(value)} - ${this.formatDate(filters.endDate)}`);
-        delete filters.endDate; // Evitar duplicado
+        const startDate = this.formatDate(filters.startDate);
+        const endDate = this.formatDate(filters.endDate);
+        descriptions.push(`${definition.icon} ${definition.name}: ${startDate} - ${endDate}`);
       } else if (key !== 'endDate') {
-        descriptions.push(`${definition.icon} ${definition.name}: ${value}`);
+        descriptions.push(`${definition.icon} ${definition.name}: ${safeValue}`);
       }
     }
 

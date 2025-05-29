@@ -1,6 +1,6 @@
 // src/db/connection.js
 import mongoose from 'mongoose';
-import { dbConfig } from '../../config/db.config.js';
+import { dbConfig } from '../../config/database.config.js';
 import { logger } from '../utils/logger.js';
 
 // Variable para controlar el estado de la conexión
@@ -11,15 +11,30 @@ let isConnected = false;
  * @returns {Promise<mongoose.Connection>} - La conexión a MongoDB
  */
 export async function connectToDatabase() {
+  // Si estamos en modo PostgreSQL puro, no intentar conectar a MongoDB
+  if (dbConfig.mode === 'postgresql') {
+    logger.info('Modo PostgreSQL puro: No se conectará a MongoDB');
+    return null;
+  }
+  
   if (isConnected) {
     logger.info('Ya existe una conexión a MongoDB');
     return mongoose.connection;
   }
 
   try {
+    // Verificar que tenemos las variables de entorno necesarias
+    const mongoUri = process.env.MONGODB_URI;
+    const dbName = process.env.MONGODB_DB_NAME;
+    
+    if (!mongoUri) {
+      logger.warn('La variable de entorno MONGODB_URI no está definida. Saltando conexión a MongoDB.');
+      return null;
+    }
+    
     // Usar await directamente en mongoose.connect
-    await mongoose.connect(dbConfig.uri, {
-      dbName: dbConfig.options.dbName
+    await mongoose.connect(mongoUri, {
+      dbName
     });
     
     isConnected = true;
@@ -46,7 +61,7 @@ export async function connectToDatabase() {
  * Cierra la conexión a la base de datos
  */
 export async function disconnectFromDatabase() {
-  if (!isConnected) {
+  if (!isConnected || dbConfig.mode === 'postgresql') {
     return;
   }
   

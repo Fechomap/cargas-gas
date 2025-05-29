@@ -9,6 +9,17 @@ import { logger } from '../utils/logger.js';
 export function setupUnifiedReportCommand(bot) {
   logger.info('Configurando comandos unificados de reportes con interfaz limpia');
 
+  // Comando para marcar todas las cargas como pagadas
+  bot.command(['pagar_todas', 'pay_all'], async (ctx) => {
+    try {
+      logger.info(`Comando para marcar todas como pagadas ejecutado por usuario ${ctx.from.id}`);
+      await unifiedReportController.markAllAsPaid(ctx);
+    } catch (error) {
+      logger.error(`Error al marcar todas como pagadas: ${error.message}`);
+      await ctx.reply('❌ Error: No se pudieron marcar las cargas como pagadas.');
+    }
+  });
+
   // Comando principal /reporte con limpieza de mensajes
   bot.command('reporte', async (ctx) => {
     try {

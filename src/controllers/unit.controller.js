@@ -1,8 +1,7 @@
 // src/controllers/unit.controller.js
 import { Markup } from 'telegraf';
-// Removed duplicate import
-import { Unit } from '../models/unit.model.js';
-import { unitService } from '../services/unit.service.js';
+// Actualizando para usar el adaptador en lugar del servicio original
+import { unitService } from '../services/unit.adapter.service.js';
 import { logger } from '../utils/logger.js';
 import { getUnitsKeyboard } from '../views/keyboards.js'; // Import the keyboard function
 
@@ -38,20 +37,32 @@ class UnitController {
   /**
    * Muestra las unidades registradas como botones en el chat
    * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {String} action - Acción a realizar cuando se selecciona una unidad
    */
-  async showRegisteredUnits(ctx) {
+  async showRegisteredUnits(ctx, action = 'select_unit') {
     try {
-      // Obtener todas las unidades activas
-      const units = await unitService.getAllActiveUnits();
+      // Verificar que el contexto tiene un tenant
+      if (!ctx.tenant) {
+        logger.error('No se encontró tenant en el contexto');
+        return ctx.reply('Error: No se pudo identificar el grupo. Por favor, contacte al administrador.');
+      }
+      
+      // Obtener tenantId del contexto
+      const tenantId = ctx.tenant.id;
+      logger.info(`Obteniendo unidades activas para tenant: ${tenantId}`);
+      
+      // Obtener todas las unidades activas con el tenantId
+      const units = await unitService.getAllActiveUnits(tenantId);
       
       if (units.length === 0) {
         return await ctx.reply('No hay unidades registradas. Usa el botón "Registrar unidad" para comenzar.');
       }
       
-      // Crear botones para cada unidad
+      // Crear botones para cada unidad con la acción correspondiente
       const buttons = units.map(unit => {
         const buttonLabel = `${unit.operatorName} - ${unit.unitNumber}`;
-        return [Markup.button.callback(buttonLabel, unit.buttonId)];
+        // Usar el parámetro action para determinar el callback_data
+        return [Markup.button.callback(buttonLabel, `${action}_unit_${unit.buttonId}`)];
       });
       
       // Añadir botón para registrar nueva unidad y menú principal
@@ -59,7 +70,7 @@ class UnitController {
       buttons.push([Markup.button.callback('🏠 Menú principal', 'main_menu')]);
       
       // Mostrar teclado con unidades
-      await ctx.reply('Unidades registradas:', 
+      await ctx.reply('Selecciona una unidad:', 
         Markup.inlineKeyboard(buttons)
       );
     } catch (error) {
@@ -70,12 +81,23 @@ class UnitController {
   
   /**
    * Obtiene una unidad por su buttonId
+   * @param {object} ctx - Contexto de Telegraf con tenant
    * @param {string} buttonId - ID del botón asociado a la unidad
    * @returns {Promise<Object>} - Unidad encontrada
    */
-  async getUnitByButtonId(buttonId) {
+  async getUnitByButtonId(ctx, buttonId) {
     try {
-      return await unitService.getUnitByButtonId(buttonId);
+      // Verificar que el contexto tiene un tenant
+      if (!ctx.tenant) {
+        logger.error('No se encontró tenant en el contexto');
+        throw new Error('No se pudo identificar el grupo. Por favor, contacte al administrador.');
+      }
+      
+      // Obtener tenantId del contexto
+      const tenantId = ctx.tenant.id;
+      logger.info(`Buscando unidad con buttonId: ${buttonId} para tenant: ${tenantId}`);
+      
+      return await unitService.findUnitByButtonId(buttonId, tenantId);
     } catch (error) {
       logger.error(`Error al obtener unidad por buttonId: ${error.message}`);
       throw error;
