@@ -4,6 +4,7 @@ import { setupStartCommand } from './start.command.js';
 import { setupRegisterUnitCommand } from './register.command.js';
 import { setupFuelCommand } from './fuel.command.js';
 import { setupUnifiedReportCommand } from './unified-report.command.js';
+import { setupCompanyRegisterCommands } from './company-register.command.js';
 import { logger } from '../utils/logger.js';
 import { unitController } from '../controllers/unit.controller.js';
 
@@ -174,6 +175,9 @@ export function registerCommands(bot) {
     logger.info('Configurando comando report');
     setupUnifiedReportCommand(bot);
     
+    logger.info('Configurando sistema de registro de empresas');
+    setupCompanyRegisterCommands(bot);
+    
     // Configurar callbacks globales
     setupGlobalCallbacks(bot);
     
@@ -182,6 +186,8 @@ export function registerCommands(bot) {
     bot.telegram.setMyCommands([
       { command: 'start', description: 'Iniciar el bot' },
       { command: 'registrar', description: 'Registrar una nueva unidad' },
+      { command: 'registrar_empresa', description: 'Solicitar registro de empresa' },
+      { command: 'vincular', description: 'Vincular grupo con token de empresa' },
       { command: 'saldo', description: 'Ver saldo pendiente total' },
       { command: 'reporte', description: 'Generar reportes de cargas' },
       { command: 'ayuda', description: 'Ver instrucciones de uso' }

@@ -26,8 +26,11 @@ export function withTenant() {
     
     try {
       // Lista de comandos que pueden ejecutarse sin validación de tenant
-      const bypassCommands = ['/start', '/registrar', '/ayuda', '/help'];
-      const adminCommands = ['/debug_', '/admin_', '/aprobar_', '/rechazar_'];
+      const bypassCommands = ['/start', '/registrar', '/ayuda', '/help', '/registrar_empresa'];
+      const adminCommands = ['/debug_', '/admin_', '/aprobar_', '/rechazar_', '/solicitudes', '/aprobar', '/rechazar'];
+      
+      // Comandos para el sistema de registro multi-tenant
+      const registrationCommands = ['/registrar_empresa', '/vincular', '/activar'];
       
       // Verificar si es un comando especial que no requiere validación
       const messageText = ctx.message?.text || '';
@@ -45,12 +48,25 @@ export function withTenant() {
         return next();
       }
       
+      // Permitir comandos del sistema de registro
+      if (registrationCommands.some(cmd => messageText.startsWith(cmd))) {
+        logger.debug(`Comando de registro permitido sin tenant: ${messageText}`);
+        return next();
+      }
+      
       // Obtener chatId
       const chatId = ctx.chat?.id?.toString();
       if (!chatId) {
         logger.warn('No se pudo identificar el chat');
         await ctx.reply('Error: No se pudo identificar el chat.');
         return; // No continuar
+      }
+      
+      // Permitir todos los mensajes si estamos en un proceso de registro
+      // Verificar si hay un estado de registro activo en la sesión
+      if (ctx.session?.state?.startsWith('register_company_')) {
+        logger.debug(`Permitiendo mensaje para proceso de registro activo: ${ctx.session.state}`);
+        return next();
       }
       
       // Buscar tenant asociado al chatId
@@ -60,8 +76,11 @@ export function withTenant() {
       if (!tenant) {
         logger.info(`Chat sin tenant registrado: ${chatId}`);
         
-        // Si es un comando de registro, permitir
-        if (messageText.startsWith('/registrar')) {
+        // Si es un comando de registro o relacionado, permitir
+        if (messageText.startsWith('/registrar') || 
+            messageText.startsWith('/vincular') || 
+            registrationCommands.some(cmd => messageText.startsWith(cmd))) {
+          logger.debug(`Permitiendo comando relacionado con registro: ${messageText}`);
           return next();
         }
         

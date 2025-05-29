@@ -6,7 +6,8 @@
     "logs/*",
     "diagnostics/*",
     "*.log",
-    "*.json"
+    "*.json",
+    "src/commands/company-register.command.js"
   ],
   "verbose": true,
   "execMap": {
