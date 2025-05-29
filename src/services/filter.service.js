@@ -214,6 +214,33 @@ class FilterService {
       year: 'numeric'
     });
   }
+
+  /**
+   * Mapea los nombres de filtros del sistema unificado a los nombres esperados por el modelo
+   */
+  mapFiltersForDatabase(filters) {
+    const mappedFilters = {};
+    
+    // Mapeo de nombres de campos
+    const fieldMapping = {
+      'operator': 'operatorName',        // operator → operatorName
+      'fuelType': 'fuelType',           // fuelType → fuelType (sin cambio)
+      'paymentStatus': 'paymentStatus', // paymentStatus → paymentStatus (sin cambio)
+      'startDate': 'startDate',         // startDate → startDate (sin cambio)
+      'endDate': 'endDate'              // endDate → endDate (sin cambio)
+    };
+    
+    // Aplicar mapeo
+    for (const [filterKey, filterValue] of Object.entries(filters)) {
+      const mappedKey = fieldMapping[filterKey] || filterKey;
+      mappedFilters[mappedKey] = filterValue;
+      
+      logger.info(`Mapeo de filtro: ${filterKey} → ${mappedKey} = ${filterValue}`);
+    }
+    
+    logger.info(`Filtros mapeados: ${JSON.stringify(mappedFilters)}`);
+    return mappedFilters;
+  }
 }
 
 export const filterService = new FilterService();

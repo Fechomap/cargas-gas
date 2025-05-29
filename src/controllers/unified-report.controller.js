@@ -315,17 +315,21 @@ class UnifiedReportController {
       await ctx.answerCbQuery('Generando reportes...');
       
       const filters = ctx.session?.data?.filters || {};
-      logger.info(`Filtros para reporte: ${JSON.stringify(filters)}`);
+      logger.info(`Filtros originales: ${JSON.stringify(filters)}`);
+      
+      // NUEVO: Mapear filtros para la base de datos
+      const mappedFilters = filterService.mapFiltersForDatabase(filters);
+      logger.info(`Filtros mapeados para DB: ${JSON.stringify(mappedFilters)}`);
       
       // Mostrar mensaje de espera
       const waitMessage = await ctx.reply('⏳ Generando reportes PDF y Excel...');
       
       try {
-        // Generar ambos reportes
+        // Generar ambos reportes CON LOS FILTROS MAPEADOS
         logger.info('Generando reportes PDF y Excel...');
         const [pdfReport, excelReport] = await Promise.all([
-          reportService.generatePdfReport(filters),
-          reportService.generateExcelReport(filters)
+          reportService.generatePdfReport(mappedFilters),  // ← Usar filtros mapeados
+          reportService.generateExcelReport(mappedFilters) // ← Usar filtros mapeados
         ]);
         
         logger.info('Reportes generados correctamente');
