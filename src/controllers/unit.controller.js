@@ -23,10 +23,15 @@ class UnitController {
         throw new Error('Datos de unidad incompletos');
       }
       
-      // Usar el servicio para registrar la unidad
-      const unit = await unitService.createUnit(unitData);
+      // Validar que el tenant esté presente en los datos
+      if (!unitData.tenantId) {
+        throw new Error('Se requiere el tenantId para registrar una unidad');
+      }
       
-      logger.info(`Unidad registrada con éxito: ${unit._id}`);
+      // Usar el servicio para registrar la unidad (usando findOrCreateUnit en lugar de createUnit)
+      const unit = await unitService.findOrCreateUnit(unitData, unitData.tenantId);
+      
+      logger.info(`Unidad registrada con éxito: ${unit.id}`);
       return unit;
     } catch (error) {
       logger.error(`Error al registrar unidad: ${error.message}`);

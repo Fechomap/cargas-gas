@@ -27,7 +27,7 @@ export function withTenant() {
     try {
       // Lista de comandos que pueden ejecutarse sin validación de tenant
       const bypassCommands = ['/start', '/registrar', '/ayuda', '/help', '/registrar_empresa'];
-      const adminCommands = ['/debug_', '/admin_', '/aprobar_', '/rechazar_', '/solicitudes', '/aprobar', '/rechazar'];
+      const adminCommands = ['/debug_', '/admin_', '/solicitudes', '/aprobar', '/rechazar'];
       
       // Comandos para el sistema de registro multi-tenant
       const registrationCommands = ['/registrar_empresa', '/vincular', '/activar'];
@@ -35,10 +35,22 @@ export function withTenant() {
       // Verificar si es un comando especial que no requiere validación
       const messageText = ctx.message?.text || '';
       
-      // Permitir comandos de depuración para administradores
-      if (adminCommands.some(cmd => messageText.startsWith(cmd)) && await isAdminUser(ctx.from?.id)) {
-        logger.info(`Comando administrativo detectado: ${messageText}`);
+      // Verificar si es un chat privado (uno a uno con el bot)
+      const isPrivateChat = ctx.chat?.type === 'private';
+      
+      // Permitir comandos administrativos en cualquier contexto si el usuario es admin
+      if ((adminCommands.some(cmd => messageText.startsWith(cmd)) || 
+           messageText.startsWith('/aprobar') || 
+           messageText.startsWith('/rechazar')) && 
+          await isAdminUser(ctx.from?.id)) {
+        logger.info(`Comando administrativo detectado: ${messageText} - Usuario admin: ${ctx.from?.id}`);
         ctx.isAdminMode = true;
+        return next();
+      }
+      
+      // Permitir todos los comandos para administradores en chat privado
+      if (isPrivateChat && await isAdminUser(ctx.from?.id)) {
+        logger.info(`Permitiendo comando en chat privado para admin: ${messageText}`);
         return next();
       }
       
@@ -134,12 +146,17 @@ export function withTenant() {
 async function isAdminUser(userId) {
   if (!userId) return false;
   
-  // Lista de IDs de administradores (debería venir de configuración)
+  // Lista de IDs de administradores (considerando ambas variables de entorno)
   const adminIds = process.env.ADMIN_USER_IDS 
     ? process.env.ADMIN_USER_IDS.split(',').map(id => id.trim())
-    : [];
+    : process.env.BOT_ADMIN_IDS
+      ? process.env.BOT_ADMIN_IDS.split(',').map(id => id.trim())
+      : [];
   
-  return adminIds.includes(userId.toString());
+  const isAdmin = adminIds.includes(userId.toString());
+  logger.debug(`Verificando si usuario ${userId} es admin: ${isAdmin}`);
+  
+  return isAdmin;
 }
 
 /**

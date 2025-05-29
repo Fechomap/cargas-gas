@@ -96,17 +96,29 @@ class RegistrationService {
         token += numbers.charAt(Math.floor(Math.random() * numbers.length));
       }
       
-      // Crear tenant (sin chatId todavía)
+      // Crear tenant (sin chatId real todavía, pero isApproved=true para que pueda ser usado)
       const tenant = await prisma.tenant.create({
         data: {
           companyName: request.companyName,
           isActive: true,
-          isApproved: false, // Será true cuando se vincule a un grupo
+          isApproved: true, // Marcamos como aprobado aunque no tenga un grupo vinculado aún
           registrationToken: token,
           contactName: request.contactName,
           contactPhone: request.contactPhone,
           contactEmail: request.contactEmail,
-          chatId: `pending_${uuidv4()}` // Temporal hasta vinculación, debe ser único
+          chatId: `pending_${uuidv4()}`, // Temporal hasta vinculación, debe ser único
+          settings: {
+            create: {
+              // Usando los campos correctos del esquema TenantSettings
+              currency: "MXN",
+              timezone: "America/Mexico_City",
+              allowPhotoSkip: true,
+              requireSaleNumber: false
+            }
+          }
+        },
+        include: {
+          settings: true
         }
       });
       
@@ -188,45 +200,59 @@ class RegistrationService {
   }
   
   /**
-   * Vincula un tenant a un grupo de Telegram
-   * @param {String} tenantId - ID del tenant
-   * @param {String} chatId - ID del chat de Telegram
-   * @returns {Promise<Object>} - Tenant actualizado
+   * Vincula un grupo con un tenant usando un token
+   * @param {String} token - Token de registro
+   * @param {String} groupId - ID del grupo de Telegram
+   * @returns {Promise<Object>} - Tenant vinculado
    */
-  async linkTenantToGroup(tenantId, chatId) {
+  async linkGroupWithToken(token, groupId) {
     try {
-      // Verificar que el tenant existe
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: tenantId }
+      // Normalizar token (quitar espacios, convertir a mayúsculas)
+      const normalizedToken = token.trim().toUpperCase();
+      
+      // Buscar tenant con el token
+      const tenant = await prisma.tenant.findFirst({
+        where: { registrationToken: normalizedToken },
+        include: { settings: true }
       });
       
       if (!tenant) {
-        throw new Error('Tenant no encontrado');
+        throw new Error('Token inválido o expirado');
       }
       
-      // Verificar si el chatId ya está vinculado a otro tenant
-      const existingTenant = await prisma.tenant.findUnique({
-        where: { chatId: chatId.toString() }
-      });
-      
-      if (existingTenant && existingTenant.id !== tenantId) {
-        throw new Error('Este grupo ya está vinculado a otra empresa');
+      // Verificar que el tenant no esté ya vinculado a otro grupo
+      if (tenant.chatId && !tenant.chatId.startsWith('pending_')) {
+        throw new Error('Este token ya ha sido utilizado');
       }
       
-      // Actualizar tenant con el chatId y activarlo
-      const updatedTenant = await prisma.tenant.update({
-        where: { id: tenantId },
-        data: {
-          chatId: chatId.toString(),
-          isApproved: true,
-          registrationToken: null // Invalidar token después de usarlo
+      // Verificar que el grupo no esté ya vinculado a otro tenant
+      const existingTenant = await prisma.tenant.findFirst({
+        where: { 
+          chatId: groupId.toString(),
+          NOT: { id: tenant.id }
         }
       });
       
-      logger.info(`Tenant ${tenantId} vinculado al grupo ${chatId}`);
+      if (existingTenant) {
+        throw new Error('Este grupo ya está vinculado a otra empresa');
+      }
+      
+      // Actualizar tenant con el chatId del grupo
+      const updatedTenant = await prisma.tenant.update({
+        where: { id: tenant.id },
+        data: {
+          chatId: groupId.toString(),
+          isApproved: true, // Confirmar aprobación
+          registrationToken: null, // Invalidar token
+          updatedAt: new Date() // Usar updatedAt en lugar de activatedAt
+        },
+        include: { settings: true }
+      });
+      
+      logger.info(`Grupo ${groupId} vinculado exitosamente con tenant ${tenant.id} (${tenant.companyName})`);
       return updatedTenant;
     } catch (error) {
-      logger.error(`Error al vincular tenant a grupo: ${error.message}`);
+      logger.error(`Error al vincular grupo: ${error.message}`);
       throw error;
     }
   }

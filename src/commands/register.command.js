@@ -55,10 +55,20 @@ export function setupRegisterUnitCommand(bot) {
   // Manejar confirmación de registro
   bot.action('register_unit_confirm_yes', async (ctx) => {
     try {
-      // Registrar la unidad en la base de datos
+      logger.info(`Registrando nueva unidad: ${ctx.session.data.operatorName} - ${ctx.session.data.unitNumber}`);
+      
+      // Verificar que exista tenant en el contexto
+      if (!ctx.tenant || !ctx.tenant.id) {
+        logger.error('No se encontró el tenant en el contexto');
+        throw new Error('No se pudo identificar el grupo. Por favor, contacte al administrador.');
+      }
+      
+      // Registrar la unidad en la base de datos con el tenantId
       const result = await unitController.registerUnit({
         operatorName: ctx.session.data.operatorName,
-        unitNumber: ctx.session.data.unitNumber
+        unitNumber: ctx.session.data.unitNumber,
+        tenantId: ctx.tenant.id,
+        isActive: true
       });
       
       // Actualizar teclado personalizado con la nueva unidad

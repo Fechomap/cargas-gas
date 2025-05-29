@@ -9,6 +9,9 @@ import { registrationService } from '../services/registration.service.js';
  * @param {Telegraf} bot - Instancia del bot de Telegram
  */
 export function setupCompanyRegisterCommands(bot) {
+  // Guardar referencia global al bot para usar en funciones de aprobación/rechazo
+  const botInstance = bot;
+  
   // 1. Comando para iniciar registro de empresa (solo en chat privado)
   bot.command('registrar_empresa', startCompanyRegistration);
   
@@ -16,10 +19,10 @@ export function setupCompanyRegisterCommands(bot) {
   bot.command('solicitudes', listPendingRequests);
   
   // 3. Comando para aprobar solicitudes (solo para admins)
-  bot.command(['aprobar', 'aprobar_solicitud'], approveRequest);
+  bot.command(['aprobar', 'aprobar_solicitud'], (ctx) => approveRequest(ctx, botInstance));
   
   // 4. Comando para rechazar solicitudes (solo para admins)
-  bot.command(['rechazar', 'rechazar_solicitud'], rejectRequest);
+  bot.command(['rechazar', 'rechazar_solicitud'], (ctx) => rejectRequest(ctx, botInstance));
   
   // 5. Comando para vincular grupo con token
   bot.command(['vincular', 'activar'], linkGroupWithToken);
@@ -372,8 +375,10 @@ async function listPendingRequests(ctx) {
 
 /**
  * Aprueba una solicitud de registro (solo para admins)
+ * @param {TelegrafContext} ctx - Contexto de Telegraf
+ * @param {Telegraf} bot - Instancia del bot
  */
-async function approveRequest(ctx) {
+async function approveRequest(ctx, bot) {
   try {
     // Verificar que es un administrador
     if (!await isAdmin(ctx.from.id)) {
@@ -424,8 +429,10 @@ async function approveRequest(ctx) {
 
 /**
  * Rechaza una solicitud de registro (solo para admins)
+ * @param {TelegrafContext} ctx - Contexto de Telegraf
+ * @param {Telegraf} bot - Instancia del bot
  */
-async function rejectRequest(ctx) {
+async function rejectRequest(ctx, bot) {
   try {
     // Verificar que es un administrador
     if (!await isAdmin(ctx.from.id)) {
@@ -516,7 +523,8 @@ async function linkGroupWithToken(ctx) {
     // Vincular grupo y activar tenant
     await ctx.reply('⏳ Procesando vinculación...');
     
-    const updatedTenant = await registrationService.linkTenantToGroup(tenant.id, chatId);
+    // Usar el método correcto para vincular el grupo con el token
+    const updatedTenant = await registrationService.linkGroupWithToken(token, chatId);
     
     // Mensaje de éxito
     await ctx.reply(

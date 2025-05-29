@@ -19,7 +19,9 @@ export function setupGroupRestrictionMiddleware(bot) {
       const isAdminCommand = messageText.startsWith('/debug_') || 
                               messageText.startsWith('/admin_') || 
                               messageText.startsWith('/aprobar_') || 
-                              messageText.startsWith('/rechazar_');
+                              messageText.startsWith('/rechazar_') ||
+                              messageText.startsWith('/aprobar') ||
+                              messageText.startsWith('/rechazar');
       
       // Si es un chat privado y un comando de administración, permitir
       if (ctx.chat?.type === 'private' && isAdminCommand && await isAdminUser(ctx.from?.id)) {
@@ -28,8 +30,16 @@ export function setupGroupRestrictionMiddleware(bot) {
       }
       
       // Permitir comandos de registro en chats privados
-      if (ctx.chat?.type === 'private' && messageText.startsWith('/registrar')) {
-        logger.info(`Comando de registro permitido en chat privado: ${messageText}`);
+      if (ctx.chat?.type === 'private' && (messageText.startsWith('/registrar') || messageText === '/start')) {
+        logger.info(`Comando permitido en chat privado: ${messageText}`);
+        return next();
+      }
+      
+      // IMPORTANTE: Permitir comando /vincular en cualquier grupo
+      // Este comando es necesario para activar nuevos grupos
+      if ((ctx.chat?.type === 'group' || ctx.chat?.type === 'supergroup') && 
+          (messageText.startsWith('/vincular') || messageText.startsWith('/activar'))) {
+        logger.info(`Permitiendo comando de vinculación en grupo: ${ctx.chat.id} - Comando: ${messageText}`);
         return next();
       }
       
@@ -38,11 +48,27 @@ export function setupGroupRestrictionMiddleware(bot) {
         logger.debug(`Chat info - ID: ${ctx.chat.id}, Tipo: ${ctx.chat.type}, Título: ${ctx.chat.title || 'N/A'}`);
       }
       
-      // Verificar si es un grupo permitido o un chat privado con el bot
-      const isAllowedGroup = ctx.chat && allowedGroupIds.includes(ctx.chat.id);
+      // Verificar si es un grupo permitido por la lista estática o un chat privado con el bot
+      const isAllowedStatically = ctx.chat && allowedGroupIds.includes(ctx.chat.id);
       const isPrivateChat = ctx.chat?.type === 'private';
       
-      if (!isAllowedGroup && !isPrivateChat) {
+      // Si no está permitido estáticamente y no es un chat privado, verificar si está vinculado a un tenant
+      if (!isAllowedStatically && !isPrivateChat) {
+        // Importar TenantService dinámicamente para evitar dependencias circulares
+        const { TenantService } = await import('../../services/tenant.service.js');
+        
+        try {
+          // Verificar si el grupo está vinculado a un tenant activo
+          const linkedTenant = await TenantService.findTenantByChatId(ctx.chat.id.toString());
+          
+          if (linkedTenant && linkedTenant.isActive && linkedTenant.isApproved) {
+            logger.info(`Grupo ${ctx.chat.id} permitido por estar vinculado al tenant: ${linkedTenant.companyName}`);
+            return next();
+          }
+        } catch (error) {
+          logger.error(`Error al verificar tenant vinculado: ${error.message}`);
+        }
+        
         logger.warn(`Acceso denegado - ID: ${ctx.chat?.id || 'desconocido'}, Tipo: ${ctx.chat?.type || 'desconocido'}`);
         return; // Bloquear silenciosamente
       }
@@ -71,10 +97,15 @@ export function setupGroupRestrictionMiddleware(bot) {
 async function isAdminUser(userId) {
   if (!userId) return false;
   
-  // Lista de IDs de administradores (debería venir de configuración)
+  // Lista de IDs de administradores (usando ambas variables de entorno)
   const adminIds = process.env.ADMIN_USER_IDS 
     ? process.env.ADMIN_USER_IDS.split(',').map(id => id.trim())
-    : [];
+    : process.env.BOT_ADMIN_IDS
+      ? process.env.BOT_ADMIN_IDS.split(',').map(id => id.trim())
+      : [];
   
-  return adminIds.includes(userId.toString());
+  const isAdmin = adminIds.includes(userId.toString());
+  logger.debug(`Usuario ${userId} ${isAdmin ? 'ES' : 'NO es'} administrador`);
+  
+  return isAdmin;
 }
