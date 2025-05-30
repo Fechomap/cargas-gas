@@ -208,6 +208,46 @@ export function registerCommands(bot) {
     bot.telegram.setMyCommands(registeredUserCommands, { scope: { type: 'all_group_chats' } });
     logger.info('Comandos para grupos registrados');
     
+    // Implementar comando /ayuda
+    bot.command('ayuda', async (ctx) => {
+      try {
+        logger.info(`Usuario ${ctx.from?.id} solicitó ayuda via comando`);
+        
+        const helpMessage = `
+*Instrucciones de Uso* ❓
+
+*1. Registrar una unidad:*
+   • Usa el botón "Registrar unidad"
+   • Ingresa el nombre del operador
+   • Ingresa el número económico
+   • Confirma los datos
+
+*2. Registrar carga de combustible:*
+   • Ve a "Ver unidades" y selecciona una unidad
+   • Sigue las instrucciones para ingresar litros, monto, etc.
+   • Confirma para guardar
+
+*3. Consultar saldo pendiente:*
+   • Usa el botón "Consultar saldo pendiente"
+
+*4. Generar reportes:*
+   • Usa el botón "Generar reporte"
+   • Aplica los filtros deseados
+   • Selecciona PDF o Excel
+        `;
+        
+        await ctx.reply(helpMessage, {
+          parse_mode: 'Markdown',
+          reply_markup: Markup.inlineKeyboard([
+            [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+          ])
+        });
+      } catch (error) {
+        logger.error(`Error al mostrar ayuda por comando: ${error.message}`);
+        await ctx.reply('Ocurrió un error al mostrar la ayuda.');
+      }
+    });
+    
     // Añadir manejador para comandos no registrados
     bot.on('text', (ctx, next) => {
       logger.info(`Recibido texto: ${ctx.message.text}`);
