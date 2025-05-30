@@ -181,17 +181,32 @@ export function registerCommands(bot) {
     // Configurar callbacks globales
     setupGlobalCallbacks(bot);
     
-    // Establecer comandos en la interfaz de Telegram
-    logger.info('Registrando comandos en API de Telegram');
-    bot.telegram.setMyCommands([
+    // Definir comandos para usuarios registrados (con tenant)
+    const registeredUserCommands = [
       { command: 'start', description: 'Iniciar el bot' },
       { command: 'registrar', description: 'Registrar una nueva unidad' },
-      { command: 'registrar_empresa', description: 'Solicitar registro de empresa' },
-      { command: 'vincular', description: 'Vincular grupo con token de empresa' },
       { command: 'saldo', description: 'Ver saldo pendiente total' },
       { command: 'reporte', description: 'Generar reportes de cargas' },
       { command: 'ayuda', description: 'Ver instrucciones de uso' }
-    ]);
+    ];
+    
+    // Definir comandos para usuarios no registrados (sin tenant)
+    const unregisteredUserCommands = [
+      { command: 'start', description: 'Iniciar el bot' },
+      { command: 'registrar_empresa', description: 'Solicitar registro de empresa' },
+      { command: 'vincular', description: 'Vincular grupo con token de empresa' }
+    ];
+    
+    // Establecer comandos en la interfaz de Telegram según el ámbito
+    logger.info('Registrando comandos en API de Telegram para diferentes ámbitos');
+    
+    // 1. Comandos para chats privados (usuarios no registrados) - limitado a registro
+    bot.telegram.setMyCommands(unregisteredUserCommands, { scope: { type: 'all_private_chats' } });
+    logger.info('Comandos para chats privados registrados');
+    
+    // 2. Comandos para grupos (usuarios registrados) - menú completo
+    bot.telegram.setMyCommands(registeredUserCommands, { scope: { type: 'all_group_chats' } });
+    logger.info('Comandos para grupos registrados');
     
     // Añadir manejador para comandos no registrados
     bot.on('text', (ctx, next) => {

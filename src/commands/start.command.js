@@ -3,6 +3,7 @@ import { logger } from '../utils/logger.js';
 import { getMainKeyboard } from '../views/keyboards.js';
 import { getWelcomeMessage } from '../views/messages.js';
 import { Markup } from 'telegraf';
+import { TenantService } from '../services/tenant.service.js';
 
 export function setupStartCommand(bot) {
   // Comando /start
@@ -15,12 +16,44 @@ export function setupStartCommand(bot) {
         ctx.session = { state: 'idle', data: {} };
       }
       
-      // Enviar mensaje de bienvenida con el teclado principal adjunto
-      const { reply_markup } = getMainKeyboard(); // Obtener el objeto de teclado
-      await ctx.reply(getWelcomeMessage(ctx.from.first_name), {
-        parse_mode: 'Markdown',
-        reply_markup: reply_markup // Adjuntar el teclado
-      });
+      // Verificar si es un chat privado
+      const isPrivateChat = ctx.chat?.type === 'private';
+      
+      // Verificar si es administrador
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      
+      // Verificar si el usuario ya tiene un Tenant ID (si está en un grupo registrado)
+      const chatId = ctx.chat?.id?.toString();
+      const tenant = chatId ? await TenantService.findTenantByChatId(chatId) : null;
+      
+      // Determinar qué tipo de menú mostrar
+      if (tenant || (isPrivateChat && isAdmin)) {
+        // Si tiene tenant o es admin en chat privado, mostrar menú completo
+        logger.info(`Mostrando menú completo para usuario ${ctx.from.id}`);
+        const { reply_markup } = getMainKeyboard(); // Obtener el objeto de teclado completo
+        await ctx.reply(getWelcomeMessage(ctx.from.first_name), {
+          parse_mode: 'Markdown',
+          reply_markup: reply_markup
+        });
+      } else {
+        // Si no tiene tenant, mostrar un mensaje directo con un solo botón
+        logger.info(`Mostrando mensaje simplificado para registro a usuario: ${ctx.from.id}`);
+        
+        // Mensaje simple y directo sin formato Markdown para evitar errores
+        const welcomeMessage = 
+          `¡Hola ${ctx.from.first_name}!\n\n` +
+          `Para utilizar este bot, primero debes registrar tu empresa.\n\n` +
+          `Presiona el botón de abajo para comenzar:`;
+        
+        // Un solo botón para registrar empresa que llame a un callback
+        await ctx.reply(welcomeMessage, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📝 Registrar Empresa', callback_data: 'start_registration' }]
+            ]
+          }
+        });
+      }
       
     } catch (error) {
       logger.error(`Error en comando start: ${error.message}`, error);
@@ -39,6 +72,28 @@ export function setupStartCommand(bot) {
     }
   });
 
+  // Manejar botón de registro de empresa
+  bot.action('start_registration', async (ctx) => {
+    try {
+      await ctx.answerCbQuery('Iniciando registro de empresa');
+      
+      // Intentar ejecutar directamente el comando registrar_empresa
+      logger.info(`Iniciando registro de empresa desde botón para usuario ${ctx.from.id}`);
+      
+      // Importar el comando directamente
+      const { setupCompanyRegisterCommands } = await import('./company-register.command.js');
+      
+      // Acceder a la función interna que maneja el registro
+      // NOTA: Como esta función no está exportada individualmente, la ejecutamos
+      // a través del sistema de comandos normal
+      await ctx.reply('/registrar_empresa');
+      
+    } catch (error) {
+      logger.error(`Error al iniciar registro de empresa: ${error.message}`);
+      await ctx.reply('Ocurrió un error al iniciar el registro. Por favor, escribe /registrar_empresa para intentar nuevamente.');
+    }
+  });
+  
   // Acción para volver al menú principal
   bot.action('main_menu', async (ctx) => {
     try {
@@ -74,4 +129,25 @@ export function setupStartCommand(bot) {
       await ctx.reply('Intenta seleccionar una opción:', { reply_markup });
     }
   });
+}
+
+/**
+ * Valida si un usuario es administrador
+ * @param {string} userId - ID del usuario
+ * @returns {Promise<boolean>} - True si es admin, false en caso contrario
+ */
+async function isAdminUser(userId) {
+  if (!userId) return false;
+  
+  // Lista de IDs de administradores (considerando ambas variables de entorno)
+  const adminIds = process.env.ADMIN_USER_IDS 
+    ? process.env.ADMIN_USER_IDS.split(',').map(id => id.trim())
+    : process.env.BOT_ADMIN_IDS
+      ? process.env.BOT_ADMIN_IDS.split(',').map(id => id.trim())
+      : [];
+  
+  const isAdmin = adminIds.includes(userId.toString());
+  logger.debug(`Verificando si usuario ${userId} es admin: ${isAdmin}`);
+  
+  return isAdmin;
 }
