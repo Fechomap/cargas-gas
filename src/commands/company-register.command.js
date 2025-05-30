@@ -26,6 +26,86 @@ export function setupCompanyRegisterCommands(bot) {
   
   // 5. Comando para vincular grupo con token
   bot.command(['vincular', 'activar'], linkGroupWithToken);
+
+  // NUEVOS: Manejadores para botones de aprobación/rechazo
+  bot.action(/^admin_approve_(.+)$/, async (ctx) => {
+    try {
+      const requestId = ctx.match[1];
+      
+      if (!await isAdmin(ctx.from.id)) {
+        return ctx.answerCbQuery('No tienes permisos para ejecutar esta acción.', { show_alert: true });
+      }
+      
+      await ctx.answerCbQuery('Procesando aprobación...', { show_alert: false });
+      
+      const request = await registrationService.getRequestById(requestId);
+      if (!request) {
+        return ctx.editMessageText(`❌ Solicitud con ID ${requestId} no encontrada.`);
+      }
+      
+      if (request.status !== 'PENDING') {
+        return ctx.editMessageText(`⚠️ Esta solicitud ya fue ${request.status === 'APPROVED' ? 'aprobada' : 'rechazada'}.`);
+      }
+      
+      const result = await registrationService.approveRequest(requestId, ctx.from.id);
+      await notifyUserAboutApproval(bot, request, result.token);
+      
+      const successMessage = 
+        `✅ **SOLICITUD APROBADA**\n\n` +
+        `**Empresa:** ${request.companyName}\n` +
+        `**Contacto:** ${request.contactName}\n` +
+        (request.contactPhone ? `**Teléfono:** ${request.contactPhone}\n` : '') +
+        (request.contactEmail ? `**Email:** ${request.contactEmail}\n` : '') +
+        `**Token generado:** \`${result.token}\`\n\n` +
+        `✅ Usuario notificado exitosamente`;
+      
+      await ctx.editMessageText(successMessage, { parse_mode: 'Markdown' });
+      
+    } catch (error) {
+      logger.error(`Error al aprobar solicitud: ${error.message}`);
+      await ctx.answerCbQuery(`Error: ${error.message}`, { show_alert: true });
+    }
+  });
+
+  bot.action(/^admin_reject_(.+)$/, async (ctx) => {
+    try {
+      const requestId = ctx.match[1];
+      
+      if (!await isAdmin(ctx.from.id)) {
+        return ctx.answerCbQuery('No tienes permisos para ejecutar esta acción.', { show_alert: true });
+      }
+      
+      await ctx.answerCbQuery('Procesando rechazo...', { show_alert: false });
+      
+      const request = await registrationService.getRequestById(requestId);
+      if (!request) {
+        return ctx.editMessageText(`❌ Solicitud con ID ${requestId} no encontrada.`);
+      }
+      
+      if (request.status !== 'PENDING') {
+        return ctx.editMessageText(`⚠️ Esta solicitud ya fue ${request.status === 'APPROVED' ? 'aprobada' : 'rechazada'}.`);
+      }
+      
+      const reason = 'Rechazada por administrador';
+      await registrationService.rejectRequest(requestId, ctx.from.id, reason);
+      await notifyUserAboutRejection(bot, request, reason);
+      
+      const rejectMessage = 
+        `❌ **SOLICITUD RECHAZADA**\n\n` +
+        `**Empresa:** ${request.companyName}\n` +
+        `**Contacto:** ${request.contactName}\n` +
+        (request.contactPhone ? `**Teléfono:** ${request.contactPhone}\n` : '') +
+        (request.contactEmail ? `**Email:** ${request.contactEmail}\n` : '') +
+        `**Motivo:** ${reason}\n\n` +
+        `❌ Usuario notificado`;
+      
+      await ctx.editMessageText(rejectMessage, { parse_mode: 'Markdown' });
+      
+    } catch (error) {
+      logger.error(`Error al rechazar solicitud: ${error.message}`);
+      await ctx.answerCbQuery(`Error: ${error.message}`, { show_alert: true });
+    }
+  });
   
   // Manejar respuestas según el estado de la conversación
   bot.on('text', async (ctx, next) => {
@@ -568,7 +648,6 @@ async function isAdmin(userId) {
  */
 async function notifyAdminsAboutRequest(bot, request) {
   try {
-    // Intentar leer de ADMIN_USER_IDS primero, luego de BOT_ADMIN_IDS como fallback
     const adminIds = process.env.ADMIN_USER_IDS 
       ? process.env.ADMIN_USER_IDS.split(',').map(id => id.trim())
       : process.env.BOT_ADMIN_IDS
@@ -583,20 +662,38 @@ async function notifyAdminsAboutRequest(bot, request) {
     }
     
     const message = 
-      `🔔 *Nueva Solicitud de Registro*\n\n` +
-      `*Empresa:* ${request.companyName}\n` +
-      `*Contacto:* ${request.contactName}\n` +
-      (request.contactPhone ? `*Teléfono:* ${request.contactPhone}\n` : '') +
-      (request.contactEmail ? `*Email:* ${request.contactEmail}\n` : '') +
-      `*Solicitante:* ${request.requesterUsername ? '@' + request.requesterUsername : request.requesterId}\n` +
-      `*ID:* \`${request.id}\`\n\n` +
-      `Para aprobar: /aprobar ${request.id}\n` +
-      `Para rechazar: /rechazar ${request.id} [motivo]`;
+      `🔔 **Nueva Solicitud de Registro**\n\n` +
+      `**Empresa:** ${request.companyName}\n` +
+      `**Contacto:** ${request.contactName}\n` +
+      (request.contactPhone ? `**Teléfono:** ${request.contactPhone}\n` : '') +
+      (request.contactEmail ? `**Email:** ${request.contactEmail}\n` : '') +
+      `**Solicitante:** ${request.requesterUsername ? '@' + request.requesterUsername : request.requesterId}\n` +
+      `**ID:** \`${request.id}\`\n\n` +
+      `⏳ **Esperando aprobación**`;
+    
+    // Crear botones inline para aprobar/rechazar
+    const inlineKeyboard = {
+      inline_keyboard: [
+        [
+          { 
+            text: '✅ APROBAR', 
+            callback_data: `admin_approve_${request.id}` 
+          },
+          { 
+            text: '❌ RECHAZAR', 
+            callback_data: `admin_reject_${request.id}` 
+          }
+        ]
+      ]
+    };
     
     // Enviar notificación a cada admin
     for (const adminId of adminIds) {
       try {
-        await bot.telegram.sendMessage(adminId, message, { parse_mode: 'Markdown' });
+        await bot.telegram.sendMessage(adminId, message, { 
+          parse_mode: 'Markdown',
+          reply_markup: inlineKeyboard
+        });
         logger.info(`Notificación enviada al admin ${adminId}`);
       } catch (error) {
         logger.error(`Error al notificar al admin ${adminId}: ${error.message}`);
@@ -615,17 +712,22 @@ async function notifyAdminsAboutRequest(bot, request) {
  */
 async function notifyUserAboutApproval(bot, request, token) {
   try {
-    const message = 
+    // PRIMER MENSAJE: Información principal
+    const mainMessage = 
       `✅ *¡Solicitud Aprobada!*\n\n` +
       `Tu solicitud de registro para *${request.companyName}* ha sido aprobada.\n\n` +
       `🔑 *Tu token de activación es:* \`${token}\`\n\n` +
       `Para completar el proceso:\n\n` +
       `1. Añade el bot a tu grupo de Telegram\n` +
-      `2. Ejecuta el comando: /vincular ${token}\n\n` +
+      `2. Copia el comando de abajo y pégalo en tu grupo:\n\n` +
       `Este token es de un solo uso y expirará una vez utilizado.\n` +
       `Si tienes alguna duda, no dudes en contactarnos.`;
     
-    await bot.telegram.sendMessage(request.requesterId, message, { 
+    // SEGUNDO MENSAJE: Solo el comando (separado para fácil copy/paste)
+    const commandMessage = `/vincular ${token}`;
+    
+    // Enviar primer mensaje
+    await bot.telegram.sendMessage(request.requesterId, mainMessage, { 
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
@@ -633,6 +735,18 @@ async function notifyUserAboutApproval(bot, request, token) {
         ]
       }
     });
+    
+    // Enviar segundo mensaje (solo el comando) después de una pequeña pausa
+    setTimeout(async () => {
+      try {
+        await bot.telegram.sendMessage(request.requesterId, commandMessage, {
+          parse_mode: 'Markdown'
+        });
+        logger.info(`Comando de vinculación enviado por separado al usuario ${request.requesterId}`);
+      } catch (error) {
+        logger.error(`Error al enviar comando separado: ${error.message}`);
+      }
+    }, 1000); // Pausa de 1 segundo para que lleguen en orden
     
     logger.info(`Notificación de aprobación enviada al usuario ${request.requesterId}`);
   } catch (error) {
