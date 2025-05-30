@@ -361,8 +361,9 @@ export function setupCompanyRegisterCommands(bot) {
 
 /**
  * Inicia el proceso de registro de empresa
+ * @export
  */
-async function startCompanyRegistration(ctx) {
+export async function startCompanyRegistration(ctx) {
   try {
     // Verificar que está en chat privado
     if (ctx.chat.type !== 'private') {

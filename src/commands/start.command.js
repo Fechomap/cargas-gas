@@ -77,16 +77,14 @@ export function setupStartCommand(bot) {
     try {
       await ctx.answerCbQuery('Iniciando registro de empresa');
       
-      // Intentar ejecutar directamente el comando registrar_empresa
+      // Ejecutar directamente la función de registro sin enviar el comando
       logger.info(`Iniciando registro de empresa desde botón para usuario ${ctx.from.id}`);
       
-      // Importar el comando directamente
-      const { setupCompanyRegisterCommands } = await import('./company-register.command.js');
+      // Importar el comando y la función startCompanyRegistration directamente
+      const { startCompanyRegistration } = await import('./company-register.command.js');
       
-      // Acceder a la función interna que maneja el registro
-      // NOTA: Como esta función no está exportada individualmente, la ejecutamos
-      // a través del sistema de comandos normal
-      await ctx.reply('/registrar_empresa');
+      // Llamar directamente a la función de registro
+      await startCompanyRegistration(ctx);
       
     } catch (error) {
       logger.error(`Error al iniciar registro de empresa: ${error.message}`);
