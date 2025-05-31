@@ -6,6 +6,7 @@ import { setupTenantValidationMiddleware } from './tenant/validation.js';
 import { setupTenantSettingsMiddleware } from './tenant/settings.js';
 import { setupAccessControlMiddleware } from './security/access.js';
 import { setupGroupRestrictionMiddleware } from './security/group.js';
+import { setupAdminCheckMiddleware } from './security/admin-check.js';
 import { setupDiagnosticMiddleware } from './debug/diagnostic.js';
 import { logger } from '../utils/logger.js';
 
@@ -59,6 +60,9 @@ export function setupMiddleware(bot, options = {}) {
   
   // 8. Middleware de control de acceso (siempre necesario)
   setupAccessControlMiddleware(bot);
+  
+  // 9. Middleware de verificación de administradores de grupo
+  setupAdminCheckMiddleware(bot);
   
   logger.info('Middlewares configurados correctamente');
 }
