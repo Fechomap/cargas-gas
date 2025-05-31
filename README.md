@@ -1,291 +1,339 @@
 # Bot de Telegram para Registro de Cargas de Combustible
 
-Un bot de Telegram que permite gestionar y dar seguimiento a las cargas de combustible de unidades de transporte. Registra operadores, unidades, cargas y genera reportes detallados.
+Sistema multi-tenant para gestionar y dar seguimiento a las cargas de combustible de unidades de transporte. Registra operadores, unidades, cargas y genera reportes detallados con arquitectura empresarial que permite múltiples empresas en un solo bot.
 
-## 🚀 Comandos de Plataformas Cloud
+## 🚀 Características Principales
 
-### Heroku
+### Sistema Multi-Tenant
+- ✅ **Registro de empresas**: Sistema de aprobación para nuevas empresas
+- 🔐 **Aislamiento de datos**: Cada empresa tiene sus propios datos completamente separados
+- 🎫 **Sistema de tokens**: Vinculación segura de grupos con tokens únicos
+- 👥 **Gestión de administradores**: Control de acceso por roles
 
-#### Gestión de Dynos
+### Funcionalidades Operativas
+- 👷 **Gestión de operadores y unidades**: Registro y administración de flota
+- ⛽ **Registro de cargas**: Gas y gasolina con validación completa
+- 📷 **Captura de tickets**: Sistema opcional de fotografías con botón de omisión mejorado
+- 💰 **Control de pagos**: Estados de pago y saldos pendientes
+- 📊 **Reportes avanzados**: PDF y Excel con múltiples filtros
+- 🔍 **Sistema de búsqueda**: Por número de nota para pagos y desactivación
+- 📅 **Fechas retroactivas**: Registro de cargas con fechas anteriores
+- 🚮 **Borrado lógico**: Desactivación segura de registros y unidades con filtrado optimizado
 
-```bash
-# Apagar la aplicación (escalar a 0)
-heroku ps:scale web=0 --app cargas-gas
+## 🛠️ Tecnologías
 
-# Encender la aplicación (escalar a 1)
-heroku ps:scale web=1 --app cargas-gas
+- **Runtime**: Node.js 18.x
+- **Base de datos**: PostgreSQL con Prisma ORM
+- **Bot**: Telegraf 4.x
+- **Reportes**: PDFMake y ExcelJS
+- **Logs**: Winston
+- **Despliegue**: Railway
 
-# Ver estado actual de dynos
-heroku ps --app cargas-gas
+## 📋 Requisitos Previos
+
+1. **Token de Bot de Telegram** (obtener de [@BotFather](https://t.me/botfather))
+2. **Base de datos PostgreSQL** (Railway proporciona una)
+3. **Cuenta en Railway** ([railway.app](https://railway.app))
+4. **Node.js 18+** (para desarrollo local)
+
+## 🚀 Despliegue en Railway
+
+### Opción 1: Despliegue Rápido con Railway Button
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/telegram-gas-bot)
+
+### Opción 2: Despliegue Manual
+
+1. **Instalar Railway CLI**
+   ```bash
+   npm install -g @railway/cli
+   railway login
+   ```
+
+2. **Crear nuevo proyecto**
+   ```bash
+   railway init
+   # Seleccionar "Empty Project"
+   ```
+
+3. **Agregar PostgreSQL**
+   ```bash
+   railway add
+   # Seleccionar "PostgreSQL"
+   ```
+
+4. **Configurar variables de entorno**
+   ```bash
+   # Token del bot (REQUERIDO)
+   railway variables set TELEGRAM_BOT_TOKEN=tu_token_aqui
+   
+   # IDs de administradores (REQUERIDO - separados por coma)
+   railway variables set BOT_ADMIN_IDS=123456789,987654321
+   
+   # Ambiente
+   railway variables set NODE_ENV=production
+   
+   # La DATABASE_URL se configura automáticamente con PostgreSQL
+   ```
+
+5. **Desplegar aplicación**
+   ```bash
+   # Asegurarse de estar en el directorio del proyecto
+   railway up
+   ```
+
+6. **Ejecutar migraciones**
+   ```bash
+   # Conectar a la instancia de Railway
+   railway run npx prisma migrate deploy
+   railway run npx prisma generate
+   ```
+
+## 🔧 Configuración Local
+
+1. **Clonar repositorio**
+   ```bash
+   git clone https://github.com/tu-usuario/telegram-gas-bot.git
+   cd telegram-gas-bot
+   ```
+
+2. **Instalar dependencias**
+   ```bash
+   npm install
+   ```
+
+3. **Configurar variables de entorno**
+   
+   Crear archivo `.env`:
+   ```env
+   # Bot de Telegram
+   TELEGRAM_BOT_TOKEN=tu_token_de_desarrollo
+   
+   # Base de datos PostgreSQL
+   DATABASE_URL=postgresql://usuario:password@localhost:5432/cargas_gas_db
+   
+   # Administradores (IDs separados por coma)
+   BOT_ADMIN_IDS=123456789
+   
+   # Ambiente
+   NODE_ENV=development
+   
+   # Logs
+   LOG_LEVEL=debug
+   ```
+
+4. **Configurar base de datos**
+   ```bash
+   # Generar cliente Prisma
+   npx prisma generate
+   
+   # Ejecutar migraciones
+   npx prisma migrate dev
+   ```
+
+5. **Iniciar en desarrollo**
+   ```bash
+   npm run dev
+   ```
+
+## 📚 Guía de Uso
+
+### Para Administradores del Sistema
+
+1. **Aprobar nuevas empresas**:
+   - Los usuarios solicitan registro con `/registrar_empresa`
+   - Recibirás una notificación con botones de aprobación
+   - Al aprobar, se genera un token único
+
+2. **Comandos administrativos** (solo en chat privado):
+   - `/solicitudes` - Ver solicitudes pendientes
+   - `/aprobar [ID]` - Aprobar solicitud
+   - `/rechazar [ID]` - Rechazar solicitud
+
+### Para Empresas/Usuarios
+
+1. **Registro inicial**:
+   ```
+   # En chat privado con el bot
+   /registrar_empresa
+   # Seguir el proceso de registro
+   # Esperar aprobación del administrador
+   ```
+
+2. **Vincular grupo** (después de aprobación):
+   ```
+   # En el grupo de Telegram
+   /vincular TOKEN_RECIBIDO
+   ```
+
+3. **Operaciones diarias**:
+   - `/start` - Menú principal
+   - `/registrar` - Nueva unidad
+   - `/saldo` - Ver saldo pendiente
+   - `/reporte` - Generar reportes
+
+### Flujo de Trabajo Típico
+
+1. **Registrar unidades**: Primero registra los operadores y sus unidades
+2. **Cargar combustible**: Selecciona unidad → ingresa datos → confirma
+3. **Gestionar pagos**: Busca notas por número → marca como pagadas
+4. **Generar reportes**: Aplica filtros → descarga PDF/Excel
+
+## 🗄️ Estructura de la Base de Datos
+
+```mermaid
+erDiagram
+    Tenant ||--o{ Unit : tiene
+    Tenant ||--o{ Fuel : tiene
+    Tenant ||--|| TenantSettings : configura
+    Unit ||--o{ Fuel : recibe
+    
+    Tenant {
+        string id PK
+        string chatId UK
+        string companyName
+        boolean isActive
+        boolean isApproved
+        string registrationToken UK
+    }
+    
+    Unit {
+        string id PK
+        string tenantId FK
+        string operatorName
+        string unitNumber
+        string buttonId
+        boolean isActive
+    }
+    
+    Fuel {
+        string id PK
+        string tenantId FK
+        string unitId FK
+        decimal liters
+        decimal amount
+        enum fuelType
+        string saleNumber
+        enum paymentStatus
+        datetime recordDate
+        boolean isActive
+    }
 ```
 
-#### Reinicio y Mantenimiento
+## 🔍 Comandos de Railway
 
-```bash
-# Reiniciar la aplicación
-heroku restart --app cargas-gas
-
-# Ver logs en tiempo real
-heroku logs --tail --app cargas-gas
-
-# Abrir consola bash en el servidor
-heroku run bash --app cargas-gas
-```
-
-#### Acceso y Autenticación
-
-```bash
-# Login en Heroku CLI
-heroku login
-
-# Verificar estado de la cuenta
-heroku auth:whoami
-```
-
-#### GIT y Despliegue
-
-```bash
-# Guardar cambios y desplegar rápidamente
-git add .
-git commit -m "Actualización rápida: descripción breve"
-git push heroku main
-
-# Desplegar rama específica
-git push heroku otra-rama:main
-```
-
-#### Variables de Entorno
-
-```bash
-# Ver todas las variables de entorno
-heroku config --app cargas-gas
-
-# Establecer una variable de entorno
-heroku config:set NOMBRE_VARIABLE=valor --app cargas-gas
-
-# Consultar una variable específica
-heroku config:get MONGODB_URI --app cargas-gas
-```
-
-### Railway
-
-#### Instalación y Autenticación
-
-```bash
-# Instalar Railway CLI
-npm i -g @railway/cli
-
-# Iniciar sesión en Railway
-railway login
-
-# Verificar estado de sesión
-railway whoami
-```
-
-#### Gestión del Proyecto
-
-```bash
-# Listar proyectos disponibles
-railway projects
-
-# Enlazar con un proyecto existente
-railway link
-
-# Iniciar un nuevo proyecto
-railway init
-```
-
-#### Despliegue y Actualización
-
-```bash
-# Desplegar aplicación actual
-railway up
-
-# Desplegar con variables de entorno locales
-railway up --env-file .env.local
-
-# Desplegar desde una rama git específica
-railway up --detach
-```
-
-#### Variables de Entorno
-
-```bash
-# Ver variables de entorno
-railway variables
-
-# Agregar/actualizar variables
-railway variables set NOMBRE_VARIABLE=valor
-
-# Eliminar una variable
-railway variables delete NOMBRE_VARIABLE
-```
-
-#### Monitoreo y Depuración
+### Gestión del Proyecto
 
 ```bash
 # Ver logs en tiempo real
 railway logs
 
-# Abrir panel de control en el navegador
+# Abrir panel web
 railway open
 
-# Ejecutar comando en la instancia remota
-railway run <comando>
+# Ver todas las variables
+railway variables
+
+# Ejecutar comando en producción
+railway run [comando]
+
+# Conectar a base de datos
+railway connect postgresql
 ```
 
-#### Base de Datos
+### Mantenimiento
 
 ```bash
-# Conectar a bases de datos provisionales
-railway connect
+# Backup de base de datos
+railway run pg_dump $DATABASE_URL > backup_$(date +%Y%m%d).sql
 
-# Realizar backup de MongoDB
-railway run mongodump --uri="$MONGODB_URI" --archive > backup_$(date +%Y%m%d).archive
+# Restaurar base de datos
+railway run psql $DATABASE_URL < backup.sql
+
+# Ejecutar migraciones
+railway run npx prisma migrate deploy
+
+# Ver estado de la base de datos
+railway run npx prisma db pull
 ```
 
-## 💾 Scripts de Mantenimiento
-
-### Backup Automático
-
-Crea un backup completo del sistema (MongoDB + imágenes + reporte Excel):
+### Monitoreo
 
 ```bash
-# Crear backup completo
-node scripts/backup-automatico.js
+# Ver uso de recursos
+railway status
+
+# Ver información del proyecto
+railway whoami
+railway project
 ```
 
-### Actualización Masiva desde Excel
+## 📊 Scripts de Mantenimiento
 
-Permite actualizar registros en la base de datos desde un archivo Excel:
-
+### Estadísticas de la Base de Datos
 ```bash
-# Modo simulación (no realiza cambios)
-node scripts/actualizacion.js
-
-# Modo real (modificar variable MODO_SIMULACION=false en el script)
-node scripts/actualizacion.js
+railway run node scripts/db-stats.js
 ```
 
-## 📋 Características Principales
-
-- ✅ Gestión de operadores y unidades
-- ⛽ Registro de cargas de combustible (gas/gasolina)
-- 📷 Captura de fotos de tickets
-- 💰 Control de pagos y saldos pendientes
-- 📊 Reportes detallados en PDF y Excel
-- 🔍 Filtros avanzados para análisis de datos
-- 📅 Selección de fecha manual para registros retroactivos
-
-## ⚙️ Requisitos Técnicos
-
-- Node.js 18.x o superior
-- MongoDB
-- Token de Bot de Telegram (BotFather)
-- Cuenta en Heroku o Railway (para despliegue)
-
-## 🛠️ Instalación Local
-
-1. Clonar el repositorio:
-   ```bash
-   git clone https://github.com/tu-usuario/cargas-gas.git
-   cd cargas-gas
-   ```
-
-2. Instalar dependencias:
-   ```bash
-   npm install
-   ```
-
-3. Configurar variables de entorno (crear archivo `.env`):
-   ```
-   TELEGRAM_BOT_TOKEN=tu_token_aqui
-   MONGODB_URI=mongodb+srv://usuario:contraseña@cluster.mongodb.net/database
-   MONGODB_DB_NAME=cargas_gas_db
-   NODE_ENV=development
-   ```
-
-4. Iniciar en desarrollo:
-   ```bash
-   npm run dev
-   ```
-
-## 🌐 Estructura del Proyecto
-
-```
-cargas-gas/
-├── backups/                     # Backups generados
-├── config/                      # Configuraciones
-├── logs/                        # Logs generados
-├── reports/                     # Reportes generados
-├── scripts/                     # Scripts utilitarios
-│   ├── actualizacion.js         # Actualización masiva
-│   ├── backup-automatico.js     # Backup completo
-│   └── setup.js                 # Configuración inicial
-├── src/
-│   ├── api/                     # API de Telegram
-│   ├── commands/                # Comandos del bot
-│   ├── controllers/             # Controladores
-│   ├── db/                      # Conexión a MongoDB
-│   ├── models/                  # Modelos de datos
-│   ├── services/                # Servicios
-│   ├── state/                   # Gestión de estados
-│   ├── utils/                   # Utilidades
-│   └── views/                   # Vistas y teclados
-├── temp/                        # Archivos temporales
-├── uploads/                     # Tickets/imágenes
-├── .env                         # Variables de entorno
-├── index.js                     # Punto de entrada
-├── package.json                 # Dependencias
-└── Procfile                     # Configuración Heroku
-```
-
-## ⚠️ Notas Importantes
-
-### Sistema de Archivos en Plataformas Cloud
-
-#### Heroku
-
-Heroku tiene un sistema de archivos efímero. Los archivos subidos (como imágenes de tickets) se perderán en cada reinicio de dyno. Para producción:
-
-1. Integrar almacenamiento en la nube (AWS S3, Cloudinary, Firebase)
-2. Modificar `storageService` para utilizar este almacenamiento
-3. Programar backups periódicos con el script proporcionado
-
-#### Railway
-
-Railway también tiene un sistema de archivos efímero, similar a Heroku. Sin embargo, ofrece volúmenes persistentes que pueden configurarse para almacenar archivos de forma permanente:
-
-1. Crear un volumen persistente desde el panel de Railway
-2. Montar el volumen en la ruta `/app/uploads`
-3. Configurar la aplicación para utilizar esta ruta para almacenamiento
-
-### MongoDB Atlas
-
-Para gestionar la base de datos:
+### Backup Completo (DB + Archivos)
 ```bash
-# Ver estadísticas de la base de datos
-node scripts/db-stats.js
-
-# Ver MongoDB connection string (Heroku)
-heroku config:get MONGODB_URI --app cargas-gas
-
-# Ver MongoDB connection string (Railway)
-railway variables get MONGODB_URI
+railway run node scripts/backup-automatico.js
 ```
 
-### Sincronización entre Entornos
+## ⚠️ Consideraciones Importantes
 
-Para mantener sincronizados los entornos de Heroku y Railway:
+### Sistema de Archivos
+Railway tiene almacenamiento persistente limitado. Para las fotos de tickets:
+- Los archivos se guardan temporalmente
+- Se recomienda integrar almacenamiento en la nube (S3, Cloudinary)
+- Hacer backups periódicos de la base de datos
 
-```bash
-# Exportar variables de entorno de Heroku
-heroku config --app cargas-gas -s > .env.heroku
+### Límites y Escalamiento
+- Railway tiene límites en el plan gratuito
+- Monitorea el uso de recursos desde el dashboard
+- Considera actualizar el plan para producción
 
-# Importar variables a Railway (requiere procesamiento del archivo)
-cat .env.heroku | grep -v '^#' | sed 's/^/railway variables set /' | sh
-```
+### Seguridad
+- Nunca compartas el token del bot
+- Mantén actualizados los IDs de administradores
+- Revisa regularmente los logs de acceso
+- Haz backups frecuentes de la base de datos
+
+## 🐛 Solución de Problemas
+
+### El bot no responde
+1. Verificar logs: `railway logs`
+2. Verificar token: `railway variables`
+3. Reiniciar: `railway restart`
+
+### Error de base de datos
+1. Verificar conexión: `railway connect postgresql`
+2. Ejecutar migraciones: `railway run npx prisma migrate deploy`
+3. Revisar logs de Prisma
+
+### Problemas con comandos
+1. Verificar que el grupo esté vinculado
+2. Confirmar permisos del bot en el grupo
+3. Revisar estado del tenant en la base de datos
+
+## 🤝 Soporte
+
+Para soporte técnico o preguntas:
+1. Revisar logs del sistema
+2. Consultar documentación de Prisma
+3. Abrir issue en el repositorio
 
 ## 📄 Licencia
 
-Este proyecto está licenciado bajo [MIT License](LICENSE).
+Este proyecto está bajo licencia MIT. Ver archivo [LICENSE](LICENSE) para más detalles.
+
+---
+
+**Última actualización**: 31 de Mayo 2025
+**Versión**: 2.0.1 (Multi-tenant con PostgreSQL)
+
+## 🔧 Mejoras Recientes
+
+### 31/05/2025
+- **📷 Manejo mejorado de fotos de tickets**: Corregido el funcionamiento del botón de omitir foto y separado el manejador de fotografías para mayor robustez.
+- **📊 Optimización de reportes**: Corregido el filtrado de registros desactivados en reportes para que no aparezcan en ninguna consulta (aplicando filtro isActive directamente en la consulta SQL).
