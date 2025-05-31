@@ -49,8 +49,8 @@ export function setupPaymentCommands(bot) {
     try {
       logger.info(`Usuario ${ctx.from.id} solicitó marcar nota como pagada`);
       await ctx.answerCbQuery('Procesando pago...');
-      logger.info('Llamando a fuelController.markNoteAsPaid()');
-      await fuelController.markNoteAsPaid(ctx);
+      logger.info('Llamando a fuelController.markAsPaid()');
+      await fuelController.markAsPaid(ctx);
     } catch (error) {
       logger.error(`Error al marcar nota como pagada: ${error.message}`, error);
       await ctx.answerCbQuery('Error al procesar pago');

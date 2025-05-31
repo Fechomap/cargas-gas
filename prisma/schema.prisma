@@ -68,6 +68,7 @@ model Fuel {
   recordDate    DateTime      @default(now())
   operatorName  String
   unitNumber    String
+  isActive      Boolean       @default(true)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   tenant        Tenant        @relation(fields: [tenantId], references: [id])

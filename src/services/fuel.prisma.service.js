@@ -40,7 +40,8 @@ export class FuelService {
    * @returns {Promise<Object|null>} - Carga encontrada o null
    */
   static async getFuelById(fuelId, tenantId) {
-    return prisma.fuel.findFirst({
+    // Buscar el registro sin filtrar por isActive
+    const record = await prisma.fuel.findFirst({
       where: {
         id: fuelId,
         tenantId
@@ -49,6 +50,13 @@ export class FuelService {
         unit: true
       }
     });
+    
+    // Si se requiere que esté activo y el registro no lo está, retornar null
+    if (record && record.isActive === false) {
+      return null;
+    }
+    
+    return record;
   }
 
   /**
@@ -58,16 +66,26 @@ export class FuelService {
    * @returns {Promise<Object>} - Carga actualizada
    */
   static async markAsPaid(fuelId, tenantId) {
-    return prisma.fuel.update({
+    // Primero verificamos si el registro existe y está activo
+    const record = await this.getFuelById(fuelId, tenantId);
+    
+    if (!record) {
+      throw new Error('Registro no encontrado o inactivo');
+    }
+    
+    // Actualizamos el registro
+    await prisma.fuel.update({
       where: {
-        id: fuelId,
-        tenantId
+        id: fuelId
       },
       data: {
         paymentStatus: 'PAGADA',
         paymentDate: new Date()
       }
     });
+    
+    // Obtenemos el registro actualizado para devolverlo completo
+    return this.getFuelById(fuelId, tenantId);
   }
 
   /**
@@ -76,33 +94,69 @@ export class FuelService {
    * @returns {Promise<Number>} - Total en pesos
    */
   static async getTotalUnpaidAmount(tenantId) {
-    const result = await prisma.fuel.aggregate({
+    // Obtenemos directamente los registros activos no pagados
+    const activeRecords = await prisma.fuel.findMany({
       where: {
         tenantId,
-        paymentStatus: 'NO_PAGADA'
+        paymentStatus: 'NO_PAGADA',
+        isActive: true
       },
-      _sum: {
+      select: {
         amount: true
       }
     });
 
-    return result._sum.amount || 0;
+    // Sumamos manualmente los montos
+    if (activeRecords.length > 0) {
+      const total = activeRecords.reduce((sum, record) => {
+        return sum + (parseFloat(record.amount) || 0);
+      }, 0);
+      return total;
+    }
+
+    return 0;
   }
 
   /**
    * Actualiza la información de una carga
    * @param {String} fuelId - ID de la carga
-   * @param {Object} updateData - Datos a actualizar
+   * @param {Object} data - Datos a actualizar
    * @param {String} tenantId - ID del tenant
    * @returns {Promise<Object>} - Carga actualizada
    */
-  static async updateFuel(fuelId, updateData, tenantId) {
+  static async updateFuel(fuelId, data, tenantId) {
+    // Primero verificamos si el registro existe y está activo
+    const record = await this.getFuelById(fuelId, tenantId);
+    
+    if (!record) {
+      throw new Error('Registro no encontrado o inactivo');
+    }
+    
+    // Actualizamos el registro
     return prisma.fuel.update({
       where: {
         id: fuelId,
         tenantId
       },
-      data: updateData
+      data
+    });
+  }
+
+  /**
+   * Desactiva un registro de combustible (borrado lógico)
+   * @param {String} fuelId - ID del registro de combustible
+   * @param {String} tenantId - ID del tenant
+   * @returns {Promise<Object>} - Registro desactivado
+   */
+  static async deactivateFuel(fuelId, tenantId) {
+    return prisma.fuel.update({
+      where: {
+        id: fuelId,
+        tenantId
+      },
+      data: {
+        isActive: false
+      }
     });
   }
 
@@ -114,7 +168,8 @@ export class FuelService {
    */
   static async findFuels(filters = {}, tenantId) {
     const where = { tenantId };
-
+    // Aplicamos el filtro isActive después de la consulta
+    
     // Aplicar filtros
     if (filters.startDate && filters.endDate) {
       where.recordDate = {
@@ -143,11 +198,31 @@ export class FuelService {
     }
 
     if (filters.saleNumber) {
-      where.saleNumber = filters.saleNumber;
+      // Si queremos búsqueda exacta, usamos equals en lugar de contains
+      if (filters.exactMatch) {
+        where.saleNumber = {
+          equals: filters.saleNumber,
+          mode: 'insensitive'
+        };
+      } 
+      // Si queremos búsqueda por prefijo (empieza con), usamos startsWith
+      else if (filters.prefixMatch) {
+        where.saleNumber = {
+          startsWith: filters.saleNumber,
+          mode: 'insensitive'
+        };
+      }
+      // Por defecto, seguimos usando contains para compatibilidad con código existente
+      else {
+        where.saleNumber = {
+          contains: filters.saleNumber,
+          mode: 'insensitive'
+        };
+      }
     }
 
     // Ejecutar consulta
-    return prisma.fuel.findMany({
+    const results = await prisma.fuel.findMany({
       where,
       include: {
         unit: true
@@ -156,6 +231,10 @@ export class FuelService {
         recordDate: 'desc'
       }
     });
+    
+    // Filtrar manualmente por isActive si es necesario
+    const activeFilter = filters.hasOwnProperty('isActive') ? filters.isActive : true;
+    return results.filter(record => record.isActive === activeFilter);
   }
 
   /**

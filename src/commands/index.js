@@ -26,8 +26,9 @@ function setupGlobalCallbacks(bot) {
       // Mostrar mensaje con menú principal usando Markup directamente
       await ctx.reply('🏠 Menú Principal', {
         reply_markup: Markup.inlineKeyboard([
-          [Markup.button.callback('📝 Registrar unidad', 'register_unit')],
-          [Markup.button.callback('👁️ Ver unidades', 'show_units')],
+          [Markup.button.callback('📝 Registrar carga', 'register_fuel_start')],
+          [Markup.button.callback('👁️ Gestionar unidades', 'manage_units')],
+          [Markup.button.callback('🔍 Buscar/desactivar registros', 'search_fuel_records')],
           [Markup.button.callback('💰 Consultar saldo pendiente', 'check_balance')],
           [Markup.button.callback('📊 Generar reporte', 'generate_report')],
           [Markup.button.callback('❓ Ayuda', 'show_help')]
@@ -40,7 +41,8 @@ function setupGlobalCallbacks(bot) {
       // Intento directo con botones en línea básicos
       await ctx.reply('Menú Principal (alternativo)', 
         Markup.inlineKeyboard([
-          [Markup.button.callback('📝 Registrar unidad', 'register_unit')],
+          [Markup.button.callback('📝 Registrar carga', 'register_fuel_start')],
+          [Markup.button.callback('👁️ Unidades', 'manage_units')],
           [Markup.button.callback('💰 Saldo pendiente', 'check_balance')],
           [Markup.button.callback('📊 Generar reporte', 'generate_report')]
         ])
@@ -127,6 +129,31 @@ function setupGlobalCallbacks(bot) {
       });
     }
   });
+  
+  // Manejar botón para gestionar unidades
+  bot.action('manage_units', async (ctx) => {
+    try {
+      await ctx.answerCbQuery();
+      await ctx.reply('Selecciona una opción para gestionar las unidades:',
+        Markup.inlineKeyboard([
+          [Markup.button.callback('📝 Ver unidades', 'show_units')],
+          [Markup.button.callback('➕ Registrar unidad', 'register_unit')],
+          [Markup.button.callback('🚮 Desactivar unidad', 'deactivate_unit_menu')],
+          [Markup.button.callback('🏠 Menú principal', 'main_menu')]
+        ])
+      );
+    } catch (error) {
+      logger.error(`Error al mostrar menú de gestión de unidades: ${error.message}`);
+      await ctx.reply('Error al mostrar el menú. Por favor, intenta de nuevo más tarde.',
+        Markup.inlineKeyboard([
+          [Markup.button.callback('🏠 Menú principal', 'main_menu')]
+        ])
+      );
+    }
+  });
+  
+  // NOTA: El manejador para 'search_fuel_records' se ha movido a src/commands/fuel/desactivacion.command.js
+  // para evitar duplicados y conflictos de manejadores
   
   // Manejar botón para generar reporte
   bot.action('generate_report', async (ctx) => {

@@ -49,7 +49,55 @@ export class ListadoController {
       );
     } catch (error) {
       logger.error(`Error al mostrar unidades: ${error.message}`);
-      await ctx.reply('Error al cargar las unidades registradas.');
+      return ctx.reply(`Error al obtener unidades: ${error.message}`);
+    }
+  }
+
+  /**
+   * Muestra las unidades registradas para desactivar (borrado lógico)
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async showUnitsForDeactivation(ctx) {
+    await this.showRegisteredUnits(ctx, 'deactivate');
+  }
+
+  /**
+   * Desactiva una unidad (borrado lógico)
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async deactivateUnit(ctx) {
+    try {
+      // Verificar que el contexto tiene un tenant
+      if (!ctx.tenant) {
+        logger.error('No se encontró tenant en el contexto');
+        return ctx.reply('Error: No se pudo identificar el grupo. Por favor, contacte al administrador.');
+      }
+      
+      // Extraer el buttonId del callback_data
+      const callbackData = ctx.callbackQuery.data;
+      const buttonId = callbackData.replace('deactivate_unit_', '');
+      
+      // Obtener tenantId del contexto
+      const tenantId = ctx.tenant.id;
+      
+      // Desactivar la unidad
+      await unitService.deactivateUnit(buttonId, tenantId, true); // true indica que es por buttonId
+      
+      await ctx.answerCbQuery('Unidad desactivada correctamente');
+      await ctx.reply('✅ La unidad ha sido desactivada exitosamente. Ya no aparecerá en los listados ni podrá ser utilizada para registrar cargas.', 
+        Markup.inlineKeyboard([
+          [Markup.button.callback('🏠 Menú principal', 'main_menu')]
+        ])
+      );
+    } catch (error) {
+      logger.error(`Error al desactivar unidad: ${error.message}`);
+      await ctx.answerCbQuery('Error al desactivar la unidad');
+      return ctx.reply(`❌ Error al desactivar la unidad: ${error.message}`, 
+        Markup.inlineKeyboard([
+          [Markup.button.callback('🔄 Intentar de nuevo', 'manage_units')],
+          [Markup.button.callback('🏠 Menú principal', 'main_menu')]
+        ])
+      );
     }
   }
 

@@ -4,6 +4,7 @@ import { setupFuelEntryCommands } from './entry.command.js';
 import { setupBalanceCommands } from './balance.command.js';
 import { setupDateHandlingCommands } from './date-handling.command.js';
 import { setupPaymentCommands } from './payment.command.js';
+import { setupFuelDeactivationCommands } from './desactivacion.command.js';
 
 /**
  * Configura todos los comandos relacionados con cargas de combustible
@@ -17,6 +18,7 @@ export function setupFuelCommands(bot) {
   setupBalanceCommands(bot);
   setupDateHandlingCommands(bot);
   setupPaymentCommands(bot);
+  setupFuelDeactivationCommands(bot);
 
   logger.info("✅ Comandos de combustible configurados exitosamente");
 }

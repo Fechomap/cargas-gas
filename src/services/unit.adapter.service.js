@@ -101,21 +101,32 @@ export class UnitService {
       throw error;
     }
   }
-
+  
   /**
-   * Desactiva una unidad por su buttonId
-   * @param {String} buttonId - ID del botón
+   * Desactiva una unidad (borrado lógico)
+   * @param {String} idOrButtonId - ID de la unidad o buttonId
    * @param {String} tenantId - ID del tenant
-   * @returns {Promise<boolean>} - true si se desactivó correctamente
+   * @param {Boolean} isByButtonId - Indica si el primer parámetro es un buttonId
+   * @returns {Promise<Object>} - Unidad desactivada
    */
-  static async deactivateUnit(buttonId, tenantId) {
+  static async deactivateUnit(idOrButtonId, tenantId, isByButtonId = false) {
     try {
       if (!tenantId) {
         throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
       }
       
       try {
-        return await PrismaUnitService.deactivateUnit(buttonId, tenantId);
+        if (isByButtonId) {
+          // Primero buscar la unidad por buttonId
+          const unit = await this.findUnitByButtonId(idOrButtonId, tenantId);
+          if (!unit) {
+            throw new Error(`Unidad con buttonId ${idOrButtonId} no encontrada`);
+          }
+          return await PrismaUnitService.deactivateUnit(unit.id, tenantId);
+        } else {
+          // Desactivar directamente por ID
+          return await PrismaUnitService.deactivateUnit(idOrButtonId, tenantId);
+        }
       } catch (error) {
         logger.error(`Error al desactivar unidad en PostgreSQL: ${error.message}`);
         throw error;

@@ -43,12 +43,19 @@ class UnitController {
   }
   
   /**
-   * Elimina una unidad (desactivación lógica)
-   * @param {string} unitId - ID de la unidad a eliminar
-   * @returns {Promise<boolean>} - Resultado de la operación
+   * Muestra el listado de unidades para su desactivación
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
    */
-  async deactivateUnit(unitId) {
-    return await this.registroController.deactivateUnit(unitId);
+  async showUnitsForDeactivation(ctx) {
+    return await this.listadoController.showUnitsForDeactivation(ctx);
+  }
+  
+  /**
+   * Desactiva una unidad (borrado lógico)
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async deactivateUnit(ctx) {
+    return await this.listadoController.deactivateUnit(ctx);
   }
 
   /**

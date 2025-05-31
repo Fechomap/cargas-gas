@@ -3,6 +3,7 @@ import { RegistroController } from './registro.controller.js';
 import { FechaController } from './fecha.controller.js';
 import { PagosController } from './pagos.controller.js';
 import { SaldoController } from './saldo.controller.js';
+import { DesactivacionController } from './desactivacion.controller.js';
 import { logger } from '../../utils/logger.js';
 
 /**
@@ -14,6 +15,7 @@ class FuelController {
     this.fechaController = new FechaController();
     this.pagosController = new PagosController();
     this.saldoController = new SaldoController();
+    this.desactivacionController = new DesactivacionController();
     
     logger.info('FuelController: Inicializado');
   }
@@ -197,8 +199,42 @@ class FuelController {
    * Alias para handleMarkAsPaid - mantiene compatibilidad con nombre anterior
    * @param {TelegrafContext} ctx - Contexto de Telegraf
    */
-  async markNoteAsPaid(ctx) {
-    return await this.pagosController.handleMarkAsPaid(ctx);
+  async markAsPaid(ctx) {
+    return await this.handleMarkAsPaid(ctx);
+  }
+
+  /**
+   * Muestra el formulario para buscar registros por número de nota
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async showSearchForm(ctx) {
+    return await this.desactivacionController.showSearchForm(ctx);
+  }
+  
+  /**
+   * Busca registros por número de nota
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async searchRecords(ctx) {
+    return await this.desactivacionController.searchRecords(ctx);
+  }
+  
+  /**
+   * Muestra confirmación antes de desactivar, con resumen detallado y advertencia
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {String} fuelId - ID del registro de combustible
+   */
+  async showDeactivationConfirmation(ctx, fuelId) {
+    return await this.desactivacionController.showDeactivationConfirmation(ctx, fuelId);
+  }
+
+  /**
+   * Desactiva un registro de combustible
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {Boolean} isConfirmed - Indica si ya fue confirmado por el usuario
+   */
+  async deactivateFuel(ctx, isConfirmed = false) {
+    return await this.desactivacionController.deactivateFuel(ctx, isConfirmed);
   }
 }
 

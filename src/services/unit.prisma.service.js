@@ -101,14 +101,28 @@ export class UnitService {
       data: updateData
     });
   }
-
+  
   /**
-   * Desactiva una unidad
+   * Desactiva una unidad (borrado lógico)
    * @param {String} unitId - ID de la unidad
+   * @param {String} tenantId - ID del tenant (opcional)
    * @returns {Promise<Object>} - Unidad desactivada
    */
-  static async deactivateUnit(unitId) {
-    return this.updateUnit(unitId, { isActive: false });
+  static async deactivateUnit(unitId, tenantId) {
+    if (tenantId) {
+      return prisma.unit.update({
+        where: { 
+          id: unitId,
+          tenantId // Importante: verificar que la unidad pertenezca al tenant
+        },
+        data: {
+          isActive: false
+        }
+      });
+    } else {
+      // Versión sin tenantId (para compatibilidad con código existente)
+      return this.updateUnit(unitId, { isActive: false });
+    }
   }
 
   /**
