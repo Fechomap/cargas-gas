@@ -1,9 +1,6 @@
 // src/services/fuel.adapter.service.js
-import { Fuel } from '../models/fuel.model.js';
 import { FuelService as PrismaFuelService } from './fuel.prisma.service.js';
 import { 
-  useMongoDBForReads, 
-  useMongoDBForWrites, 
   usePostgreSQLForReads, 
   usePostgreSQLForWrites 
 } from '../../config/database.config.js';
@@ -33,20 +30,8 @@ export class FuelService {
    */
   static async createFuelRecord(fuelData, tenantId) {
     try {
-      let mongoResult = null;
       let pgResult = null;
       const errors = [];
-      
-      // Escribir en MongoDB si está configurado
-      if (useMongoDBForWrites()) {
-        try {
-          mongoResult = await Fuel.create(fuelData);
-          logger.info(`Carga registrada en MongoDB: ${mongoResult._id}`);
-        } catch (error) {
-          errors.push(`Error al registrar en MongoDB: ${error.message}`);
-          logger.error(`Error al registrar carga en MongoDB: ${error.message}`);
-        }
-      }
       
       // Escribir en PostgreSQL si está configurado
       if (usePostgreSQLForWrites()) {
@@ -63,13 +48,12 @@ export class FuelService {
         }
       }
       
-      // Verificar si al menos una operación tuvo éxito
-      if (!mongoResult && !pgResult) {
-        throw new Error(`No se pudo registrar la carga en ninguna base de datos: ${errors.join(', ')}`);
+      // Verificar si la operación tuvo éxito
+      if (!pgResult) {
+        throw new Error(`No se pudo registrar la carga en PostgreSQL: ${errors.join(', ')}`);
       }
       
-      // Priorizar PostgreSQL si está configurado como primario para lecturas
-      return usePostgreSQLForReads() && pgResult ? pgResult : mongoResult;
+      return pgResult;
     } catch (error) {
       logger.error(`Error en createFuelRecord: ${error.message}`);
       throw error;
@@ -82,7 +66,7 @@ export class FuelService {
    * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
    * @returns {Promise<Object|null>} - Carga encontrada o null
    */
-  static async getFuelById(fuelId, tenantId = null) {
+  static async getFuelById(fuelId, tenantId) {
     try {
       // Leer de PostgreSQL si está configurado como primario
       if (usePostgreSQLForReads()) {
@@ -94,21 +78,6 @@ export class FuelService {
           return await PrismaFuelService.getFuelById(fuelId, tenantId);
         } catch (error) {
           logger.error(`Error al obtener carga de PostgreSQL: ${error.message}`);
-          // Si falla PostgreSQL y MongoDB está habilitado, intentar con MongoDB
-          if (useMongoDBForReads()) {
-            logger.info('Intentando obtener carga de MongoDB como fallback');
-          } else {
-            throw error;
-          }
-        }
-      }
-      
-      // Leer de MongoDB si está configurado o como fallback
-      if (useMongoDBForReads()) {
-        try {
-          return await Fuel.findById(fuelId).populate('unitId');
-        } catch (error) {
-          logger.error(`Error al obtener carga de MongoDB: ${error.message}`);
           throw error;
         }
       }
@@ -126,25 +95,10 @@ export class FuelService {
    * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
    * @returns {Promise<Object>} - Carga actualizada
    */
-  static async markAsPaid(fuelId, tenantId = null) {
+  static async markAsPaid(fuelId, tenantId) {
     try {
-      let mongoResult = null;
       let pgResult = null;
       const errors = [];
-      
-      // Actualizar en MongoDB si está configurado
-      if (useMongoDBForWrites()) {
-        try {
-          const fuel = await Fuel.findById(fuelId);
-          if (fuel) {
-            mongoResult = await fuel.markAsPaid();
-            logger.info(`Carga marcada como pagada en MongoDB: ${fuelId}`);
-          }
-        } catch (error) {
-          errors.push(`Error al actualizar en MongoDB: ${error.message}`);
-          logger.error(`Error al marcar carga como pagada en MongoDB: ${error.message}`);
-        }
-      }
       
       // Actualizar en PostgreSQL si está configurado
       if (usePostgreSQLForWrites()) {
@@ -161,13 +115,12 @@ export class FuelService {
         }
       }
       
-      // Verificar si al menos una operación tuvo éxito
-      if (!mongoResult && !pgResult) {
-        throw new Error(`No se pudo marcar la carga como pagada en ninguna base de datos: ${errors.join(', ')}`);
+      // Verificar si la operación tuvo éxito
+      if (!pgResult) {
+        throw new Error(`No se pudo marcar la carga como pagada en PostgreSQL: ${errors.join(', ')}`);
       }
       
-      // Priorizar PostgreSQL si está configurado como primario para lecturas
-      return usePostgreSQLForReads() && pgResult ? pgResult : mongoResult;
+      return pgResult;
     } catch (error) {
       logger.error(`Error en markAsPaid: ${error.message}`);
       throw error;
@@ -180,9 +133,9 @@ export class FuelService {
    * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
    * @returns {Promise<Array>} - Cargas encontradas
    */
-  static async findFuels(filters = {}, tenantId = null) {
+  static async findFuels(filters = {}, tenantId) {
     try {
-      // Leer de PostgreSQL si está configurado como primario
+      // Leer de PostgreSQL si está configurado
       if (usePostgreSQLForReads()) {
         if (!tenantId) {
           throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
@@ -192,21 +145,6 @@ export class FuelService {
           return await PrismaFuelService.findFuels(filters, tenantId);
         } catch (error) {
           logger.error(`Error al buscar cargas en PostgreSQL: ${error.message}`);
-          // Si falla PostgreSQL y MongoDB está habilitado, intentar con MongoDB
-          if (useMongoDBForReads()) {
-            logger.info('Intentando buscar cargas en MongoDB como fallback');
-          } else {
-            throw error;
-          }
-        }
-      }
-      
-      // Leer de MongoDB si está configurado o como fallback
-      if (useMongoDBForReads()) {
-        try {
-          return await Fuel.generateReport(filters);
-        } catch (error) {
-          logger.error(`Error al buscar cargas en MongoDB: ${error.message}`);
           throw error;
         }
       }
@@ -224,7 +162,7 @@ export class FuelService {
    * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
    * @returns {Promise<Object|null>} - Carga encontrada o null
    */
-  async findBySaleNumber(saleNumber, tenantId = null) {
+  async findBySaleNumber(saleNumber, tenantId) {
     // Llamar al método estático para mantener la misma implementación
     return FuelService.findBySaleNumberStatic(saleNumber, tenantId);
   }
@@ -246,9 +184,9 @@ export class FuelService {
    * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
    * @returns {Promise<Object|null>} - Carga encontrada o null
    */
-  static async findBySaleNumberStatic(saleNumber, tenantId = null) {
+  static async findBySaleNumberStatic(saleNumber, tenantId) {
     try {
-      // Leer de PostgreSQL si está configurado como primario
+      // Leer de PostgreSQL si está configurado
       if (usePostgreSQLForReads()) {
         if (!tenantId) {
           throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
@@ -260,21 +198,6 @@ export class FuelService {
           return fuels && fuels.length > 0 ? fuels[0] : null;
         } catch (error) {
           logger.error(`Error al buscar carga por número de venta en PostgreSQL: ${error.message}`);
-          // Si falla PostgreSQL y MongoDB está habilitado, intentar con MongoDB
-          if (useMongoDBForReads()) {
-            logger.info('Intentando buscar carga por número de venta en MongoDB como fallback');
-          } else {
-            throw error;
-          }
-        }
-      }
-      
-      // Leer de MongoDB si está configurado o como fallback
-      if (useMongoDBForReads()) {
-        try {
-          return await Fuel.findOne({ saleNumber }).populate('unitId');
-        } catch (error) {
-          logger.error(`Error al buscar carga por número de venta en MongoDB: ${error.message}`);
           throw error;
         }
       }
@@ -291,11 +214,11 @@ export class FuelService {
    * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
    * @returns {Promise<number>} - Monto total pendiente
    */
-  static async getTotalUnpaidAmount(tenantId = null) {
+  static async getTotalUnpaidAmount(tenantId) {
     try {
       logger.info('Iniciando cálculo de saldo pendiente');
 
-      // Obtener monto desde PostgreSQL si está configurado como primario
+      // Obtener monto desde PostgreSQL si está configurado
       if (usePostgreSQLForReads()) {
         if (!tenantId) {
           throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
@@ -307,29 +230,7 @@ export class FuelService {
           return total;
         } catch (error) {
           logger.error(`Error al calcular saldo en PostgreSQL: ${error.message}`);
-          // Si falla PostgreSQL y MongoDB está habilitado, intentar con MongoDB
-          if (useMongoDBForReads()) {
-            logger.info('Intentando calcular saldo en MongoDB como fallback');
-          } else {
-            throw error;
-          }
-        }
-      }
-      
-      // Obtener monto desde MongoDB si está configurado o como fallback
-      if (useMongoDBForReads()) {
-        try {
-          const result = await Fuel.aggregate([
-            { $match: { paymentStatus: 'no pagada' } },
-            { $group: { _id: null, total: { $sum: '$amount' } } }
-          ]);
-          
-          const total = result.length > 0 ? result[0].total : 0;
-          logger.info(`Total calculado desde MongoDB: ${total}`);
-          return total;
-        } catch (error) {
-          logger.error(`Error al calcular saldo en MongoDB: ${error.message}`);
-          return 0;
+          throw error;
         }
       }
       
@@ -347,26 +248,10 @@ export class FuelService {
    * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
    * @returns {Promise<Object>} - Carga actualizada
    */
-  static async updateRecordDate(fuelId, newDate, tenantId = null) {
+  static async updateRecordDate(fuelId, newDate, tenantId) {
     try {
-      let mongoResult = null;
       let pgResult = null;
       const errors = [];
-      
-      // Actualizar en MongoDB si está configurado
-      if (useMongoDBForWrites()) {
-        try {
-          const fuel = await Fuel.findById(fuelId);
-          if (fuel) {
-            fuel.recordDate = newDate;
-            mongoResult = await fuel.save();
-            logger.info(`Fecha de carga actualizada en MongoDB: ${fuelId}`);
-          }
-        } catch (error) {
-          errors.push(`Error al actualizar fecha en MongoDB: ${error.message}`);
-          logger.error(`Error al actualizar fecha en MongoDB: ${error.message}`);
-        }
-      }
       
       // Actualizar en PostgreSQL si está configurado
       if (usePostgreSQLForWrites()) {
@@ -387,13 +272,12 @@ export class FuelService {
         }
       }
       
-      // Verificar si al menos una operación tuvo éxito
-      if (!mongoResult && !pgResult) {
-        throw new Error(`No se pudo actualizar la fecha en ninguna base de datos: ${errors.join(', ')}`);
+      // Verificar si la operación tuvo éxito
+      if (!pgResult) {
+        throw new Error(`No se pudo actualizar la fecha en PostgreSQL: ${errors.join(', ')}`);
       }
       
-      // Priorizar PostgreSQL si está configurado como primario para lecturas
-      return usePostgreSQLForReads() && pgResult ? pgResult : mongoResult;
+      return pgResult;
     } catch (error) {
       logger.error(`Error en updateRecordDate: ${error.message}`);
       throw error;
@@ -407,7 +291,7 @@ export class FuelService {
    * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
    * @returns {Promise<Object>} - Carga actualizada
    */
-  async updateRecordDate(fuelId, newDate, tenantId = null) {
+  async updateRecordDate(fuelId, newDate, tenantId) {
     // Llamar al método estático para mantener la misma implementación
     return FuelService.updateRecordDate(fuelId, newDate, tenantId);
   }
@@ -417,7 +301,7 @@ export class FuelService {
    * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
    * @returns {Promise<number>} - Monto total pendiente
    */
-  async getTotalPendingBalance(tenantId = null) {
+  async getTotalPendingBalance(tenantId) {
     // Llamar al método estático para mantener la misma implementación
     return FuelService.getTotalUnpaidAmount(tenantId);
   }
@@ -428,7 +312,7 @@ export class FuelService {
    * @param {String} tenantId - ID del tenant
    * @returns {Promise<Object|null>} - Carga encontrada o null
    */
-  async findBySaleNumber(saleNumber, tenantId = null) {
+  async findBySaleNumber(saleNumber, tenantId) {
     // Llamar al método estático existente para mantener la misma implementación
     return FuelService.findBySaleNumberStatic(saleNumber, tenantId);
   }
@@ -449,7 +333,7 @@ export class FuelService {
    * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
    * @returns {Promise<Array>} - Cargas encontradas
    */
-  async searchNotesBySaleNumber(searchQuery, tenantId = null) {
+  async searchNotesBySaleNumber(searchQuery, tenantId) {
     try {
       logger.info(`Buscando notas con query: ${searchQuery}, tenantId: ${tenantId}`);
       
@@ -462,15 +346,6 @@ export class FuelService {
         // Buscar con filtro de saleNumber (coincidencia exacta o parcial según implemente la BD)
         const fuels = await PrismaFuelService.findFuels({ saleNumber: searchQuery }, tenantId);
         logger.info(`Encontradas ${fuels.length} notas en PostgreSQL`);
-        return fuels;
-      }
-      
-      // Para MongoDB, usamos una búsqueda específica
-      if (useMongoDBForReads()) {
-        // Buscar coincidencias parciales
-        const regex = new RegExp(searchQuery, 'i');
-        const fuels = await Fuel.find({ saleNumber: regex }).populate('unitId');
-        logger.info(`Encontradas ${fuels.length} notas en MongoDB`);
         return fuels;
       }
       

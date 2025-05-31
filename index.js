@@ -18,7 +18,6 @@ async function startBot() {
     // Inicializar conexión a la base de datos PostgreSQL
     logger.info('Inicializando conexión a PostgreSQL...');
     await initializeDatabase();
-    // Ya no necesitamos manejar MongoDB - ha sido eliminado del proyecto
 
     // Inicializar el bot
     logger.info('Inicializando bot de Telegram...');
