@@ -7,7 +7,7 @@ import {
 import { logger } from '../utils/logger.js';
 
 /**
- * Servicio adaptador para cargas de combustible que permite usar MongoDB y/o PostgreSQL
+ * Servicio adaptador para cargas de combustible PostgreSQL
  * según la configuración de base de datos
  */
 export class FuelService {
