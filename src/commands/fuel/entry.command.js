@@ -74,8 +74,18 @@ export function setupFuelEntryCommands(bot) {
     }
   });
   
-  // Manejar fotografía del ticket o su omisión
-  bot.on(['photo', 'text'], async (ctx, next) => {
+  // Manejar el botón de omitir foto
+  bot.action('skip_ticket_photo', async (ctx) => {
+    if (isInState(ctx, 'fuel_entry_photo')) {
+      await ctx.answerCbQuery('Foto omitida');
+      ctx.session.data.ticketPhoto = null;
+      await updateConversationState(ctx, 'fuel_entry_sale_number');
+      await ctx.reply('Por favor, ingresa el número de venta (1 a 6 dígitos impresos en la nota):');
+    }
+  });
+
+  // Manejar fotografía del ticket
+  bot.on('photo', async (ctx, next) => {
     if (isInState(ctx, 'fuel_entry_photo')) {
       await fuelController.handleTicketPhoto(ctx);
       return;

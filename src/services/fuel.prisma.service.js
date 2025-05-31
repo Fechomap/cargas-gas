@@ -143,6 +143,33 @@ export class FuelService {
   }
 
   /**
+   * Actualiza la fecha de registro de una carga
+   * @param {String} fuelId - ID de la carga
+   * @param {Date} newDate - Nueva fecha
+   * @param {String} tenantId - ID del tenant
+   * @returns {Promise<Object>} - Carga actualizada
+   */
+  static async updateRecordDate(fuelId, newDate, tenantId) {
+    // Verificar que el registro existe
+    const record = await this.getFuelById(fuelId, tenantId);
+    
+    if (!record) {
+      throw new Error('Registro no encontrado o inactivo');
+    }
+    
+    // Actualizar la fecha
+    return prisma.fuel.update({
+      where: {
+        id: fuelId,
+        tenantId
+      },
+      data: {
+        recordDate: newDate
+      }
+    });
+  }
+
+  /**
    * Desactiva un registro de combustible (borrado lógico)
    * @param {String} fuelId - ID del registro de combustible
    * @param {String} tenantId - ID del tenant
@@ -168,7 +195,10 @@ export class FuelService {
    */
   static async findFuels(filters = {}, tenantId) {
     const where = { tenantId };
-    // Aplicamos el filtro isActive después de la consulta
+    
+    // IMPORTANTE: Aplicar filtro isActive ANTES de la consulta
+    // Por defecto, solo buscar registros activos a menos que se especifique lo contrario
+    where.isActive = filters.hasOwnProperty('isActive') ? filters.isActive : true;
     
     // Aplicar filtros
     if (filters.startDate && filters.endDate) {
@@ -221,7 +251,7 @@ export class FuelService {
       }
     }
 
-    // Ejecutar consulta
+    // Ejecutar consulta con el filtro isActive incluido en el WHERE
     const results = await prisma.fuel.findMany({
       where,
       include: {
@@ -232,9 +262,8 @@ export class FuelService {
       }
     });
     
-    // Filtrar manualmente por isActive si es necesario
-    const activeFilter = filters.hasOwnProperty('isActive') ? filters.isActive : true;
-    return results.filter(record => record.isActive === activeFilter);
+    // Ya no necesitamos filtrar manualmente porque se aplicó en la consulta
+    return results;
   }
 
   /**
