@@ -339,4 +339,145 @@ export class FuelService {
       return 0;
     }
   }
+  
+  /**
+   * Actualiza la fecha de registro de una carga de combustible
+   * @param {String} fuelId - ID de la carga
+   * @param {Date} newDate - Nueva fecha
+   * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
+   * @returns {Promise<Object>} - Carga actualizada
+   */
+  static async updateRecordDate(fuelId, newDate, tenantId = null) {
+    try {
+      let mongoResult = null;
+      let pgResult = null;
+      const errors = [];
+      
+      // Actualizar en MongoDB si está configurado
+      if (useMongoDBForWrites()) {
+        try {
+          const fuel = await Fuel.findById(fuelId);
+          if (fuel) {
+            fuel.recordDate = newDate;
+            mongoResult = await fuel.save();
+            logger.info(`Fecha de carga actualizada en MongoDB: ${fuelId}`);
+          }
+        } catch (error) {
+          errors.push(`Error al actualizar fecha en MongoDB: ${error.message}`);
+          logger.error(`Error al actualizar fecha en MongoDB: ${error.message}`);
+        }
+      }
+      
+      // Actualizar en PostgreSQL si está configurado
+      if (usePostgreSQLForWrites()) {
+        if (!tenantId) {
+          throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
+        }
+        
+        try {
+          pgResult = await PrismaFuelService.updateFuel(
+            fuelId, 
+            { recordDate: newDate },
+            tenantId
+          );
+          logger.info(`Fecha de carga actualizada en PostgreSQL: ${fuelId}`);
+        } catch (error) {
+          errors.push(`Error al actualizar fecha en PostgreSQL: ${error.message}`);
+          logger.error(`Error al actualizar fecha en PostgreSQL: ${error.message}`);
+        }
+      }
+      
+      // Verificar si al menos una operación tuvo éxito
+      if (!mongoResult && !pgResult) {
+        throw new Error(`No se pudo actualizar la fecha en ninguna base de datos: ${errors.join(', ')}`);
+      }
+      
+      // Priorizar PostgreSQL si está configurado como primario para lecturas
+      return usePostgreSQLForReads() && pgResult ? pgResult : mongoResult;
+    } catch (error) {
+      logger.error(`Error en updateRecordDate: ${error.message}`);
+      throw error;
+    }
+  }
+  
+  /**
+   * Método de instancia para actualizar la fecha de registro
+   * @param {String} fuelId - ID de la carga
+   * @param {Date} newDate - Nueva fecha
+   * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
+   * @returns {Promise<Object>} - Carga actualizada
+   */
+  async updateRecordDate(fuelId, newDate, tenantId = null) {
+    // Llamar al método estático para mantener la misma implementación
+    return FuelService.updateRecordDate(fuelId, newDate, tenantId);
+  }
+  
+  /**
+   * Obtiene el saldo total pendiente (cargas no pagadas)
+   * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
+   * @returns {Promise<number>} - Monto total pendiente
+   */
+  async getTotalPendingBalance(tenantId = null) {
+    // Llamar al método estático para mantener la misma implementación
+    return FuelService.getTotalUnpaidAmount(tenantId);
+  }
+  
+  /**
+   * Busca una nota por su número de venta (usado en pagos.controller.js)
+   * @param {String} saleNumber - Número de venta a buscar
+   * @param {String} tenantId - ID del tenant
+   * @returns {Promise<Object|null>} - Carga encontrada o null
+   */
+  async findBySaleNumber(saleNumber, tenantId = null) {
+    // Llamar al método estático existente para mantener la misma implementación
+    return FuelService.findBySaleNumberStatic(saleNumber, tenantId);
+  }
+  
+  /**
+   * Alias para createFuelEntry (mantener compatibilidad con código anterior)
+   * @param {Object} fuelData - Datos de la carga
+   * @param {String} tenantId - ID del tenant
+   * @returns {Promise<Object>} - Carga creada
+   */
+  async saveFuelEntry(fuelData, tenantId) {
+    return this.createFuelEntry(fuelData, tenantId);
+  }
+  
+  /**
+   * Busca notas que coincidan con un número de venta
+   * @param {String} searchQuery - Texto de búsqueda
+   * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
+   * @returns {Promise<Array>} - Cargas encontradas
+   */
+  async searchNotesBySaleNumber(searchQuery, tenantId = null) {
+    try {
+      logger.info(`Buscando notas con query: ${searchQuery}, tenantId: ${tenantId}`);
+      
+      // Para PostgreSQL, usamos el método findFuels con un filtro
+      if (usePostgreSQLForReads()) {
+        if (!tenantId) {
+          throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
+        }
+        
+        // Buscar con filtro de saleNumber (coincidencia exacta o parcial según implemente la BD)
+        const fuels = await PrismaFuelService.findFuels({ saleNumber: searchQuery }, tenantId);
+        logger.info(`Encontradas ${fuels.length} notas en PostgreSQL`);
+        return fuels;
+      }
+      
+      // Para MongoDB, usamos una búsqueda específica
+      if (useMongoDBForReads()) {
+        // Buscar coincidencias parciales
+        const regex = new RegExp(searchQuery, 'i');
+        const fuels = await Fuel.find({ saleNumber: regex }).populate('unitId');
+        logger.info(`Encontradas ${fuels.length} notas en MongoDB`);
+        return fuels;
+      }
+      
+      throw new Error('No hay bases de datos configuradas para lectura');
+    } catch (error) {
+      logger.error(`Error en searchNotesBySaleNumber: ${error.message}`);
+      throw error;
+    }
+  }
 }

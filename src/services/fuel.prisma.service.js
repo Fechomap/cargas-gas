@@ -1,5 +1,5 @@
 // src/services/fuel.prisma.service.js
-import prisma from '../db/prisma.js';
+import { prisma } from '../db/index.js';
 
 /**
  * Servicio para gestionar operaciones relacionadas con cargas de combustible

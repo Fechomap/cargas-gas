@@ -1,7 +1,7 @@
 // src/services/registration.service.js
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
-import { prisma } from '../../index.js';
+import { prisma } from '../db/index.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -201,14 +201,25 @@ class RegistrationService {
   
   /**
    * Vincula un grupo con un tenant usando un token
-   * @param {String} token - Token de registro
-   * @param {String} groupId - ID del grupo de Telegram
-   * @returns {Promise<Object>} - Tenant vinculado
+   * @param {Object} options - Opciones para la vinculación
+   * @param {String} options.token - Token de registro
+   * @param {String} options.chatId - ID del chat/grupo de Telegram
+   * @param {String} [options.chatTitle] - Título del chat (opcional)
+   * @returns {Promise<Object>} - Resultado de la operación con el tenant vinculado
    */
-  async linkGroupWithToken(token, groupId) {
+  async linkGroupWithToken(options) {
     try {
+      logger.info(`Intento de vinculación con token: ${JSON.stringify(options)}`);
+      
+      // Validar que tenemos el token
+      if (!options || !options.token) {
+        logger.error('Token no proporcionado para la vinculación');
+        return { success: false, error: 'Token no proporcionado' };
+      }
+      
       // Normalizar token (quitar espacios, convertir a mayúsculas)
-      const normalizedToken = token.trim().toUpperCase();
+      const normalizedToken = String(options.token).trim().toUpperCase();
+      const chatId = options.chatId;
       
       // Buscar tenant con el token
       const tenant = await prisma.tenant.findFirst({
@@ -217,43 +228,49 @@ class RegistrationService {
       });
       
       if (!tenant) {
-        throw new Error('Token inválido o expirado');
+        return { success: false, error: 'Token inválido o expirado' };
       }
       
       // Verificar que el tenant no esté ya vinculado a otro grupo
       if (tenant.chatId && !tenant.chatId.startsWith('pending_')) {
-        throw new Error('Este token ya ha sido utilizado');
+        return { success: false, error: 'Este token ya ha sido utilizado' };
       }
       
       // Verificar que el grupo no esté ya vinculado a otro tenant
       const existingTenant = await prisma.tenant.findFirst({
         where: { 
-          chatId: groupId.toString(),
+          chatId: chatId.toString(),
           NOT: { id: tenant.id }
         }
       });
       
       if (existingTenant) {
-        throw new Error('Este grupo ya está vinculado a otra empresa');
+        return { success: false, error: 'Este grupo ya está vinculado a otra empresa' };
       }
       
-      // Actualizar tenant con el chatId del grupo
-      const updatedTenant = await prisma.tenant.update({
-        where: { id: tenant.id },
-        data: {
-          chatId: groupId.toString(),
-          isApproved: true, // Confirmar aprobación
-          registrationToken: null, // Invalidar token
-          updatedAt: new Date() // Usar updatedAt en lugar de activatedAt
-        },
-        include: { settings: true }
-      });
-      
-      logger.info(`Grupo ${groupId} vinculado exitosamente con tenant ${tenant.id} (${tenant.companyName})`);
-      return updatedTenant;
+      try {
+        // Actualizar tenant con el chatId del grupo (sin usar chatTitle que no existe en el modelo)
+        const updatedTenant = await prisma.tenant.update({
+          where: { id: tenant.id },
+          data: {
+            chatId: chatId.toString(),
+            isApproved: true, // Confirmar aprobación
+            registrationToken: null, // Invalidar token
+            // Agregar nota con el título del chat si es necesario
+            notes: options.chatTitle ? `Grupo: ${options.chatTitle}` : tenant.notes
+          },
+          include: { settings: true }
+        });
+        
+        logger.info(`Grupo ${chatId} vinculado exitosamente con tenant ${tenant.id} (${tenant.companyName})`);
+        return { success: true, tenant: updatedTenant };  
+      } catch (updateError) {
+        logger.error(`Error al actualizar tenant durante la vinculación: ${updateError.message}`);
+        return { success: false, error: 'Error al vincular grupo con la empresa' };
+      }
     } catch (error) {
       logger.error(`Error al vincular grupo: ${error.message}`);
-      throw error;
+      return { success: false, error: `Error al vincular grupo: ${error.message}` };
     }
   }
   

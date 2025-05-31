@@ -1,14 +1,14 @@
-// src/commands/register.command.js
+// src/commands/unidades/registro.command.js
 import { Markup } from 'telegraf';
-import { logger } from '../utils/logger.js';
-import { unitController } from '../controllers/unit.controller.js';
-import { updateConversationState } from '../state/conversation.js';
+import { logger } from '../../utils/logger.js';
+import { unitController } from '../../controllers/unit.controller.js';
+import { updateConversationState } from '../../state/conversation.js';
 
 /**
- * Configura el comando y botones para registrar unidades
+ * Configura los comandos para el registro de nuevas unidades
  * @param {Telegraf} bot - Instancia del bot de Telegram
  */
-export function setupRegisterUnitCommand(bot) {
+export function configurarComandosRegistro(bot) {
   // Comando /registrar
   bot.command('registrar', startUnitRegistration);
   

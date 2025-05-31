@@ -1,10 +1,10 @@
 // src/commands/index.js
 import { Markup } from 'telegraf';
 import { setupStartCommand } from './start.command.js';
-import { setupRegisterUnitCommand } from './register.command.js';
-import { setupFuelCommand } from './fuel.command.js';
-import { setupUnifiedReportCommand } from './unified-report.command.js';
-import { setupCompanyRegisterCommands } from './company-register.command.js';
+import { configurarComandosUnidades } from './unidades/index.js';
+import { setupFuelCommands } from './fuel/index.js';
+import { configurarComandosReportes } from './reportes/index.js';
+import { setupCompanyRegisterCommands } from './registration/index.js';
 import { logger } from '../utils/logger.js';
 import { unitController } from '../controllers/unit.controller.js';
 
@@ -166,14 +166,14 @@ export function registerCommands(bot) {
     logger.info('Configurando comando start');
     setupStartCommand(bot);
     
-    logger.info('Configurando comando register');
-    setupRegisterUnitCommand(bot);
+    logger.info('Configurando sistema de unidades');
+    configurarComandosUnidades(bot);
     
-    logger.info('Configurando comando fuel');
-    setupFuelCommand(bot);
+    logger.info('Configurando comandos de combustible');
+    setupFuelCommands(bot);
     
-    logger.info('Configurando comando report');
-    setupUnifiedReportCommand(bot);
+    logger.info('Configurando sistema de reportes');
+    configurarComandosReportes(bot);
     
     logger.info('Configurando sistema de registro de empresas');
     setupCompanyRegisterCommands(bot);

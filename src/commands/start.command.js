@@ -80,8 +80,8 @@ export function setupStartCommand(bot) {
       // Ejecutar directamente la función de registro sin enviar el comando
       logger.info(`Iniciando registro de empresa desde botón para usuario ${ctx.from.id}`);
       
-      // Importar el comando y la función startCompanyRegistration directamente
-      const { startCompanyRegistration } = await import('./company-register.command.js');
+      // Importar el comando y la función startCompanyRegistration desde la nueva estructura modular
+      const { startCompanyRegistration } = await import('./registration/start-registration.command.js');
       
       // Llamar directamente a la función de registro
       await startCompanyRegistration(ctx);

@@ -1,16 +1,12 @@
 // index.js - Punto de entrada principal
 import 'dotenv/config';
 import { botConfig } from './config/bot.config.js';
-import { connectToDatabase } from './src/db/connection.js';
 import { initializeBot } from './src/api/telegram.api.js';
 import { registerCommands } from './src/commands/index.js';
 import { setupMiddleware } from './src/middleware/index.js';
 import { logger } from './src/utils/logger.js';
-import { PrismaClient } from '@prisma/client';
+import { initializeDatabase, prisma } from './src/db/index.js';
 import { dbConfig } from './config/database.config.js';
-
-// Inicializar Prisma
-export const prisma = new PrismaClient();
 
 
 async function startBot() {
@@ -19,19 +15,10 @@ async function startBot() {
     logger.info(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
     logger.info(`Modo base de datos: ${dbConfig.mode}`);
     
-    // Conectar a MongoDB solo si no estamos en modo PostgreSQL puro
-    if (dbConfig.mode !== 'postgresql') {
-      logger.info('Intentando conexión a MongoDB...');
-      await connectToDatabase();
-      logger.info('Conexión a MongoDB establecida');
-    } else {
-      logger.info('Modo PostgreSQL puro: No se conectará a MongoDB');
-    }
-    
-    // Conectar a PostgreSQL
-    logger.info('Intentando conexión a PostgreSQL...');
-    await prisma.$connect();
-    logger.info('Conexión a PostgreSQL establecida');
+    // Inicializar conexión a la base de datos PostgreSQL
+    logger.info('Inicializando conexión a PostgreSQL...');
+    await initializeDatabase();
+    // Ya no necesitamos manejar MongoDB - ha sido eliminado del proyecto
 
     // Inicializar el bot
     logger.info('Inicializando bot de Telegram...');
