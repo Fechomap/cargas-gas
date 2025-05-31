@@ -250,36 +250,46 @@ export class FuelService {
    */
   static async updateRecordDate(fuelId, newDate, tenantId) {
     try {
-      let pgResult = null;
-      const errors = [];
-      
-      // Actualizar en PostgreSQL si está configurado
-      if (usePostgreSQLForWrites()) {
-        if (!tenantId) {
-          throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
-        }
-        
-        try {
-          pgResult = await PrismaFuelService.updateFuel(
-            fuelId, 
-            { recordDate: newDate },
-            tenantId
-          );
-          logger.info(`Fecha de carga actualizada en PostgreSQL: ${fuelId}`);
-        } catch (error) {
-          errors.push(`Error al actualizar fecha en PostgreSQL: ${error.message}`);
-          logger.error(`Error al actualizar fecha en PostgreSQL: ${error.message}`);
-        }
+      if (!tenantId) {
+        throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
       }
       
-      // Verificar si la operación tuvo éxito
-      if (!pgResult) {
-        throw new Error(`No se pudo actualizar la fecha en PostgreSQL: ${errors.join(', ')}`);
+      try {
+        const result = await PrismaFuelService.updateRecordDate(fuelId, newDate, tenantId);
+        logger.info(`Fecha de carga actualizada en PostgreSQL: ${fuelId}`);
+        return result;
+      } catch (error) {
+        logger.error(`Error al actualizar fecha en PostgreSQL: ${error.message}`);
+        throw error;
       }
-      
-      return pgResult;
     } catch (error) {
       logger.error(`Error en updateRecordDate: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Desactiva un registro de combustible (borrado lógico)
+   * @param {String} fuelId - ID del registro de combustible
+   * @param {String} tenantId - ID del tenant
+   * @returns {Promise<Object>} - Registro desactivado
+   */
+  static async deactivateFuel(fuelId, tenantId) {
+    try {
+      if (!tenantId) {
+        throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
+      }
+      
+      try {
+        const result = await PrismaFuelService.deactivateFuel(fuelId, tenantId);
+        logger.info(`Registro de combustible desactivado en PostgreSQL: ${fuelId}`);
+        return result;
+      } catch (error) {
+        logger.error(`Error al desactivar registro en PostgreSQL: ${error.message}`);
+        throw error;
+      }
+    } catch (error) {
+      logger.error(`Error en deactivateFuel: ${error.message}`);
       throw error;
     }
   }
@@ -343,8 +353,12 @@ export class FuelService {
           throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
         }
         
-        // Buscar con filtro de saleNumber (coincidencia exacta o parcial según implemente la BD)
-        const fuels = await PrismaFuelService.findFuels({ saleNumber: searchQuery }, tenantId);
+        // Buscar con filtro de saleNumber usando búsqueda EXACTA
+        // Esto mostrará SOLO notas con el número EXACTO ("1" solo encuentra "1", no "10" ni "01")
+        const fuels = await PrismaFuelService.findFuels({ 
+          saleNumber: searchQuery, 
+          exactMatch: true // Busca coincidencia exacta del número de venta
+        }, tenantId);
         logger.info(`Encontradas ${fuels.length} notas en PostgreSQL`);
         return fuels;
       }
