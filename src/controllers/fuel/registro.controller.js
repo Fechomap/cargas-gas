@@ -96,7 +96,8 @@ export class RegistroController {
       await ctx.reply('Selecciona el tipo de combustible:', 
         Markup.inlineKeyboard([
           Markup.button.callback('Gas', 'fuel_type_gas'),
-          Markup.button.callback('Gasolina', 'fuel_type_gasolina')
+          Markup.button.callback('Gasolina', 'fuel_type_gasolina'),
+          Markup.button.callback('Diésel', 'fuel_type_diesel')
         ])
       );
     } catch (error) {

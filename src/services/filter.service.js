@@ -31,7 +31,8 @@ const FILTER_DEFINITIONS = {
     type: 'static_list',
     options: [
       { label: 'Gas', value: 'GAS' },
-      { label: 'Gasolina', value: 'GASOLINA' }
+      { label: 'Gasolina', value: 'GASOLINA' },
+      { label: 'Diésel', value: 'DIESEL' }
     ]
   },
   paymentStatus: {

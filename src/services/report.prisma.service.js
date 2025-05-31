@@ -140,7 +140,7 @@ class ReportPrismaService {
           date: formatDate(new Date(fuel.recordDate)),
           operator: fuel.operatorName,
           unit: fuel.unitNumber,
-          type: fuel.fuelType === 'GAS' ? 'Gas' : 'Gasolina',
+          type: fuel.fuelType === 'GAS' ? 'Gas' : (fuel.fuelType === 'GASOLINA' ? 'Gasolina' : 'Diésel'),
           liters: Number(fuel.liters),
           amount: Number(fuel.amount),
           status: fuel.paymentStatus === 'PAGADA' ? 'Pagada' : 'No Pagada',
@@ -264,7 +264,7 @@ class ReportPrismaService {
       formatDate(new Date(fuel.recordDate)),
       fuel.operatorName,
       fuel.unitNumber,
-      fuel.fuelType === 'GAS' ? 'Gas' : 'Gasolina',
+      fuel.fuelType === 'GAS' ? 'Gas' : (fuel.fuelType === 'GASOLINA' ? 'Gasolina' : 'Diésel'),
       fuel.liters.toFixed(2),
       `$${fuel.amount.toFixed(2)}`,
       fuel.paymentStatus === 'PAGADA' ? 'Pagada' : 'No Pagada',
@@ -351,7 +351,7 @@ class ReportPrismaService {
     }
     
     if (filters.fuelType) {
-      filterTexts.push(`Tipo: ${filters.fuelType === 'GAS' ? 'Gas' : 'Gasolina'}`);
+      filterTexts.push(`Tipo: ${filters.fuelType === 'GAS' ? 'Gas' : (filters.fuelType === 'GASOLINA' ? 'Gasolina' : 'Diésel')}`);
     }
     
     if (filters.paymentStatus) {

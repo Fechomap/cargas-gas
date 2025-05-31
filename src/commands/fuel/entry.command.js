@@ -74,6 +74,12 @@ export function setupFuelEntryCommands(bot) {
     }
   });
   
+  bot.action('fuel_type_diesel', async (ctx) => {
+    if (isInState(ctx, 'fuel_entry_type')) {
+      await fuelController.handleFuelTypeSelection(ctx, 'diesel');
+    }
+  });
+  
   // Manejar el botón de omitir foto
   bot.action('skip_ticket_photo', async (ctx) => {
     if (isInState(ctx, 'fuel_entry_photo')) {

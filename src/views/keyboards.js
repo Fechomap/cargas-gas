@@ -56,7 +56,10 @@ export function getFuelTypeKeyboard() {
       Markup.button.callback('Gas ⛽', 'fuel_type_gas'),
       Markup.button.callback('Gasolina 🚗', 'fuel_type_gasolina')
     ],
-    [Markup.button.callback('❌ Cancelar', 'cancel_fuel_entry')]
+    [
+      Markup.button.callback('Diésel 🚛', 'fuel_type_diesel'),
+      Markup.button.callback('❌ Cancelar', 'cancel_fuel_entry')
+    ]
   ]);
 }
 

@@ -1,0 +1,3 @@
+# Prisma migration file
+
+migration_name = "20250531105039_add_diesel_fuel_type"
