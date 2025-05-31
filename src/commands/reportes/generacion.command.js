@@ -1,5 +1,5 @@
 // src/commands/reportes/generacion.command.js
-import { unifiedReportController } from '../../controllers/unified-report.controller.js';
+import { reportController } from '../../controllers/reportes/index.js';
 import { isInState } from '../../state/conversation.js';
 import { logger } from '../../utils/logger.js';
 
@@ -32,7 +32,7 @@ export function configurarComandosGeneracion(bot) {
         logger.debug('No se pudo eliminar mensaje del comando');
       }
       
-      await unifiedReportController.startReportGeneration(ctx);
+      await reportController.startReportGeneration(ctx);
     } catch (error) {
       logger.error(`Error en comando /reporte: ${error.message}`);
       await ctx.reply('Error al iniciar el generador de reportes. Intenta nuevamente.');
@@ -51,7 +51,7 @@ export function configurarComandosGeneracion(bot) {
         await ctx.answerCbQuery(`Generando reporte con ${filterCount} filtro(s) aplicado(s)...`, { show_alert: true });
       }
       
-      await unifiedReportController.generateReport(ctx);
+      await reportController.generateReport(ctx);
     } else {
       logger.warn(`Estado incorrecto para generate_unified_report: ${ctx.session?.state}`);
       await ctx.answerCbQuery('⚠️ Sesión expirada. Usa /reporte para comenzar de nuevo.');

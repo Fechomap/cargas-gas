@@ -6,7 +6,7 @@ import { setupFuelCommands } from './fuel/index.js';
 import { configurarComandosReportes } from './reportes/index.js';
 import { setupCompanyRegisterCommands } from './registration/index.js';
 import { logger } from '../utils/logger.js';
-import { unitController } from '../controllers/unit.controller.js';
+import { unitController } from '../controllers/unit/index.js';
 
 /**
  * Configurar callback global para el menú principal
@@ -134,10 +134,10 @@ function setupGlobalCallbacks(bot) {
       await ctx.answerCbQuery('Iniciando generación de reporte...');
       
       // Importar dinámicamente el controlador para evitar dependencias circulares
-      const { unifiedReportController } = await import('../controllers/unified-report.controller.js');
+      const { reportController } = await import('../controllers/reportes/index.js');
       
       // Llamar directamente al controlador en lugar de simular el comando
-      await unifiedReportController.startReportGeneration(ctx);
+      await reportController.startReportGeneration(ctx);
       
       logger.info('Generador de reportes iniciado directamente desde el botón');
     } catch (error) {

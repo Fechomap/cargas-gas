@@ -1,7 +1,7 @@
 // src/commands/unidades/registro.command.js
 import { Markup } from 'telegraf';
 import { logger } from '../../utils/logger.js';
-import { unitController } from '../../controllers/unit.controller.js';
+import { unitController } from '../../controllers/unit/index.js';
 import { updateConversationState } from '../../state/conversation.js';
 
 /**

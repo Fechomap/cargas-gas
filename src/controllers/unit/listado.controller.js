@@ -1,44 +1,13 @@
-// src/controllers/unit.controller.js
+// src/controllers/unit/listado.controller.js
 import { Markup } from 'telegraf';
-// Actualizando para usar el adaptador en lugar del servicio original
-import { unitService } from '../services/unit.adapter.service.js';
-import { logger } from '../utils/logger.js';
-import { getUnitsKeyboard } from '../views/keyboards.js'; // Import the keyboard function
+import { unitService } from '../../services/unit.adapter.service.js';
+import { logger } from '../../utils/logger.js';
+import { getUnitsKeyboard } from '../../views/keyboards.js';
 
 /**
- * Controlador para gestionar unidades (camionetas/grúas)
+ * Controlador para gestionar el listado y selección de unidades
  */
-class UnitController {
-  /**
-   * Registra una nueva unidad en el sistema
-   * @param {Object} unitData - Datos de la unidad a registrar
-   * @returns {Promise<Object>} - Unidad registrada
-   */
-  async registerUnit(unitData) {
-    try {
-      logger.info(`Registrando nueva unidad: ${unitData.operatorName} - ${unitData.unitNumber}`);
-      
-      // Validar datos de entrada
-      if (!unitData.operatorName || !unitData.unitNumber) {
-        throw new Error('Datos de unidad incompletos');
-      }
-      
-      // Validar que el tenant esté presente en los datos
-      if (!unitData.tenantId) {
-        throw new Error('Se requiere el tenantId para registrar una unidad');
-      }
-      
-      // Usar el servicio para registrar la unidad (usando findOrCreateUnit en lugar de createUnit)
-      const unit = await unitService.findOrCreateUnit(unitData, unitData.tenantId);
-      
-      logger.info(`Unidad registrada con éxito: ${unit.id}`);
-      return unit;
-    } catch (error) {
-      logger.error(`Error al registrar unidad: ${error.message}`);
-      throw error;
-    }
-  }
-  
+export class ListadoController {
   /**
    * Muestra las unidades registradas como botones en el chat
    * @param {TelegrafContext} ctx - Contexto de Telegraf
@@ -83,7 +52,7 @@ class UnitController {
       await ctx.reply('Error al cargar las unidades registradas.');
     }
   }
-  
+
   /**
    * Obtiene una unidad por su buttonId
    * @param {object} ctx - Contexto de Telegraf con tenant
@@ -108,21 +77,6 @@ class UnitController {
       throw error;
     }
   }
-  
-  /**
-   * Elimina una unidad (desactivación lógica)
-   * @param {string} unitId - ID de la unidad a eliminar
-   * @returns {Promise<boolean>} - Resultado de la operación
-   */
-  async deactivateUnit(unitId) {
-    try {
-      await unitService.deactivateUnit(unitId);
-      return true;
-    } catch (error) {
-      logger.error(`Error al desactivar unidad: ${error.message}`);
-      throw error;
-    }
-  }
 
   /**
    * Muestra las unidades para que el usuario seleccione una para registrar carga
@@ -131,8 +85,18 @@ class UnitController {
   async requestUnitSelectionForFuel(ctx) {
     try {
       logger.info(`Solicitando selección de unidad para carga (Usuario: ${ctx.from.id})`);
-      // Obtener todas las unidades activas
-      const units = await unitService.getAllActiveUnits();
+      
+      // Verificar que el contexto tiene un tenant
+      if (!ctx.tenant) {
+        logger.error('No se encontró tenant en el contexto');
+        return ctx.reply('Error: No se pudo identificar el grupo. Por favor, contacte al administrador.');
+      }
+      
+      // Obtener tenantId del contexto
+      const tenantId = ctx.tenant.id;
+      
+      // Obtener todas las unidades activas para este tenant
+      const units = await unitService.getAllActiveUnits(tenantId);
       
       // Usar la función getUnitsKeyboard para generar el teclado
       const keyboard = getUnitsKeyboard(units); 
@@ -153,5 +117,3 @@ class UnitController {
     }
   }
 }
-
-export const unitController = new UnitController();

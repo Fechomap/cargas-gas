@@ -1,5 +1,5 @@
 // src/commands/reportes/filtros.command.js
-import { unifiedReportController } from '../../controllers/unified-report.controller.js';
+import { reportController } from '../../controllers/reportes/index.js';
 import { isInState } from '../../state/conversation.js';
 import { logger } from '../../utils/logger.js';
 
@@ -18,7 +18,7 @@ export function configurarComandosFiltros(bot) {
     logger.info('Callback filter_date recibido');
     if (isInState(ctx, 'report_unified')) {
       await ctx.answerCbQuery('Cargando opciones de fecha...', { show_alert: false });
-      await unifiedReportController.handleFilterSelection(ctx, 'date');
+      await reportController.handleFilterSelection(ctx, 'date');
     } else {
       logger.warn(`Estado incorrecto para filter_date: ${ctx.session?.state}`);
       await ctx.answerCbQuery('⚠️ Sesión expirada. Usa /reporte para comenzar de nuevo.');
@@ -29,7 +29,7 @@ export function configurarComandosFiltros(bot) {
     logger.info('Callback filter_operator recibido');
     if (isInState(ctx, 'report_unified')) {
       await ctx.answerCbQuery('Cargando operadores...', { show_alert: false });
-      await unifiedReportController.handleFilterSelection(ctx, 'operator');
+      await reportController.handleFilterSelection(ctx, 'operator');
     } else {
       logger.warn(`Estado incorrecto para filter_operator: ${ctx.session?.state}`);
       await ctx.answerCbQuery('⚠️ Sesión expirada. Usa /reporte para comenzar de nuevo.');
@@ -40,7 +40,7 @@ export function configurarComandosFiltros(bot) {
     logger.info('Callback filter_fuelType recibido');
     if (isInState(ctx, 'report_unified')) {
       await ctx.answerCbQuery('Cargando tipos de combustible...', { show_alert: false });
-      await unifiedReportController.handleFilterSelection(ctx, 'fuelType');
+      await reportController.handleFilterSelection(ctx, 'fuelType');
     } else {
       logger.warn(`Estado incorrecto para filter_fuelType: ${ctx.session?.state}`);
       await ctx.answerCbQuery('⚠️ Sesión expirada. Usa /reporte para comenzar de nuevo.');
@@ -51,7 +51,7 @@ export function configurarComandosFiltros(bot) {
     logger.info('Callback filter_paymentStatus recibido');
     if (isInState(ctx, 'report_unified')) {
       await ctx.answerCbQuery('Cargando estados de pago...', { show_alert: false });
-      await unifiedReportController.handleFilterSelection(ctx, 'paymentStatus');
+      await reportController.handleFilterSelection(ctx, 'paymentStatus');
     } else {
       logger.warn(`Estado incorrecto para filter_paymentStatus: ${ctx.session?.state}`);
       await ctx.answerCbQuery('⚠️ Sesión expirada. Usa /reporte para comenzar de nuevo.');
@@ -64,7 +64,7 @@ export function configurarComandosFiltros(bot) {
     if (isInState(ctx, 'report_unified')) {
       const filterCount = Object.keys(ctx.session?.data?.filters || {}).length;
       await ctx.answerCbQuery(`Eliminando ${filterCount} filtro(s)...`, { show_alert: true });
-      await unifiedReportController.clearFilters(ctx);
+      await reportController.clearFilters(ctx);
     } else {
       logger.warn(`Estado incorrecto para clear_filters: ${ctx.session?.state}`);
       await ctx.answerCbQuery('⚠️ Sesión expirada. Usa /reporte para comenzar de nuevo.');
@@ -76,12 +76,12 @@ export function configurarComandosFiltros(bot) {
     logger.info('Callback cancel_filter recibido');
     if (isInState(ctx, 'report_filter_input')) {
       await ctx.answerCbQuery('Cancelado');
-      await unifiedReportController.cancelFilter(ctx);
+      await reportController.cancelFilter(ctx);
     } else {
       logger.warn(`Estado incorrecto para cancel_filter: ${ctx.session?.state}`);
       await ctx.answerCbQuery('Volviendo...');
       // Intentar volver al menú de reportes
-      await unifiedReportController.startReportGeneration(ctx);
+      await reportController.startReportGeneration(ctx);
     }
   });
 
@@ -92,7 +92,7 @@ export function configurarComandosFiltros(bot) {
     
     if (isInState(ctx, 'report_filter_input')) {
       await ctx.answerCbQuery('Aplicando filtro...');
-      await unifiedReportController.processFilterValue(ctx, filterValue);
+      await reportController.processFilterValue(ctx, filterValue);
     } else {
       logger.warn(`Estado incorrecto para filter_value: ${ctx.session?.state}`);
       await ctx.answerCbQuery('⚠️ Sesión expirada. Usa /reporte para comenzar de nuevo.');

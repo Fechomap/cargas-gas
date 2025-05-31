@@ -1,7 +1,7 @@
 // src/controllers/fuel/registro.controller.js
 import { Markup } from 'telegraf';
 import { FuelService } from '../../services/fuel.adapter.service.js';
-import { unitController } from '../unit.controller.js';
+import { unitController } from '../unit/index.js';
 import { updateConversationState } from '../../state/conversation.js';
 import { logger } from '../../utils/logger.js';
 import { storageService } from '../../services/storage.service.js';

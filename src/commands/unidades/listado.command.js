@@ -1,7 +1,7 @@
 // src/commands/unidades/listado.command.js
 import { Markup } from 'telegraf';
 import { logger } from '../../utils/logger.js';
-import { unitController } from '../../controllers/unit.controller.js';
+import { unitController } from '../../controllers/unit/index.js';
 
 /**
  * Configura los comandos para listar y gestionar unidades existentes

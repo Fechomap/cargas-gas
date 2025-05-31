@@ -1,7 +1,7 @@
 // src/commands/fuel/entry.command.js
 import { Markup } from 'telegraf';
 import { fuelController } from '../../controllers/index.js';
-import { unitController } from '../../controllers/unit.controller.js';
+import { unitController } from '../../controllers/unit/index.js';
 import { isInState, updateConversationState } from '../../state/conversation.js';
 import { getMainKeyboard } from '../../views/keyboards.js';
 import { logger } from '../../utils/logger.js';
