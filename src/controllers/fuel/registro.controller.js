@@ -33,12 +33,19 @@ export class RegistroController {
       
       logger.info(`Unidad encontrada: ${unit.operatorName} - ${unit.unitNumber}`);
       
-      // Guardar información de la unidad en la sesión
+      // Limpiar datos anteriores excepto información de unidad para nueva carga
       await updateConversationState(ctx, 'fuel_entry_liters', {
         unitId: unit.id,
         operatorName: unit.operatorName,
         unitNumber: unit.unitNumber,
-        unitButtonId: unitButtonId
+        unitButtonId: unitButtonId,
+        // Limpiar datos del registro anterior
+        liters: null,
+        amount: null,
+        fuelType: null,
+        saleNumber: null,
+        paymentStatus: null,
+        ticketPhoto: null
       });
       
       // Solicitar los litros cargados
@@ -157,7 +164,7 @@ export class RegistroController {
       await updateConversationState(ctx, 'fuel_entry_sale_number');
       
       // Solicitar el número de venta
-      await ctx.reply('Por favor, ingresa el número de venta (1 a 6 dígitos impresos en la nota):');
+      await ctx.reply('Por favor, ingresa el número de venta (1 a 10 dígitos impresos en la nota):');
     } catch (error) {
       logger.error(`Error en manejo de foto: ${error.message}`);
       await ctx.reply('Ocurrió un error con la foto. Continuaremos sin foto del ticket.');
@@ -169,7 +176,7 @@ export class RegistroController {
       await updateConversationState(ctx, 'fuel_entry_sale_number');
       
       // Solicitar el número de venta
-      await ctx.reply('Por favor, ingresa el número de venta (1 a 6 dígitos impresos en la nota):');
+      await ctx.reply('Por favor, ingresa el número de venta (1 a 10 dígitos impresos en la nota):');
     }
   }
   
@@ -181,10 +188,10 @@ export class RegistroController {
     try {
       const saleNumber = ctx.message.text.trim();
       
-      // Validar formato: 1-6 caracteres alfanuméricos con guiones
-      const saleNumberRegex = /^[A-Za-z0-9-]{1,6}$/;
+      // Validar formato: 1-10 caracteres alfanuméricos con guiones
+      const saleNumberRegex = /^[A-Za-z0-9-]{1,10}$/;
       if (!saleNumberRegex.test(saleNumber)) {
-        return await ctx.reply('❌ Formato inválido. Ingresa un número de venta de 1 a 6 caracteres (números, letras o guiones).');
+        return await ctx.reply('❌ Formato inválido. Ingresa un número de venta de 1 a 10 caracteres (números, letras o guiones).');
       }
       
       // Guardar número de venta en la sesión
@@ -317,6 +324,23 @@ export class RegistroController {
       return;
     } catch (error) {
       logger.error(`Error al guardar carga: ${error.message}`);
+      
+      // Detectar si es un error de número de folio duplicado
+      if (error.message.includes('Ya existe un registro activo con el número de nota')) {
+        await ctx.reply(`❌ Error: ${error.message}. Por favor, utiliza un número de nota diferente.`);
+        
+        // Limpiar solo el número de nota en la sesión para permitir reintentar
+        if (ctx.session && ctx.session.data) {
+          ctx.session.data.saleNumber = null;
+        }
+        
+        // Regresar al estado de entrada de número de nota
+        await updateConversationState(ctx, 'fuel_entry_sale_number');
+        await ctx.reply('Por favor, ingresa un número de nota diferente:');
+        return;
+      }
+      
+      // Otros errores
       await ctx.reply('Ocurrió un error al guardar la carga. Por favor, intenta nuevamente.');
     }
   }
@@ -327,10 +351,21 @@ export class RegistroController {
    */
   async completeFuelRegistration(ctx) {
     try {
-      await updateConversationState(ctx, 'idle', {});
+      // Guardar datos importantes antes de limpiar
+      const unitButtonId = ctx.session?.data?.unitButtonId;
+      const operatorName = ctx.session?.data?.operatorName;
+      const unitNumber = ctx.session?.data?.unitNumber;
+      
+      // Limpiar estado pero mantener datos esenciales para nueva carga
+      await updateConversationState(ctx, 'idle', {
+        unitButtonId: unitButtonId,
+        operatorName: operatorName,
+        unitNumber: unitNumber
+      });
+      
       await ctx.reply('¿Qué deseas hacer ahora?',
         Markup.inlineKeyboard([
-          [Markup.button.callback('📝 Registrar otra carga', ctx.session.data.unitButtonId || 'show_units')],
+          [Markup.button.callback('📝 Registrar otra carga', 'register_fuel_start')],
           [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
         ])
       );

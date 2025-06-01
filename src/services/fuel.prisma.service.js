@@ -21,6 +21,21 @@ export class FuelService {
       throw new Error('Unidad no encontrada');
     }
 
+    // Verificar si el número de folio ya existe (solo si se proporcionó)
+    if (fuelData.saleNumber) {
+      const existingFuel = await prisma.fuel.findFirst({
+        where: {
+          tenantId,
+          saleNumber: fuelData.saleNumber,
+          isActive: true
+        }
+      });
+
+      if (existingFuel) {
+        throw new Error(`Ya existe un registro activo con el número de nota ${fuelData.saleNumber}`);
+      }
+    }
+
     // Crear registro de carga
     return prisma.fuel.create({
       data: {
