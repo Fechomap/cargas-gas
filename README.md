@@ -330,11 +330,17 @@ Este proyecto está bajo licencia MIT. Ver archivo [LICENSE](LICENSE) para más 
 ---
 
 **Última actualización**: 31 de Mayo 2025
-**Versión**: 2.0.1 (Multi-tenant con PostgreSQL)
+**Versión**: 2.0.2 (Multi-tenant con PostgreSQL)
 
 ## 🔧 Mejoras Recientes
 
-### 31/05/2025
+### 31/05/2025 - v2.0.2
+- **🔄 Corrección de contexto en registros progresivos**: Solucionado problema que requería reiniciar el bot entre cargas consecutivas
+- **🔢 Ampliación de números de venta**: Soporte para números de venta de 1 a 10 dígitos (anteriormente 6)
+- **✅ Validación de folios únicos**: Implementada verificación de números de venta duplicados con manejo de errores mejorado
+- **🔧 Preservación de datos de sesión**: Mantenimiento inteligente de información de unidad para registros consecutivos
+
+### 31/05/2025 - v2.0.1
 - **⛽ Nuevo tipo de combustible**: Agregado Diésel como tercer tipo de combustible, ampliando las opciones de registro y reportes.
 - **📷 Manejo mejorado de fotos de tickets**: Corregido el funcionamiento del botón de omitir foto y separado el manejador de fotografías para mayor robustez.
 - **📊 Optimización de reportes**: Corregido el filtrado de registros desactivados en reportes para que no aparezcan en ninguna consulta (aplicando filtro isActive directamente en la consulta SQL).
