@@ -8,6 +8,7 @@ import { Markup } from 'telegraf';
 export function getMainKeyboard() {
   return Markup.inlineKeyboard([
     [Markup.button.callback('📝 Registrar carga', 'register_fuel_start')],
+    [Markup.button.callback('🕐 Turnos', 'turnos_menu')],
     [Markup.button.callback('👁️ Gestionar unidades', 'manage_units')],
     [Markup.button.callback('🔍 Buscar para desactivar', 'search_fuel_records')],
     [Markup.button.callback('💳 Buscar para marcar pagado', 'search_note_for_payment')],

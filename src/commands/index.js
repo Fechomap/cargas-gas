@@ -5,6 +5,7 @@ import { configurarComandosUnidades } from './unidades/index.js';
 import { setupFuelCommands } from './fuel/index.js';
 import { configurarComandosReportes } from './reportes/index.js';
 import { setupCompanyRegisterCommands } from './registration/index.js';
+import { setupTurnosCommands } from './turnos/index.js';
 import { logger } from '../utils/logger.js';
 import { unitController } from '../controllers/unit/index.js';
 
@@ -27,6 +28,7 @@ function setupGlobalCallbacks(bot) {
       await ctx.reply('🏠 Menú Principal', {
         reply_markup: Markup.inlineKeyboard([
           [Markup.button.callback('📝 Registrar carga', 'register_fuel_start')],
+          [Markup.button.callback('🕐 Turnos', 'turnos_menu')],
           [Markup.button.callback('👁️ Gestionar unidades', 'manage_units')],
           [Markup.button.callback('🔍 Buscar/desactivar registros', 'search_fuel_records')],
           [Markup.button.callback('💰 Consultar saldo pendiente', 'check_balance')],
@@ -42,6 +44,7 @@ function setupGlobalCallbacks(bot) {
       await ctx.reply('Menú Principal (alternativo)', 
         Markup.inlineKeyboard([
           [Markup.button.callback('📝 Registrar carga', 'register_fuel_start')],
+          [Markup.button.callback('🕐 Turnos', 'turnos_menu')],
           [Markup.button.callback('👁️ Unidades', 'manage_units')],
           [Markup.button.callback('💰 Saldo pendiente', 'check_balance')],
           [Markup.button.callback('📊 Generar reporte', 'generate_report')]
@@ -152,6 +155,23 @@ function setupGlobalCallbacks(bot) {
     }
   });
   
+  // Manejar botón de turnos
+  bot.action('turnos_menu', async (ctx) => {
+    try {
+      await ctx.answerCbQuery('Accediendo al menú de turnos');
+      
+      // Importar dinámicamente el controlador para evitar dependencias circulares
+      const { TurnoController } = await import('../controllers/turno.controller.js');
+      const turnoController = new TurnoController();
+      
+      await turnoController.showTurnosMenu(ctx);
+    } catch (error) {
+      logger.error(`Error al acceder al menú de turnos: ${error.message}`);
+      await ctx.answerCbQuery('Error al acceder al menú');
+      await ctx.reply('Error al acceder al menú de turnos. Por favor, intenta nuevamente.');
+    }
+  });
+  
   // NOTA: El manejador para 'search_fuel_records' se ha movido a src/commands/fuel/desactivacion.command.js
   // para evitar duplicados y conflictos de manejadores
   
@@ -205,6 +225,9 @@ export function registerCommands(bot) {
     logger.info('Configurando sistema de registro de empresas');
     setupCompanyRegisterCommands(bot);
     
+    logger.info('Configurando sistema de turnos');
+    setupTurnosCommands(bot);
+    
     // Configurar callbacks globales
     setupGlobalCallbacks(bot);
     
@@ -212,6 +235,7 @@ export function registerCommands(bot) {
     const registeredUserCommands = [
       { command: 'start', description: 'Iniciar el bot' },
       { command: 'registrar', description: 'Registrar una nueva unidad' },
+      { command: 'turnos', description: 'Gestionar turnos de trabajo' },
       { command: 'saldo', description: 'Ver saldo pendiente total' },
       { command: 'reporte', description: 'Generar reportes de cargas' },
       { command: 'ayuda', description: 'Ver instrucciones de uso' }
