@@ -1,4 +1,10 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(find:*)"
+    ]
+  },
   "enableAllProjectMcpServers": false,
   "oauthPort": 54546
 }

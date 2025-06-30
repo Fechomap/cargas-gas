@@ -1,0 +1,1 @@
+-- Este es el estado baseline de la base de datos antes de añadir kilómetros

@@ -37,9 +37,10 @@ export class FuelService {
     }
 
     // Crear registro de carga
+    const { id, updatedAt, ...cleanFuelData } = fuelData;
     return prisma.fuel.create({
       data: {
-        ...fuelData,
+        ...cleanFuelData,
         tenantId,
         // Campos desnormalizados para facilitar reportes
         operatorName: unit.operatorName,
@@ -62,7 +63,7 @@ export class FuelService {
         tenantId
       },
       include: {
-        unit: true
+        Unit: true
       }
     });
     
@@ -270,7 +271,7 @@ export class FuelService {
     const results = await prisma.fuel.findMany({
       where,
       include: {
-        unit: true
+        Unit: true
       },
       orderBy: {
         recordDate: 'desc'

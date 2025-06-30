@@ -7,6 +7,49 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Fuel {
+  id            String        @id @default(uuid())
+  tenantId      String
+  unitId        String
+  liters        Decimal       @db.Decimal(10, 2)
+  amount        Decimal       @db.Decimal(10, 2)
+  kilometers    Decimal?      @db.Decimal(10, 2)
+  pricePerLiter Decimal?      @db.Decimal(10, 2)
+  fuelType      FuelType
+  saleNumber    String?
+  paymentStatus PaymentStatus @default(NO_PAGADA)
+  paymentDate   DateTime?
+  ticketPhoto   String?
+  recordDate    DateTime      @default(now())
+  operatorName  String
+  unitNumber    String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  isActive      Boolean       @default(true)
+  Tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  Unit          Unit          @relation(fields: [unitId], references: [id])
+
+  @@index([tenantId, paymentStatus])
+  @@index([tenantId, recordDate])
+  @@index([tenantId, saleNumber])
+}
+
+model RegistrationRequest {
+  id                String             @id @default(uuid())
+  companyName       String
+  contactName       String
+  contactPhone      String?
+  contactEmail      String?
+  requesterId       String
+  requesterUsername String?
+  status            RegistrationStatus @default(PENDING)
+  adminNotes        String?
+  processedBy       String?
+  processedAt       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
 model Tenant {
   id                String          @id @default(uuid())
   chatId            String          @unique
@@ -21,9 +64,10 @@ model Tenant {
   isApproved        Boolean         @default(false)
   notes             String?
   registrationToken String?         @unique
-  fuels             Fuel[]
-  settings          TenantSettings?
-  units             Unit[]
+  Fuel              Fuel[]
+  KilometerLog      KilometerLog[]
+  TenantSettings    TenantSettings?
+  Unit              Unit[]
 }
 
 model TenantSettings {
@@ -35,64 +79,44 @@ model TenantSettings {
   requireSaleNumber Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  Tenant            Tenant   @relation(fields: [tenantId], references: [id])
 }
 
 model Unit {
-  id           String   @id @default(uuid())
+  id           String         @id @default(uuid())
   tenantId     String
   operatorName String
   unitNumber   String
   buttonId     String
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  fuels        Fuel[]
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  Fuel         Fuel[]
+  KilometerLog KilometerLog[]
+  Tenant       Tenant         @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, buttonId])
   @@index([tenantId, operatorName])
 }
 
-model Fuel {
-  id            String        @id @default(uuid())
-  tenantId      String
-  unitId        String
-  liters        Decimal       @db.Decimal(10, 2)
-  amount        Decimal       @db.Decimal(10, 2)
-  fuelType      FuelType
-  saleNumber    String?
-  paymentStatus PaymentStatus @default(NO_PAGADA)
-  paymentDate   DateTime?
-  ticketPhoto   String?
-  recordDate    DateTime      @default(now())
-  operatorName  String
-  unitNumber    String
-  isActive      Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  tenant        Tenant        @relation(fields: [tenantId], references: [id])
-  unit          Unit          @relation(fields: [unitId], references: [id])
+model KilometerLog {
+  id         String           @id @default(uuid())
+  tenantId   String
+  unitId     String
+  kilometers Decimal          @db.Decimal(10, 2)
+  logType    KilometerLogType
+  logDate    DateTime         @db.Date
+  logTime    DateTime         @default(now())
+  userId     String
+  isOmitted  Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  Tenant     Tenant           @relation(fields: [tenantId], references: [id])
+  Unit       Unit             @relation(fields: [unitId], references: [id])
 
-  @@index([tenantId, paymentStatus])
-  @@index([tenantId, recordDate])
-  @@index([tenantId, saleNumber])
-}
-
-model RegistrationRequest {
-  id                String             @id
-  companyName       String
-  contactName       String
-  contactPhone      String?
-  contactEmail      String?
-  requesterId       String
-  requesterUsername String?
-  status            RegistrationStatus @default(PENDING)
-  adminNotes        String?
-  processedBy       String?
-  processedAt       DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime
+  @@unique([tenantId, unitId, logDate, logType])
+  @@index([tenantId, logDate])
+  @@index([unitId, logDate])
 }
 
 enum FuelType {
@@ -110,4 +134,9 @@ enum RegistrationStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum KilometerLogType {
+  INICIO_TURNO
+  FIN_TURNO
 }

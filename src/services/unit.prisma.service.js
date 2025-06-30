@@ -25,9 +25,14 @@ export class UnitService {
   static async createUnit(unitData, tenantId) {
     const buttonId = this.generateButtonId(unitData.operatorName, unitData.unitNumber);
 
+    // Extraer solo los campos válidos para evitar que se pase un id incorrectamente
+    const { operatorName, unitNumber, isActive } = unitData;
+
     return prisma.unit.create({
       data: {
-        ...unitData,
+        operatorName,
+        unitNumber,
+        isActive: isActive ?? true, // Usar true como valor por defecto
         buttonId,
         tenantId
       }
