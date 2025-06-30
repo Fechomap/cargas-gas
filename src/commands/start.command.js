@@ -4,6 +4,7 @@ import { getMainKeyboard } from '../views/keyboards.js';
 import { getWelcomeMessage } from '../views/messages.js';
 import { Markup } from 'telegraf';
 import { TenantService } from '../services/tenant.service.js';
+import { isAdminUser } from '../utils/admin.js';
 
 export function setupStartCommand(bot) {
   // Comando /start
@@ -29,8 +30,8 @@ export function setupStartCommand(bot) {
       // Determinar qué tipo de menú mostrar
       if (tenant || (isPrivateChat && isAdmin)) {
         // Si tiene tenant o es admin en chat privado, mostrar menú completo
-        logger.info(`Mostrando menú completo para usuario ${ctx.from.id}`);
-        const { reply_markup } = getMainKeyboard(); // Obtener el objeto de teclado completo
+        logger.info(`Mostrando menú completo para usuario ${ctx.from.id} (admin: ${isAdmin})`);
+        const { reply_markup } = getMainKeyboard(isAdmin); // Pasar el estado de admin
         await ctx.reply(getWelcomeMessage(ctx.from.first_name), {
           parse_mode: 'Markdown',
           reply_markup: reply_markup
@@ -97,11 +98,14 @@ export function setupStartCommand(bot) {
     try {
       await ctx.answerCbQuery(); // Responde al callback para quitar el "loading"
       
+      // Verificar si es administrador
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      
       // Limpiar estado de conversación si es necesario (opcional, depende de la lógica)
       // await updateConversationState(ctx, 'idle', {}); 
       
       // Editar el mensaje anterior o enviar uno nuevo con el menú principal
-      const { reply_markup } = getMainKeyboard();
+      const { reply_markup } = getMainKeyboard(isAdmin);
       const messageText = getWelcomeMessage(ctx.from.first_name); // Reutilizar mensaje de bienvenida
       
       // Intentar editar el mensaje actual si es posible
@@ -123,29 +127,8 @@ export function setupStartCommand(bot) {
       logger.error(`Error en acción main_menu: ${error.message}`, error);
       await ctx.reply('Ocurrió un error al volver al menú principal.');
       // Opcional: Mostrar menú de fallback
-      const { reply_markup } = getMainKeyboard();
+      const { reply_markup } = getMainKeyboard(isAdmin);
       await ctx.reply('Intenta seleccionar una opción:', { reply_markup });
     }
   });
-}
-
-/**
- * Valida si un usuario es administrador
- * @param {string} userId - ID del usuario
- * @returns {Promise<boolean>} - True si es admin, false en caso contrario
- */
-async function isAdminUser(userId) {
-  if (!userId) return false;
-  
-  // Lista de IDs de administradores (considerando ambas variables de entorno)
-  const adminIds = process.env.ADMIN_USER_IDS 
-    ? process.env.ADMIN_USER_IDS.split(',').map(id => id.trim())
-    : process.env.BOT_ADMIN_IDS
-      ? process.env.BOT_ADMIN_IDS.split(',').map(id => id.trim())
-      : [];
-  
-  const isAdmin = adminIds.includes(userId.toString());
-  logger.debug(`Verificando si usuario ${userId} es admin: ${isAdmin}`);
-  
-  return isAdmin;
 }

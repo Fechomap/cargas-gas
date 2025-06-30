@@ -8,6 +8,8 @@ import { setupCompanyRegisterCommands } from './registration/index.js';
 import { setupTurnosCommands } from './turnos/index.js';
 import { logger } from '../utils/logger.js';
 import { unitController } from '../controllers/unit/index.js';
+import { isAdminUser } from '../utils/admin.js';
+import { getConsultasKeyboard, getAdminKeyboard } from '../views/keyboards.js';
 
 /**
  * Configurar callback global para el menú principal
@@ -24,31 +26,45 @@ function setupGlobalCallbacks(bot) {
         ctx.session.data = {};
       }
       
-      // Mostrar mensaje con menú principal usando Markup directamente
+      // Verificar si es administrador
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      
+      // Crear menú con estructura nueva
+      const buttons = [
+        [Markup.button.callback('🚛 Registrar carga', 'register_fuel_start')],
+        [Markup.button.callback('🕐 Turnos', 'turnos_menu')],
+        [Markup.button.callback('📊 Consultas', 'consultas_menu')]
+      ];
+      
+      // Solo mostrar menú de Administración a usuarios admin
+      if (isAdmin) {
+        buttons.push([Markup.button.callback('🔧 Administración', 'admin_menu')]);
+      }
+      
+      buttons.push([Markup.button.callback('❓ Ayuda', 'show_help')]);
+      
+      // Mostrar mensaje con menú principal
       await ctx.reply('🏠 Menú Principal', {
-        reply_markup: Markup.inlineKeyboard([
-          [Markup.button.callback('📝 Registrar carga', 'register_fuel_start')],
-          [Markup.button.callback('🕐 Turnos', 'turnos_menu')],
-          [Markup.button.callback('👁️ Gestionar unidades', 'manage_units')],
-          [Markup.button.callback('🔍 Buscar/desactivar registros', 'search_fuel_records')],
-          [Markup.button.callback('💰 Consultar saldo pendiente', 'check_balance')],
-          [Markup.button.callback('📊 Generar reporte', 'generate_report')],
-          [Markup.button.callback('❓ Ayuda', 'show_help')]
-        ])
+        reply_markup: Markup.inlineKeyboard(buttons)
       });
     } catch (error) {
       logger.error(`Error al volver al menú principal: ${error.message}`);
       await ctx.answerCbQuery('Error al mostrar menú');
       
       // Intento directo con botones en línea básicos
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      const fallbackButtons = [
+        [Markup.button.callback('🚛 Registrar carga', 'register_fuel_start')],
+        [Markup.button.callback('🕐 Turnos', 'turnos_menu')],
+        [Markup.button.callback('📊 Consultas', 'consultas_menu')]
+      ];
+      
+      if (isAdmin) {
+        fallbackButtons.push([Markup.button.callback('🔧 Administración', 'admin_menu')]);
+      }
+      
       await ctx.reply('Menú Principal (alternativo)', 
-        Markup.inlineKeyboard([
-          [Markup.button.callback('📝 Registrar carga', 'register_fuel_start')],
-          [Markup.button.callback('🕐 Turnos', 'turnos_menu')],
-          [Markup.button.callback('👁️ Unidades', 'manage_units')],
-          [Markup.button.callback('💰 Saldo pendiente', 'check_balance')],
-          [Markup.button.callback('📊 Generar reporte', 'generate_report')]
-        ])
+        Markup.inlineKeyboard(fallbackButtons)
       );
     }
   });
@@ -169,6 +185,45 @@ function setupGlobalCallbacks(bot) {
       logger.error(`Error al acceder al menú de turnos: ${error.message}`);
       await ctx.answerCbQuery('Error al acceder al menú');
       await ctx.reply('Error al acceder al menú de turnos. Por favor, intenta nuevamente.');
+    }
+  });
+  
+  // Manejar botón del submenú de Consultas
+  bot.action('consultas_menu', async (ctx) => {
+    try {
+      await ctx.answerCbQuery('Accediendo al menú de consultas');
+      
+      await ctx.reply('📊 Menú de Consultas\n\nSelecciona la consulta que deseas realizar:', {
+        reply_markup: getConsultasKeyboard().reply_markup
+      });
+    } catch (error) {
+      logger.error(`Error al acceder al menú de consultas: ${error.message}`);
+      await ctx.answerCbQuery('Error al acceder al menú');
+      await ctx.reply('Error al acceder al menú de consultas. Por favor, intenta nuevamente.');
+    }
+  });
+  
+  // Manejar botón del submenú de Administración
+  bot.action('admin_menu', async (ctx) => {
+    try {
+      // Verificar permisos de administrador
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      
+      if (!isAdmin) {
+        await ctx.answerCbQuery('❌ Acceso denegado');
+        await ctx.reply('❌ No tienes permisos de administrador para acceder a esta sección.');
+        return;
+      }
+      
+      await ctx.answerCbQuery('Accediendo al menú de administración');
+      
+      await ctx.reply('🔧 Menú de Administración\n\nSelecciona la función administrativa que deseas realizar:', {
+        reply_markup: getAdminKeyboard().reply_markup
+      });
+    } catch (error) {
+      logger.error(`Error al acceder al menú de administración: ${error.message}`);
+      await ctx.answerCbQuery('Error al acceder al menú');
+      await ctx.reply('Error al acceder al menú de administración. Por favor, intenta nuevamente.');
     }
   });
   

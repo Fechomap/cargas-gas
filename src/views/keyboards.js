@@ -3,19 +3,24 @@ import { Markup } from 'telegraf';
 
 /**
  * Obtiene el teclado principal con las opciones básicas
+ * @param {boolean} isAdmin - Si el usuario es administrador
  * @returns {Object} - Objeto de teclado para Telegraf
  */
-export function getMainKeyboard() {
-  return Markup.inlineKeyboard([
-    [Markup.button.callback('📝 Registrar carga', 'register_fuel_start')],
+export function getMainKeyboard(isAdmin = false) {
+  const buttons = [
+    [Markup.button.callback('🚛 Registrar carga', 'register_fuel_start')],
     [Markup.button.callback('🕐 Turnos', 'turnos_menu')],
-    [Markup.button.callback('👁️ Gestionar unidades', 'manage_units')],
-    [Markup.button.callback('🔍 Buscar para desactivar', 'search_fuel_records')],
-    [Markup.button.callback('💳 Buscar para marcar pagado', 'search_note_for_payment')],
-    [Markup.button.callback('💰 Consultar saldo pendiente', 'check_balance')],
-    [Markup.button.callback('📊 Generar reporte', 'generate_report')],
-    [Markup.button.callback('❓ Ayuda', 'show_help')]
-  ]);
+    [Markup.button.callback('📊 Consultas', 'consultas_menu')]
+  ];
+  
+  // Solo mostrar menú de Administración a usuarios admin
+  if (isAdmin) {
+    buttons.push([Markup.button.callback('🔧 Administración', 'admin_menu')]);
+  }
+  
+  buttons.push([Markup.button.callback('❓ Ayuda', 'show_help')]);
+  
+  return Markup.inlineKeyboard(buttons);
 }
 
 /**
@@ -161,6 +166,31 @@ export function getCancelKeyboard() {
  */
 export function getPostOperationKeyboard() {
   return Markup.inlineKeyboard([
+    [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+  ]);
+}
+
+/**
+ * Obtiene el teclado del submenú de Consultas
+ * @returns {Object} - Objeto de teclado para Telegraf
+ */
+export function getConsultasKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('💰 Saldo pendiente', 'check_balance')],
+    [Markup.button.callback('📊 Generar reporte', 'generate_report')],
+    [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
+  ]);
+}
+
+/**
+ * Obtiene el teclado del submenú de Administración (solo para admins)
+ * @returns {Object} - Objeto de teclado para Telegraf
+ */
+export function getAdminKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('👁️ Gestionar unidades', 'manage_units')],
+    [Markup.button.callback('🔍 Buscar/desactivar registros', 'search_fuel_records')],
+    [Markup.button.callback('💳 Buscar/marcar pagado', 'search_note_for_payment')],
     [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
   ]);
 }
