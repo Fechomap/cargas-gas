@@ -12,10 +12,13 @@ Sistema multi-tenant para gestionar y dar seguimiento a las cargas de combustibl
 
 ### Funcionalidades Operativas
 - 👷 **Gestión de operadores y unidades**: Registro y administración de flota
-- ⛽ **Registro de cargas**: Gas y gasolina con validación completa
+- ⛽ **Registro de cargas**: Gas, gasolina y diesel con validación completa
+- 📏 **Sistema de kilómetros**: Tracking opcional de kilometraje con validación de retrocesos
+- 🔄 **Sistema de turnos**: Registro de inicio/fin de día con kilometraje automático
+- 💰 **Cálculo automático**: Monto = litros × precio por litro (cuando se registra precio)
 - 📷 **Captura de tickets**: Sistema opcional de fotografías con botón de omisión mejorado
 - 💰 **Control de pagos**: Estados de pago y saldos pendientes
-- 📊 **Reportes avanzados**: PDF y Excel con múltiples filtros
+- 📊 **Reportes avanzados**: PDF y Excel con columnas de kilómetros y precio por litro
 - 🔍 **Sistema de búsqueda**: Por número de nota para pagos y desactivación
 - 📅 **Fechas retroactivas**: Registro de cargas con fechas anteriores
 - 🚮 **Borrado lógico**: Desactivación segura de registros y unidades con filtrado optimizado
@@ -169,15 +172,18 @@ Sistema multi-tenant para gestionar y dar seguimiento a las cargas de combustibl
 3. **Operaciones diarias**:
    - `/start` - Menú principal
    - `/registrar` - Nueva unidad
+   - `/turno` - Sistema de turnos (inicio/fin de día)
    - `/saldo` - Ver saldo pendiente
    - `/reporte` - Generar reportes
 
 ### Flujo de Trabajo Típico
 
 1. **Registrar unidades**: Primero registra los operadores y sus unidades
-2. **Cargar combustible**: Selecciona unidad → ingresa datos → confirma
-3. **Gestionar pagos**: Busca notas por número → marca como pagadas
-4. **Generar reportes**: Aplica filtros → descarga PDF/Excel
+2. **Iniciar turno**: Registra kilometraje inicial para el día (opcional)
+3. **Cargar combustible**: Selecciona unidad → ingresa datos → opcionalmente kilómetros y precio → confirma
+4. **Finalizar turno**: Registra kilometraje final del día (opcional)
+5. **Gestionar pagos**: Busca notas por número → marca como pagadas
+6. **Generar reportes**: Aplica filtros → descarga PDF/Excel con datos de kilómetros
 
 ## 🗄️ Estructura de la Base de Datos
 
@@ -185,8 +191,10 @@ Sistema multi-tenant para gestionar y dar seguimiento a las cargas de combustibl
 erDiagram
     Tenant ||--o{ Unit : tiene
     Tenant ||--o{ Fuel : tiene
+    Tenant ||--o{ KilometerLog : registra
     Tenant ||--|| TenantSettings : configura
     Unit ||--o{ Fuel : recibe
+    Unit ||--o{ KilometerLog : registra
     
     Tenant {
         string id PK
@@ -212,11 +220,25 @@ erDiagram
         string unitId FK
         decimal liters
         decimal amount
+        decimal kilometers
+        decimal pricePerLiter
         enum fuelType
         string saleNumber
         enum paymentStatus
         datetime recordDate
         boolean isActive
+    }
+    
+    KilometerLog {
+        string id PK
+        string tenantId FK
+        string unitId FK
+        decimal kilometers
+        enum logType
+        date logDate
+        datetime logTime
+        string userId
+        boolean isOmitted
     }
 ```
 
@@ -329,10 +351,21 @@ Este proyecto está bajo licencia MIT. Ver archivo [LICENSE](LICENSE) para más 
 
 ---
 
-**Última actualización**: 31 de Mayo 2025
-**Versión**: 2.0.2 (Multi-tenant con PostgreSQL)
+**Última actualización**: 30 de Junio 2025
+**Versión**: 2.1.0 (Sistema de Kilómetros Implementado)
 
 ## 🔧 Mejoras Recientes
+
+### 30/06/2025 - v2.1.0 - Sistema de Kilómetros ⭐
+- **📏 Sistema completo de kilómetros**: Registro opcional de kilometraje en cargas de combustible
+- **🔄 Sistema de turnos**: Inicio/fin de día con registro automático de kilómetros
+- **💰 Cálculo automático**: Monto = litros × precio por litro cuando se especifica precio
+- **🔍 Validación inteligente**: Prevención de retrocesos en kilometraje con búsqueda híbrida
+- **📊 Reportes mejorados**: Columnas de kilómetros y precio por litro en PDF y Excel
+- **🎛️ Menús reorganizados**: Estructura jerárquica con submenús de Consultas y Administración
+- **👥 Acceso por roles**: Funciones administrativas limitadas a administradores
+- **🗄️ Nueva tabla KilometerLog**: Sistema de tracking de turnos con restricciones únicas
+- **📋 Documentación completa**: Sistema implementado en 8 fases con documentación detallada
 
 ### 31/05/2025 - v2.0.2
 - **🔄 Corrección de contexto en registros progresivos**: Solucionado problema que requería reiniciar el bot entre cargas consecutivas
@@ -341,6 +374,6 @@ Este proyecto está bajo licencia MIT. Ver archivo [LICENSE](LICENSE) para más 
 - **🔧 Preservación de datos de sesión**: Mantenimiento inteligente de información de unidad para registros consecutivos
 
 ### 31/05/2025 - v2.0.1
-- **⛽ Nuevo tipo de combustible**: Agregado Diésel como tercer tipo de combustible, ampliando las opciones de registro y reportes.
-- **📷 Manejo mejorado de fotos de tickets**: Corregido el funcionamiento del botón de omitir foto y separado el manejador de fotografías para mayor robustez.
-- **📊 Optimización de reportes**: Corregido el filtrado de registros desactivados en reportes para que no aparezcan en ninguna consulta (aplicando filtro isActive directamente en la consulta SQL).
+- **⛽ Nuevo tipo de combustible**: Agregado Diésel como tercer tipo de combustible, ampliando las opciones de registro y reportes
+- **📷 Manejo mejorado de fotos de tickets**: Corregido el funcionamiento del botón de omitir foto y separado el manejador de fotografías para mayor robustez
+- **📊 Optimización de reportes**: Corregido el filtrado de registros desactivados en reportes para que no aparezcan en ninguna consulta (aplicando filtro isActive directamente en la consulta SQL)
