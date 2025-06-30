@@ -16,7 +16,7 @@ LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/*.sql | head -n 1)
 
 # Configuraciones específicas para desarrollo
 DEV_CHAT_ID="-4527368480"  # Tu chat de desarrollo
-DEV_BOT_TOKEN="7281931989:AAHef5kyzCAmR2e7q1rxpK1e10ZbJVibvow"
+DEV_BOT_TOKEN="${TELEGRAM_BOT_TOKEN_DEV:-}"  # Token desde variable de entorno
 
 # Colores
 RED='\033[1;31m'
@@ -28,6 +28,13 @@ NC='\033[0m'
 echo -e "${BLUE}🔄 SINCRONIZACIÓN INTELIGENTE PROD → DEV${NC}"
 echo "============================================"
 echo ""
+
+# Verificar que el token de desarrollo esté configurado
+if [ -z "$DEV_BOT_TOKEN" ]; then
+    echo -e "${RED}❌ ERROR: Token de bot de desarrollo no configurado${NC}"
+    echo "Configura la variable de entorno: export TELEGRAM_BOT_TOKEN_DEV='tu_token_de_desarrollo'"
+    exit 1
+fi
 
 # Verificar backup
 if [ ! -f "$LATEST_BACKUP" ]; then
@@ -140,10 +147,10 @@ echo -e "${GREEN}✅ Prisma actualizado${NC}"
 # Paso 6: Verificar configuración del .env
 echo -e "${BLUE}6️⃣ Verificando configuración .env...${NC}"
 
-if grep -q "TELEGRAM_BOT_TOKEN=$DEV_BOT_TOKEN" .env; then
-    echo -e "${GREEN}✅ Bot token de desarrollo configurado${NC}"
+if grep -q "TELEGRAM_BOT_TOKEN=" .env; then
+    echo -e "${GREEN}✅ Bot token configurado en .env${NC}"
 else
-    echo -e "${YELLOW}⚠️ Verifica que el bot token en .env sea de desarrollo${NC}"
+    echo -e "${YELLOW}⚠️ Verifica que TELEGRAM_BOT_TOKEN esté configurado en .env${NC}"
 fi
 
 if grep -q "NODE_ENV=development" .env; then
