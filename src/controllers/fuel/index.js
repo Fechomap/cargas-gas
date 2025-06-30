@@ -30,15 +30,40 @@ class FuelController {
   }
   
   /**
+   * Maneja la entrada de kilómetros en el flujo de captura (NUEVO)
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async handleKilometersEntry(ctx) {
+    return await this.registroController.handleKilometersEntry(ctx);
+  }
+
+  /**
    * Maneja la entrada de litros en el flujo de captura
    * @param {TelegrafContext} ctx - Contexto de Telegraf
    */
   async handleLitersEntry(ctx) {
     return await this.registroController.handleLitersEntry(ctx);
   }
+
+  /**
+   * Maneja la entrada del precio por litro en el flujo de captura (NUEVO)
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async handlePricePerLiterEntry(ctx) {
+    return await this.registroController.handlePricePerLiterEntry(ctx);
+  }
+
+  /**
+   * Maneja la confirmación del monto calculado (NUEVO)
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {boolean} confirmed - Si el usuario confirmó el monto
+   */
+  async handleAmountConfirmation(ctx, confirmed) {
+    return await this.registroController.handleAmountConfirmation(ctx, confirmed);
+  }
   
   /**
-   * Maneja la entrada del monto en el flujo de captura
+   * Maneja la entrada del monto en el flujo de captura (OBSOLETO - mantenido para compatibilidad)
    * @param {TelegrafContext} ctx - Contexto de Telegraf
    */
   async handleAmountEntry(ctx) {

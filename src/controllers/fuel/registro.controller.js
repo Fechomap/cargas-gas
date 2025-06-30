@@ -1,6 +1,7 @@
 // src/controllers/fuel/registro.controller.js
 import { Markup } from 'telegraf';
 import { FuelService } from '../../services/fuel.adapter.service.js';
+import { KilometerService } from '../../services/kilometer.prisma.service.js';
 import { unitController } from '../unit/index.js';
 import { updateConversationState } from '../../state/conversation.js';
 import { logger } from '../../utils/logger.js';
@@ -34,26 +35,100 @@ export class RegistroController {
       logger.info(`Unidad encontrada: ${unit.operatorName} - ${unit.unitNumber}`);
       
       // Limpiar datos anteriores excepto información de unidad para nueva carga
-      await updateConversationState(ctx, 'fuel_entry_liters', {
+      await updateConversationState(ctx, 'fuel_entry_kilometers', {
         unitId: unit.id,
         operatorName: unit.operatorName,
         unitNumber: unit.unitNumber,
         unitButtonId: unitButtonId,
         // Limpiar datos del registro anterior
+        kilometers: null,
         liters: null,
-        amount: null,
+        pricePerLiter: null,
+        calculatedAmount: null,
         fuelType: null,
         saleNumber: null,
         paymentStatus: null,
         ticketPhoto: null
       });
       
-      // Solicitar los litros cargados
+      // Solicitar los kilómetros actuales (NUEVO PRIMER PASO)
       await ctx.reply(`Capturando carga para: ${unit.operatorName} - ${unit.unitNumber}`);
-      await ctx.reply('Por favor, ingresa la cantidad de litros cargados:');
+      await ctx.reply('Por favor, ingresa los kilómetros actuales de la unidad:');
     } catch (error) {
       logger.error(`Error al iniciar captura de carga: ${error.message}`);
       await ctx.reply('Error al iniciar la captura de carga. Por favor, intenta nuevamente.');
+    }
+  }
+
+  /**
+   * Maneja la entrada de kilómetros en el flujo de captura (NUEVO)
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async handleKilometersEntry(ctx) {
+    try {
+      const kilometersText = ctx.message.text.replace(',', '.');
+      const kilometers = parseFloat(kilometersText);
+      
+      if (isNaN(kilometers) || kilometers < 0) {
+        return await ctx.reply('Por favor, ingresa un número válido mayor o igual a cero.');
+      }
+      
+      // Validar formato (máximo 2 decimales)
+      const decimalPlaces = (kilometersText.split('.')[1] || '').length;
+      if (decimalPlaces > 2) {
+        return await ctx.reply('Los kilómetros no pueden tener más de 2 decimales. Por favor, ingresa nuevamente.');
+      }
+      
+      logger.info(`Validando kilómetros ${kilometers} para unidad ${ctx.session.data.unitId}`);
+      
+      // Validar kilómetros contra histórico usando KilometerService
+      const validation = await KilometerService.validateKilometer(
+        ctx.tenant.id,
+        ctx.session.data.unitId,
+        kilometers
+      );
+      
+      if (!validation.isValid) {
+        logger.warn(`Kilómetros inválidos: ${validation.message}`);
+        
+        // Mensaje de error detallado con información del último registro
+        let errorMessage = `❌ ${validation.message}`;
+        
+        if (validation.lastKilometer) {
+          errorMessage += `\n\n📊 Último registro:\n`;
+          errorMessage += `• Kilómetros: ${validation.lastKilometer.kilometers}\n`;
+          errorMessage += `• Fecha: ${new Date(validation.lastKilometer.date).toLocaleDateString('es-MX')}\n`;
+          errorMessage += `• Fuente: ${validation.lastKilometer.source === 'turn_log' ? 'Log de turno' : 'Registro de carga'}`;
+        }
+        
+        errorMessage += '\n\nPor favor, ingresa un kilómetro mayor o igual al último registrado.';
+        
+        return await ctx.reply(errorMessage);
+      }
+      
+      // Si hay advertencia (incremento muy alto), informar pero continuar
+      if (validation.warning) {
+        logger.warn(`Advertencia en kilómetros: ${validation.message}`);
+        await ctx.reply(`⚠️ ${validation.message}\n\nContinuando con el registro...`);
+      }
+      
+      // Mostrar información útil para primer registro
+      if (validation.isFirstRecord) {
+        await ctx.reply('✨ Este es el primer registro de kilómetros para esta unidad.');
+      } else if (validation.increment) {
+        await ctx.reply(`✅ Kilómetros válidos. Incremento: +${validation.increment} km`);
+      }
+      
+      // Guardar kilómetros en la sesión
+      ctx.session.data.kilometers = kilometers;
+      await updateConversationState(ctx, 'fuel_entry_liters');
+      
+      // Continuar con el flujo: solicitar litros
+      await ctx.reply('Ahora ingresa la cantidad de litros cargados:');
+      
+    } catch (error) {
+      logger.error(`Error en entrada de kilómetros: ${error.message}`);
+      await ctx.reply('Ocurrió un error validando los kilómetros. Por favor, intenta nuevamente.');
     }
   }
   
@@ -69,20 +144,105 @@ export class RegistroController {
         return await ctx.reply('Por favor, ingresa un número válido mayor a cero.');
       }
       
+      // Validar formato (máximo 2 decimales para litros)
+      const decimalPlaces = (ctx.message.text.replace(',', '.').split('.')[1] || '').length;
+      if (decimalPlaces > 2) {
+        return await ctx.reply('Los litros no pueden tener más de 2 decimales. Por favor, ingresa nuevamente.');
+      }
+      
       // Guardar litros en la sesión
       ctx.session.data.liters = liters;
-      await updateConversationState(ctx, 'fuel_entry_amount');
+      await updateConversationState(ctx, 'fuel_entry_price_per_liter');
       
-      // Solicitar monto en pesos
-      await ctx.reply('Ingresa el monto total en pesos:');
+      // Solicitar precio por litro (NUEVO PASO)
+      await ctx.reply('Ingresa el precio por litro:');
     } catch (error) {
       logger.error(`Error en entrada de litros: ${error.message}`);
       await ctx.reply('Ocurrió un error. Por favor, ingresa nuevamente los litros.');
     }
   }
+
+  /**
+   * Maneja la entrada del precio por litro en el flujo de captura (NUEVO)
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async handlePricePerLiterEntry(ctx) {
+    try {
+      const priceText = ctx.message.text.replace(/[$,\s]/g, '').replace(',', '.');
+      const pricePerLiter = parseFloat(priceText);
+      
+      if (isNaN(pricePerLiter) || pricePerLiter <= 0) {
+        return await ctx.reply('Por favor, ingresa un precio válido mayor a cero.');
+      }
+      
+      // Validar formato (máximo 2 decimales para precio)
+      const decimalPlaces = (priceText.split('.')[1] || '').length;
+      if (decimalPlaces > 2) {
+        return await ctx.reply('El precio no puede tener más de 2 decimales. Por favor, ingresa nuevamente.');
+      }
+      
+      // Guardar precio por litro en la sesión
+      ctx.session.data.pricePerLiter = pricePerLiter;
+      
+      // Calcular monto automáticamente
+      const liters = ctx.session.data.liters;
+      const calculatedAmount = liters * pricePerLiter;
+      
+      // Guardar monto calculado
+      ctx.session.data.calculatedAmount = calculatedAmount;
+      await updateConversationState(ctx, 'fuel_entry_amount_confirm');
+      
+      // Mostrar cálculo y solicitar confirmación
+      const calcMessage = `🧮 Cálculo automático:\n` +
+                         `• ${liters} litros × $${pricePerLiter} = $${calculatedAmount.toFixed(2)}\n\n` +
+                         `¿Es correcto este monto total?`;
+      
+      await ctx.reply(calcMessage, 
+        Markup.inlineKeyboard([
+          Markup.button.callback('✅ Sí, es correcto', 'amount_confirm_yes'),
+          Markup.button.callback('❌ No, corregir precio', 'amount_confirm_no')
+        ])
+      );
+      
+    } catch (error) {
+      logger.error(`Error en entrada de precio por litro: ${error.message}`);
+      await ctx.reply('Ocurrió un error. Por favor, ingresa nuevamente el precio por litro.');
+    }
+  }
+
+  /**
+   * Maneja la confirmación del monto calculado (NUEVO)
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {boolean} confirmed - Si el usuario confirmó el monto
+   */
+  async handleAmountConfirmation(ctx, confirmed) {
+    try {
+      if (confirmed) {
+        // Usar el monto calculado
+        ctx.session.data.amount = ctx.session.data.calculatedAmount;
+        await updateConversationState(ctx, 'fuel_entry_type');
+        
+        // Continuar con tipo de combustible
+        await ctx.reply('Selecciona el tipo de combustible:', 
+          Markup.inlineKeyboard([
+            Markup.button.callback('Gas', 'fuel_type_gas'),
+            Markup.button.callback('Gasolina', 'fuel_type_gasolina'),
+            Markup.button.callback('Diésel', 'fuel_type_diesel')
+          ])
+        );
+      } else {
+        // Volver a solicitar precio por litro
+        await updateConversationState(ctx, 'fuel_entry_price_per_liter');
+        await ctx.reply('Ingresa el precio por litro correcto:');
+      }
+    } catch (error) {
+      logger.error(`Error en confirmación de monto: ${error.message}`);
+      await ctx.reply('Ocurrió un error. Por favor, intenta nuevamente.');
+    }
+  }
   
   /**
-   * Maneja la entrada del monto en el flujo de captura
+   * Maneja la entrada del monto en el flujo de captura (OBSOLETO - mantenido para compatibilidad)
    * @param {TelegrafContext} ctx - Contexto de Telegraf
    */
   async handleAmountEntry(ctx) {
@@ -275,6 +435,9 @@ export class RegistroController {
         unitId: ctx.session.data.unitId,
         liters: Number(ctx.session.data.liters) || 0,
         amount: Number(ctx.session.data.amount) || 0,
+        // NUEVOS CAMPOS DE KILÓMETROS
+        kilometers: ctx.session.data.kilometers ? Number(ctx.session.data.kilometers) : null,
+        pricePerLiter: ctx.session.data.pricePerLiter ? Number(ctx.session.data.pricePerLiter) : null,
         // Convertir a mayúsculas para coincidir con el enum de Prisma
         fuelType: (ctx.session.data.fuelType || 'gas').toUpperCase(),
         saleNumber: ctx.session.data.saleNumber || null,

@@ -42,11 +42,24 @@ export function setupFuelEntryCommands(bot) {
   
   // Manejar respuestas según el estado de la conversación para el registro de combustible
   bot.on('text', async (ctx, next) => {
+    // NUEVO ESTADO: Manejo de kilómetros
+    if (isInState(ctx, 'fuel_entry_kilometers')) {
+      await fuelController.handleKilometersEntry(ctx);
+      return;
+    }
+    
     if (isInState(ctx, 'fuel_entry_liters')) {
       await fuelController.handleLitersEntry(ctx);
       return;
     }
     
+    // NUEVO ESTADO: Manejo de precio por litro
+    if (isInState(ctx, 'fuel_entry_price_per_liter')) {
+      await fuelController.handlePricePerLiterEntry(ctx);
+      return;
+    }
+    
+    // OBSOLETO: Mantenido para compatibilidad con flujo viejo
     if (isInState(ctx, 'fuel_entry_amount')) {
       await fuelController.handleAmountEntry(ctx);
       return;
@@ -59,6 +72,21 @@ export function setupFuelEntryCommands(bot) {
     
     // Continuar con el siguiente middleware si no estamos en un estado de carga
     return next();
+  });
+  
+  // NUEVOS MANEJADORES: Confirmación de monto calculado
+  bot.action('amount_confirm_yes', async (ctx) => {
+    if (isInState(ctx, 'fuel_entry_amount_confirm')) {
+      await ctx.answerCbQuery('Monto confirmado');
+      await fuelController.handleAmountConfirmation(ctx, true);
+    }
+  });
+  
+  bot.action('amount_confirm_no', async (ctx) => {
+    if (isInState(ctx, 'fuel_entry_amount_confirm')) {
+      await ctx.answerCbQuery('Corrigiendo precio...');
+      await fuelController.handleAmountConfirmation(ctx, false);
+    }
   });
   
   // Manejar selección de tipo de combustible
