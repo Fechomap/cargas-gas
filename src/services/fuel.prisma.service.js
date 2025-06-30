@@ -1,5 +1,6 @@
 // src/services/fuel.prisma.service.js
 import { prisma } from '../db/index.js';
+import { KilometerService } from './kilometer.prisma.service.js';
 
 /**
  * Servicio para gestionar operaciones relacionadas con cargas de combustible
@@ -36,16 +37,57 @@ export class FuelService {
       }
     }
 
-    // Crear registro de carga
-    const { id, updatedAt, ...cleanFuelData } = fuelData;
-    return prisma.fuel.create({
-      data: {
-        ...cleanFuelData,
-        tenantId,
-        // Campos desnormalizados para facilitar reportes
-        operatorName: unit.operatorName,
-        unitNumber: unit.unitNumber
+    // Validar y procesar campos de kilómetros (opcional)
+    let validatedKilometers = null;
+    let calculatedAmount = fuelData.amount; // Usar monto proporcionado por defecto
+
+    if (fuelData.kilometers !== null && fuelData.kilometers !== undefined) {
+      // Validar kilómetros contra el histórico
+      const validation = await KilometerService.validateKilometer(
+        tenantId, 
+        fuelData.unitId, 
+        fuelData.kilometers
+      );
+
+      if (!validation.isValid) {
+        throw new Error(`Error en kilómetros: ${validation.message}`);
       }
+
+      validatedKilometers = validation.newKilometer;
+
+      // Si hay precio por litro y kilómetros, verificar cálculo automático
+      if (fuelData.pricePerLiter && fuelData.liters) {
+        const autoCalculatedAmount = parseFloat(fuelData.liters) * parseFloat(fuelData.pricePerLiter);
+        
+        // Si no se proporcionó monto, calcularlo automáticamente
+        if (!fuelData.amount) {
+          calculatedAmount = autoCalculatedAmount;
+        } else {
+          // Si se proporcionó monto, verificar que sea consistente (tolerancia de ±1 peso)
+          const providedAmount = parseFloat(fuelData.amount);
+          const difference = Math.abs(providedAmount - autoCalculatedAmount);
+          
+          if (difference > 1.0) {
+            console.warn(`Discrepancia en cálculo: Proporcionado $${providedAmount}, Calculado $${autoCalculatedAmount.toFixed(2)}`);
+          }
+        }
+      }
+    }
+
+    // Preparar datos para inserción
+    const { id, updatedAt, ...cleanFuelData } = fuelData;
+    const dataToInsert = {
+      ...cleanFuelData,
+      tenantId,
+      amount: calculatedAmount,
+      kilometers: validatedKilometers,
+      // Campos desnormalizados para facilitar reportes
+      operatorName: unit.operatorName,
+      unitNumber: unit.unitNumber
+    };
+
+    return prisma.fuel.create({
+      data: dataToInsert
     });
   }
 
@@ -321,5 +363,120 @@ export class FuelService {
         tenantId
       }
     });
+  }
+
+  /**
+   * Obtiene registros de combustible con información de kilómetros
+   * Incluye validación de consistencia entre registros
+   * @param {Object} filters - Filtros para la consulta
+   * @param {String} tenantId - ID del tenant
+   * @returns {Promise<Array>} - Registros con información de kilómetros
+   */
+  static async findFuelsWithKilometers(filters = {}, tenantId) {
+    const fuels = await this.findFuels(filters, tenantId);
+    
+    // Agregar información adicional de kilómetros a cada registro
+    const enrichedFuels = await Promise.all(
+      fuels.map(async (fuel) => {
+        if (fuel.kilometers) {
+          // Obtener último kilómetro conocido antes de este registro
+          const lastKm = await KilometerService.getLastKilometer(tenantId, fuel.unitId);
+          
+          // Calcular eficiencia si hay datos completos
+          let efficiency = null;
+          if (fuel.kilometers && lastKm && fuel.liters) {
+            const distance = parseFloat(fuel.kilometers) - parseFloat(lastKm.kilometers);
+            if (distance > 0) {
+              efficiency = distance / parseFloat(fuel.liters); // km por litro
+            }
+          }
+          
+          return {
+            ...fuel,
+            kilometerInfo: {
+              hasKilometers: true,
+              currentKm: fuel.kilometers,
+              lastKnownKm: lastKm ? lastKm.kilometers : null,
+              efficiency: efficiency
+            }
+          };
+        }
+        
+        return {
+          ...fuel,
+          kilometerInfo: {
+            hasKilometers: false,
+            currentKm: null,
+            lastKnownKm: null,
+            efficiency: null
+          }
+        };
+      })
+    );
+    
+    return enrichedFuels;
+  }
+
+  /**
+   * Valida datos de carga antes de crear registro
+   * Incluye validaciones específicas para kilómetros
+   * @param {Object} fuelData - Datos a validar
+   * @param {String} tenantId - ID del tenant
+   * @returns {Promise<Object>} - Resultado de validación
+   */
+  static async validateFuelData(fuelData, tenantId) {
+    const validation = {
+      isValid: true,
+      errors: [],
+      warnings: []
+    };
+
+    // Validaciones básicas
+    if (!fuelData.unitId) {
+      validation.errors.push('ID de unidad es requerido');
+    }
+
+    if (!fuelData.liters || parseFloat(fuelData.liters) <= 0) {
+      validation.errors.push('Cantidad de litros debe ser mayor a 0');
+    }
+
+    if (!fuelData.fuelType) {
+      validation.errors.push('Tipo de combustible es requerido');
+    }
+
+    // Validaciones específicas de kilómetros
+    if (fuelData.kilometers !== null && fuelData.kilometers !== undefined) {
+      try {
+        const kilometerValidation = await KilometerService.validateKilometer(
+          tenantId, 
+          fuelData.unitId, 
+          fuelData.kilometers
+        );
+
+        if (!kilometerValidation.isValid) {
+          validation.errors.push(`Kilómetros: ${kilometerValidation.message}`);
+        } else if (kilometerValidation.warning) {
+          validation.warnings.push(`Kilómetros: ${kilometerValidation.message}`);
+        }
+      } catch (error) {
+        validation.errors.push(`Error validando kilómetros: ${error.message}`);
+      }
+    }
+
+    // Validación de cálculo de monto
+    if (fuelData.pricePerLiter && fuelData.liters && fuelData.amount) {
+      const calculatedAmount = parseFloat(fuelData.liters) * parseFloat(fuelData.pricePerLiter);
+      const providedAmount = parseFloat(fuelData.amount);
+      const difference = Math.abs(providedAmount - calculatedAmount);
+      
+      if (difference > 1.0) {
+        validation.warnings.push(
+          `Discrepancia en monto: Calculado $${calculatedAmount.toFixed(2)}, Proporcionado $${providedAmount.toFixed(2)}`
+        );
+      }
+    }
+
+    validation.isValid = validation.errors.length === 0;
+    return validation;
   }
 }
