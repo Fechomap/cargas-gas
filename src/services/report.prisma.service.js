@@ -113,13 +113,15 @@ class ReportPrismaService {
       // Crear hoja para datos
       const worksheet = workbook.addWorksheet('Cargas de Combustible');
       
-      // Definir columnas
+      // Definir columnas (nueva estructura con kilómetros y precio por litro)
       worksheet.columns = [
         { header: 'Fecha', key: 'date', width: 18 },
         { header: 'Operador', key: 'operator', width: 20 },
         { header: 'Unidad', key: 'unit', width: 15 },
+        { header: 'Kilómetros', key: 'kilometers', width: 12 },
         { header: 'Tipo', key: 'type', width: 12 },
         { header: 'Litros', key: 'liters', width: 10 },
+        { header: 'Precio/L', key: 'pricePerLiter', width: 10 },
         { header: 'Monto', key: 'amount', width: 12 },
         { header: 'Estado', key: 'status', width: 15 },
         { header: 'Fecha de Pago', key: 'paymentDate', width: 18 },
@@ -134,14 +136,16 @@ class ReportPrismaService {
         fgColor: { argb: 'FFD3D3D3' }
       };
       
-      // Añadir filas de datos
+      // Añadir filas de datos (incluyendo kilómetros y precio por litro)
       fuels.forEach(fuel => {
         worksheet.addRow({
           date: formatDate(new Date(fuel.recordDate)),
           operator: fuel.operatorName,
           unit: fuel.unitNumber,
+          kilometers: fuel.kilometers ? Number(fuel.kilometers) : 'N/A',
           type: fuel.fuelType === 'GAS' ? 'Gas' : (fuel.fuelType === 'GASOLINA' ? 'Gasolina' : 'Diésel'),
           liters: Number(fuel.liters),
+          pricePerLiter: fuel.pricePerLiter ? Number(fuel.pricePerLiter) : 'N/A',
           amount: Number(fuel.amount),
           status: fuel.paymentStatus === 'PAGADA' ? 'Pagada' : 'No Pagada',
           paymentDate: fuel.paymentDate ? formatDate(new Date(fuel.paymentDate)) : 'N/A',
@@ -149,13 +153,15 @@ class ReportPrismaService {
         });
       });
       
-      // Dar formato a números
+      // Dar formato a números (incluyendo nuevas columnas)
+      worksheet.getColumn('kilometers').numFmt = '#,##0.00';
       worksheet.getColumn('liters').numFmt = '#,##0.00';
+      worksheet.getColumn('pricePerLiter').numFmt = '$#,##0.00';
       worksheet.getColumn('amount').numFmt = '$#,##0.00';
       
-      // Agregar resumen al final
+      // Agregar resumen al final (ajustado para nuevas columnas)
       worksheet.addRow([]);
-      worksheet.addRow(['RESUMEN', '', '', '', '', '', '']);
+      worksheet.addRow(['RESUMEN', '', '', '', '', '', '', '', '', '', '']);
       worksheet.getRow(worksheet.rowCount).font = { bold: true };
       
       worksheet.addRow(['Total Cargas', summary.totalEntries]);
@@ -259,23 +265,25 @@ class ReportPrismaService {
    * @returns {Object} - Definición del documento PDF
    */
   createPdfDocDefinition(fuels, summary, filters) {
-    // Preparar datos para la tabla
+    // Preparar datos para la tabla (incluyendo kilómetros y precio por litro)
     const tableData = fuels.map(fuel => [
       formatDate(new Date(fuel.recordDate)),
       fuel.operatorName,
       fuel.unitNumber,
+      fuel.kilometers ? fuel.kilometers.toFixed(2) : 'N/A',
       fuel.fuelType === 'GAS' ? 'Gas' : (fuel.fuelType === 'GASOLINA' ? 'Gasolina' : 'Diésel'),
       fuel.liters.toFixed(2),
+      fuel.pricePerLiter ? `$${fuel.pricePerLiter.toFixed(2)}` : 'N/A',
       `$${fuel.amount.toFixed(2)}`,
       fuel.paymentStatus === 'PAGADA' ? 'Pagada' : 'No Pagada',
       fuel.paymentDate ? formatDate(new Date(fuel.paymentDate)) : 'N/A',
       fuel.saleNumber || 'N/A'
     ]);
     
-    // Agregar encabezados
+    // Agregar encabezados (nueva estructura con kilómetros y precio por litro)
     tableData.unshift([
-      'Fecha', 'Operador', 'Unidad', 'Tipo', 
-      'Litros', 'Monto', 'Estado', 'Fecha de Pago', '# Venta'
+      'Fecha', 'Operador', 'Unidad', 'Kilómetros', 'Tipo', 
+      'Litros', 'Precio/L', 'Monto', 'Estado', 'Fecha de Pago', '# Venta'
     ]);
     
     // Crear documento
@@ -291,7 +299,7 @@ class ReportPrismaService {
         {
           table: {
             headerRows: 1,
-            widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
+            widths: [60, 80, 50, 60, 50, 40, 50, 50, 60, 70, 50],
             body: tableData
           }
         },
