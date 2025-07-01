@@ -193,8 +193,11 @@ export class FuelService {
         }
         
         try {
-          // Usar el método findFuels con filtro de saleNumber
-          const fuels = await PrismaFuelService.findFuels({ saleNumber }, tenantId);
+          // Usar el método findFuels con filtro de saleNumber EXACTO
+          const fuels = await PrismaFuelService.findFuels({ 
+            saleNumber, 
+            exactMatch: true 
+          }, tenantId);
           return fuels && fuels.length > 0 ? fuels[0] : null;
         } catch (error) {
           logger.error(`Error al buscar carga por número de venta en PostgreSQL: ${error.message}`);

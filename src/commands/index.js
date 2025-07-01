@@ -10,6 +10,7 @@ import { logger } from '../utils/logger.js';
 import { unitController } from '../controllers/unit/index.js';
 import { isAdminUser } from '../utils/admin.js';
 import { getConsultasKeyboard, getAdminKeyboard } from '../views/keyboards.js';
+import { gestionRegistrosController } from '../controllers/gestionRegistrosController.js';
 
 /**
  * Configurar callback global para el menú principal
@@ -240,6 +241,27 @@ Para soporte contacta a tu administrador.
       logger.error(`Error al acceder al menú de administración: ${error.message}`);
       await ctx.answerCbQuery('Error al acceder al menú');
       await ctx.reply('Error al acceder al menú de administración. Por favor, intenta nuevamente.');
+    }
+  });
+  
+  // Manejar botón de gestión de registros (CRUD completo)
+  bot.action('manage_fuel_records', async (ctx) => {
+    try {
+      // Verificar permisos de administrador
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      
+      if (!isAdmin) {
+        await ctx.answerCbQuery('❌ Acceso denegado');
+        await ctx.reply('❌ No tienes permisos de administrador para gestionar registros.');
+        return;
+      }
+      
+      await ctx.answerCbQuery('Accediendo a gestión de registros');
+      await gestionRegistrosController.showMainMenu(ctx);
+    } catch (error) {
+      logger.error(`Error al acceder a gestión de registros: ${error.message}`);
+      await ctx.answerCbQuery('Error al acceder');
+      await ctx.reply('Error al acceder a la gestión de registros.');
     }
   });
   
