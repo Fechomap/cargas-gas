@@ -16,17 +16,27 @@ Sistema multi-tenant para gestionar y dar seguimiento a las cargas de combustibl
 - 📏 **Sistema de kilómetros**: Tracking opcional de kilometraje con validación de retrocesos
 - 🔄 **Sistema de turnos**: Registro de inicio/fin de día con kilometraje automático
 - 💰 **Cálculo automático**: Monto = litros × precio por litro (cuando se registra precio)
-- 📷 **Captura de tickets**: Sistema opcional de fotografías con botón de omisión mejorado
+- 📷 **Captura de tickets**: Sistema opcional de fotografías con respaldo en Cloudflare R2
+- 📁 **Descarga de documentos**: URLs firmadas para acceso seguro a tickets guardados
 - 💰 **Control de pagos**: Estados de pago y saldos pendientes
 - 📊 **Reportes avanzados**: PDF y Excel con columnas de kilómetros y precio por litro
-- 🔍 **Sistema de búsqueda**: Por número de nota para pagos y desactivación
+- 🔍 **Sistema de búsqueda**: Por número de nota para pagos y gestión administrativa
 - 📅 **Fechas retroactivas**: Registro de cargas con fechas anteriores
 - 🚮 **Borrado lógico**: Desactivación segura de registros y unidades con filtrado optimizado
+
+### ⭐ NUEVO: Sistema CRUD Completo para Administradores
+- ✏️ **Edición completa**: Kilómetros, litros, precio por litro, tipo de combustible, número de nota, estado de pago
+- 🔍 **Búsqueda exacta**: Localización precisa de registros por número de nota
+- ♻️ **Recálculo automático**: Monto se actualiza automáticamente al cambiar litros o precio
+- 🗑️ **Eliminación segura**: Sistema de confirmación con desactivación lógica
+- 🔐 **Control de acceso**: Funciones administrativas limitadas a usuarios autorizados
+- 🎯 **Validaciones robustas**: Tipos de datos, permisos y estados de conversación
 
 ## 🛠️ Tecnologías
 
 - **Runtime**: Node.js 18.x
 - **Base de datos**: PostgreSQL con Prisma ORM
+- **Storage**: Cloudflare R2 para documentos
 - **Bot**: Telegraf 4.x
 - **Reportes**: PDFMake y ExcelJS
 - **Logs**: Winston
@@ -37,7 +47,8 @@ Sistema multi-tenant para gestionar y dar seguimiento a las cargas de combustibl
 1. **Token de Bot de Telegram** (obtener de [@BotFather](https://t.me/botfather))
 2. **Base de datos PostgreSQL** (Railway proporciona una)
 3. **Cuenta en Railway** ([railway.app](https://railway.app))
-4. **Node.js 18+** (para desarrollo local)
+4. **Cloudflare R2** (para almacenamiento de documentos)
+5. **Node.js 18+** (para desarrollo local)
 
 ## 🚀 Despliegue en Railway
 
@@ -72,6 +83,12 @@ Sistema multi-tenant para gestionar y dar seguimiento a las cargas de combustibl
    
    # IDs de administradores (REQUERIDO - separados por coma)
    railway variables set BOT_ADMIN_IDS=123456789,987654321
+   
+   # Cloudflare R2 (OPCIONAL - para almacenamiento de documentos)
+   railway variables set R2_ACCOUNT_ID=tu_account_id
+   railway variables set R2_ACCESS_KEY_ID=tu_access_key
+   railway variables set R2_SECRET_ACCESS_KEY=tu_secret_key
+   railway variables set R2_BUCKET_NAME=tu_bucket_name
    
    # Ambiente
    railway variables set NODE_ENV=production
@@ -117,6 +134,12 @@ Sistema multi-tenant para gestionar y dar seguimiento a las cargas de combustibl
    
    # Administradores (IDs separados por coma)
    BOT_ADMIN_IDS=123456789
+   
+   # Cloudflare R2 (opcional)
+   R2_ACCOUNT_ID=tu_account_id
+   R2_ACCESS_KEY_ID=tu_access_key
+   R2_SECRET_ACCESS_KEY=tu_secret_key
+   R2_BUCKET_NAME=tu_bucket_name
    
    # Ambiente
    NODE_ENV=development
@@ -170,11 +193,31 @@ Sistema multi-tenant para gestionar y dar seguimiento a las cargas de combustibl
    ```
 
 3. **Operaciones diarias**:
-   - `/start` - Menú principal
-   - `/registrar` - Nueva unidad
-   - `/turno` - Sistema de turnos (inicio/fin de día)
-   - `/saldo` - Ver saldo pendiente
-   - `/reporte` - Generar reportes
+   - `/start` - Menú principal con estructura reorganizada
+   - 🚛 **Registrar carga** - Nueva carga de combustible
+   - 🕐 **Turnos** - Sistema de turnos (inicio/fin de día)
+   - 📊 **Consultas** - Saldo pendiente, buscar notas, reportes (admins)
+   - 🔧 **Administración** (solo admins) - Gestión de unidades y registros CRUD
+
+### ⭐ Nuevas Funciones CRUD para Administradores
+
+#### Gestión Completa de Registros
+1. **Acceder**: `/start` → 🔧 **Administración** → 📝 **Gestionar registros**
+2. **Buscar**: Ingresa número de nota (búsqueda exacta)
+3. **Editar**: Selecciona campo a modificar:
+   - 📏 **Kilómetros** - Validación numérica
+   - 💧 **Litros** - Recálculo automático de monto
+   - 💰 **Precio por litro** - Recálculo automático de monto
+   - ⛽ **Tipo de combustible** - GAS, GASOLINA, DIESEL
+   - 📝 **Número de nota** - Validación de unicidad
+   - 💳 **Estado de pago** - Lógica inteligente (solo opción contraria)
+4. **Eliminar**: Confirmación con información detallada
+
+#### Búsqueda de Notas Mejorada
+- **Acceso universal**: 📊 **Consultas** → 🔍 **Buscar nota**
+- **Información completa**: Muestra todos los datos independiente del estado de pago
+- **Descarga de documentos**: Botón automático cuando hay ticket guardado
+- **URLs firmadas**: Acceso seguro con enlaces temporales
 
 ### Flujo de Trabajo Típico
 
@@ -182,8 +225,9 @@ Sistema multi-tenant para gestionar y dar seguimiento a las cargas de combustibl
 2. **Iniciar turno**: Registra kilometraje inicial para el día (opcional)
 3. **Cargar combustible**: Selecciona unidad → ingresa datos → opcionalmente kilómetros y precio → confirma
 4. **Finalizar turno**: Registra kilometraje final del día (opcional)
-5. **Gestionar pagos**: Busca notas por número → marca como pagadas
-6. **Generar reportes**: Aplica filtros → descarga PDF/Excel con datos de kilómetros
+5. **Gestionar pagos**: 📊 Consultas → 🔍 Buscar nota → marca como pagada
+6. **Gestión administrativa**: 🔧 Administración → 📝 Gestionar registros → editar/eliminar
+7. **Generar reportes**: 📊 Consultas → 📊 Generar reporte → aplicar filtros → descargar PDF/Excel
 
 ## 🗄️ Estructura de la Base de Datos
 
@@ -192,6 +236,7 @@ erDiagram
     Tenant ||--o{ Unit : tiene
     Tenant ||--o{ Fuel : tiene
     Tenant ||--o{ KilometerLog : registra
+    Tenant ||--o{ FileStorage : almacena
     Tenant ||--|| TenantSettings : configura
     Unit ||--o{ Fuel : recibe
     Unit ||--o{ KilometerLog : registra
@@ -239,6 +284,16 @@ erDiagram
         datetime logTime
         string userId
         boolean isOmitted
+    }
+    
+    FileStorage {
+        string id PK
+        string tenantId FK
+        string relatedId
+        string relatedType
+        string fileName
+        string storageKey
+        boolean isActive
     }
 ```
 
@@ -304,21 +359,23 @@ railway run node scripts/backup-automatico.js
 
 ## ⚠️ Consideraciones Importantes
 
-### Sistema de Archivos
-Railway tiene almacenamiento persistente limitado. Para las fotos de tickets:
-- Los archivos se guardan temporalmente
-- Se recomienda integrar almacenamiento en la nube (S3, Cloudinary)
-- Hacer backups periódicos de la base de datos
+### Sistema de Almacenamiento
+- **Cloudflare R2**: Almacenamiento principal para tickets y documentos
+- **URLs firmadas**: Acceso temporal y seguro a archivos
+- **Backup automático**: Respaldo periódico en múltiples ubicaciones
+- **Fallback local**: Sistema de respaldo si R2 no está disponible
 
 ### Límites y Escalamiento
 - Railway tiene límites en el plan gratuito
-- Monitorea el uso de recursos desde el dashboard
-- Considera actualizar el plan para producción
+- Cloudflare R2 incluye 10GB gratuitos mensuales
+- Monitorea el uso de recursos desde los dashboards
+- Considera actualizar planes para producción
 
 ### Seguridad
 - Nunca compartas el token del bot
 - Mantén actualizados los IDs de administradores
 - Revisa regularmente los logs de acceso
+- Las claves de R2 deben mantenerse seguras
 - Haz backups frecuentes de la base de datos
 
 ## 🐛 Solución de Problemas
@@ -333,17 +390,23 @@ Railway tiene almacenamiento persistente limitado. Para las fotos de tickets:
 2. Ejecutar migraciones: `railway run npx prisma migrate deploy`
 3. Revisar logs de Prisma
 
-### Problemas con comandos
-1. Verificar que el grupo esté vinculado
-2. Confirmar permisos del bot en el grupo
-3. Revisar estado del tenant en la base de datos
+### Problemas con archivos/storage
+1. Verificar configuración R2: `railway variables | grep R2`
+2. Revisar logs de storageService
+3. Comprobar permisos del bucket
+
+### Problemas con CRUD de administradores
+1. Verificar permisos de administrador
+2. Revisar estado de conversación en logs
+3. Confirmar que el registro existe y está activo
 
 ## 🤝 Soporte
 
 Para soporte técnico o preguntas:
 1. Revisar logs del sistema
-2. Consultar documentación de Prisma
-3. Abrir issue en el repositorio
+2. Consultar documentación de desarrollo en `/docs`
+3. Verificar roadmap de implementación
+4. Abrir issue en el repositorio
 
 ## 📄 Licencia
 
@@ -351,10 +414,45 @@ Este proyecto está bajo licencia MIT. Ver archivo [LICENSE](LICENSE) para más 
 
 ---
 
-**Última actualización**: 30 de Junio 2025
-**Versión**: 2.1.0 (Sistema de Kilómetros Implementado)
+**Última actualización**: 1 de Julio 2025
+**Versión**: 2.2.0 (Sistema CRUD Completo)
 
 ## 🔧 Mejoras Recientes
+
+### 01/07/2025 - v2.2.0 - Sistema CRUD Completo para Administradores ⭐
+- **🔧 Reorganización completa de menús**: Estructura jerárquica intuitiva con submenús especializados
+- **📝 Sistema CRUD 100% funcional**: Edición completa de registros de combustible por administradores
+- **🔍 Búsqueda exacta mejorada**: Localización precisa de registros sin coincidencias parciales
+- **✏️ Edición de todos los campos**: Kilómetros, litros, precio por litro, tipo, nota, estado de pago
+- **♻️ Recálculo automático**: Monto se actualiza automáticamente (litros × precio por litro)
+- **🗑️ Eliminación segura**: Confirmación detallada con desactivación lógica
+- **💾 Integración con storage**: Descarga de documentos respaldados con URLs firmadas
+- **🔐 Control de acceso granular**: Funciones administrativas limitadas a usuarios autorizados
+- **🎯 Validaciones robustas**: Tipos de datos, enum correctos, estados de conversación
+- **📱 Interfaz mejorada**: Navegación fluida sin errores de parsing
+- **📋 Documentación completa**: Roadmap detallado y casos de uso documentados
+- **🏗️ Arquitectura modular**: Controladores especializados y comandos organizados
+
+#### Nuevos Menús:
+```
+📊 CONSULTAS (todos los usuarios):
+├── 💰 Saldo pendiente
+├── 🔍 Buscar nota (con descarga de documentos)
+└── 📊 Generar reporte [Solo Admin]
+
+🔧 ADMINISTRACIÓN (solo administradores):
+├── 👁️ Gestionar unidades
+└── 📝 Gestionar registros [NUEVO CRUD COMPLETO]
+    ├── 🔍 Búsqueda exacta por número de nota
+    ├── ✏️ Edición completa de campos
+    ├── 🗑️ Eliminación con confirmación
+    └── ♻️ Recálculo automático de montos
+```
+
+#### Nuevos Archivos:
+- `src/controllers/gestionRegistrosController.js` - Controlador CRUD completo
+- `src/commands/fuel/gestion.command.js` - Comandos de gestión administrativa
+- `docs/crud-admins/` - Documentación completa del sistema
 
 ### 30/06/2025 - v2.1.0 - Sistema de Kilómetros ⭐
 - **📏 Sistema completo de kilómetros**: Registro opcional de kilometraje en cargas de combustible
@@ -362,8 +460,6 @@ Este proyecto está bajo licencia MIT. Ver archivo [LICENSE](LICENSE) para más 
 - **💰 Cálculo automático**: Monto = litros × precio por litro cuando se especifica precio
 - **🔍 Validación inteligente**: Prevención de retrocesos en kilometraje con búsqueda híbrida
 - **📊 Reportes mejorados**: Columnas de kilómetros y precio por litro en PDF y Excel
-- **🎛️ Menús reorganizados**: Estructura jerárquica con submenús de Consultas y Administración
-- **👥 Acceso por roles**: Funciones administrativas limitadas a administradores
 - **🗄️ Nueva tabla KilometerLog**: Sistema de tracking de turnos con restricciones únicas
 - **📋 Documentación completa**: Sistema implementado en 8 fases con documentación detallada
 
@@ -377,3 +473,27 @@ Este proyecto está bajo licencia MIT. Ver archivo [LICENSE](LICENSE) para más 
 - **⛽ Nuevo tipo de combustible**: Agregado Diésel como tercer tipo de combustible, ampliando las opciones de registro y reportes
 - **📷 Manejo mejorado de fotos de tickets**: Corregido el funcionamiento del botón de omitir foto y separado el manejador de fotografías para mayor robustez
 - **📊 Optimización de reportes**: Corregido el filtrado de registros desactivados en reportes para que no aparezcan en ninguna consulta (aplicando filtro isActive directamente en la consulta SQL)
+
+## 🚀 Estado de Desarrollo
+
+### ✅ Completado (FASES 0-3):
+- [x] Reorganización completa de menús
+- [x] Integración con sistema de storage R2
+- [x] Sistema CRUD 100% funcional para registros de combustible
+- [x] Control de acceso por roles
+- [x] Búsqueda exacta y edición completa de campos
+
+### 🔄 En Progreso:
+- **FASE 4**: Sistema CRUD para registros de kilómetros
+- **FASE 5**: Sistema de auditoría y logs
+- **FASE 6**: Testing integral
+- **FASE 7**: Deploy a producción
+
+### 📋 Próximos Hitos:
+- **Julio 2-4**: Completar CRUD de kilómetros
+- **Julio 5-7**: Sistema de auditoría
+- **Julio 8-9**: Testing integral
+- **Julio 10**: Deploy final
+
+**Rama de desarrollo**: `feature/crud-admins-reorganization`
+**Estado**: Sistema CRUD funcional al 100% - Listo para continuar con FASE 4
