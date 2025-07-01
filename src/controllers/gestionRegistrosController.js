@@ -242,18 +242,17 @@ Selecciona el campo que deseas editar:`;
 
       // Mensajes específicos por campo
       const prompts = {
-        km: `📏 *Editando Kilómetros*\n\nValor actual: ${fuel.kilometers || 'N/A'}\n\nIngresa los nuevos kilómetros:`,
-        liters: `💧 *Editando Litros*\n\nValor actual: ${fuel.liters.toFixed(2)}\n\nIngresa los nuevos litros:\n\n💡 _El monto se recalculará automáticamente_`,
-        price: `💰 *Editando Precio por Litro*\n\nValor actual: $${fuel.pricePerLiter ? fuel.pricePerLiter.toFixed(2) : 'N/A'}\n\nIngresa el nuevo precio por litro:\n\n💡 _El monto se recalculará automáticamente_`,
-        type: `⛽ *Editando Tipo de Combustible*\n\nValor actual: ${fuel.fuelType}\n\nSelecciona el nuevo tipo:`,
-        sale: `📝 *Editando Número de Nota*\n\nValor actual: ${fuel.saleNumber}\n\nIngresa el nuevo número de nota:`,
-        payment: `💳 *Editando Estado de Pago*\n\nValor actual: ${fuel.paymentStatus}\n\nSelecciona el nuevo estado:`
+        km: `📏 EDITANDO KILÓMETROS\n\nValor actual: ${fuel.kilometers || 'N/A'}\n\nIngresa los nuevos kilómetros:`,
+        liters: `💧 EDITANDO LITROS\n\nValor actual: ${fuel.liters.toFixed(2)}\n\nIngresa los nuevos litros:\n\n💡 El monto se recalculará automáticamente`,
+        price: `💰 EDITANDO PRECIO POR LITRO\n\nValor actual: $${fuel.pricePerLiter ? fuel.pricePerLiter.toFixed(2) : 'N/A'}\n\nIngresa el nuevo precio por litro:\n\n💡 El monto se recalculará automáticamente`,
+        type: `⛽ EDITANDO TIPO DE COMBUSTIBLE\n\nValor actual: ${fuel.fuelType}\n\nSelecciona el nuevo tipo:`,
+        sale: `📝 EDITANDO NÚMERO DE NOTA\n\nValor actual: ${fuel.saleNumber}\n\nIngresa el nuevo número de nota:`,
+        payment: `💳 EDITANDO ESTADO DE PAGO\n\nValor actual: ${fuel.paymentStatus}\n\nSelecciona el nuevo estado:`
       };
 
       if (field === 'type') {
         // Mostrar opciones de tipo de combustible
         await ctx.reply(prompts[field], {
-          parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
               [{ text: '⛽ Gas', callback_data: 'update_field_GAS' }],
@@ -270,7 +269,6 @@ Selecciona el campo que deseas editar:`;
         const oppositeLabel = oppositeStatus === 'PAGADA' ? '✅ Marcar como PAGADA' : '❌ Marcar como NO_PAGADA';
         
         await ctx.reply(prompts[field], {
-          parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
               [{ text: oppositeLabel, callback_data: `update_field_${oppositeStatus}` }],
@@ -281,7 +279,6 @@ Selecciona el campo que deseas editar:`;
       } else {
         // Para campos de texto/número, solicitar entrada
         await ctx.reply(prompts[field] || 'Ingresa el nuevo valor:', {
-          parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
               [{ text: '❌ Cancelar', callback_data: `edit_fuel_${fuelId}` }]
