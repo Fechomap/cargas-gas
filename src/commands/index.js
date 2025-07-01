@@ -77,24 +77,37 @@ function setupGlobalCallbacks(bot) {
       const helpMessage = `
 *Instrucciones de Uso* ❓
 
-*1. Registrar una unidad:*
-   • Usa el botón "Registrar unidad"
-   • Ingresa el nombre del operador
-   • Ingresa el número económico
-   • Confirma los datos
+*FUNCIONES PRINCIPALES:*
 
-*2. Registrar carga de combustible:*
-   • Ve a "Ver unidades" y selecciona una unidad
-   • Sigue las instrucciones para ingresar litros, monto, etc.
-   • Confirma para guardar
+*1. 🚛 Registrar Carga*
+   • Selecciona unidad y operador
+   • Ingresa kilómetros actuales
+   • Ingresa litros y precio por litro
+   • El sistema calcula el monto automáticamente
+   • Toma foto del ticket (opcional)
+   • Ingresa número de nota
 
-*3. Consultar saldo pendiente:*
-   • Usa el botón "Consultar saldo pendiente"
+*2. 🕐 Turnos*
+   • Inicio de día: Registra kilómetros iniciales
+   • Fin de día: Registra kilómetros finales
+   • Sistema válida que no haya retrocesos
 
-*4. Generar reportes:*
-   • Usa el botón "Generar reporte"
-   • Aplica los filtros deseados
-   • Selecciona PDF o Excel
+*3. 📊 Consultas*
+   • Saldo pendiente: Ver cargas no pagadas
+   • Buscar nota: Buscar por número y descargar documentos
+   • Generar reporte: PDF/Excel con filtros [Solo Admin]
+
+*4. 🔧 Administración* [Solo Administradores]
+   • Gestionar unidades: Alta/baja de operadores
+   • Gestionar registros: Editar/eliminar cargas y kilómetros
+
+*NOVEDADES:*
+✅ Sistema de kilómetros integrado
+✅ Descarga de documentos respaldados
+✅ Gestión completa de registros (admins)
+✅ Menús reorganizados por función
+
+Para soporte contacta a tu administrador.
       `;
       
       await ctx.reply(helpMessage, {
@@ -193,8 +206,11 @@ function setupGlobalCallbacks(bot) {
     try {
       await ctx.answerCbQuery('Accediendo al menú de consultas');
       
+      // Verificar si es administrador para mostrar opciones apropiadas
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      
       await ctx.reply('📊 Menú de Consultas\n\nSelecciona la consulta que deseas realizar:', {
-        reply_markup: getConsultasKeyboard().reply_markup
+        reply_markup: getConsultasKeyboard(isAdmin).reply_markup
       });
     } catch (error) {
       logger.error(`Error al acceder al menú de consultas: ${error.message}`);
@@ -230,9 +246,18 @@ function setupGlobalCallbacks(bot) {
   // NOTA: El manejador para 'search_fuel_records' se ha movido a src/commands/fuel/desactivacion.command.js
   // para evitar duplicados y conflictos de manejadores
   
-  // Manejar botón para generar reporte
+  // Manejar botón para generar reporte (solo admins)
   bot.action('generate_report', async (ctx) => {
     try {
+      // Verificar permisos de administrador
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      
+      if (!isAdmin) {
+        await ctx.answerCbQuery('❌ Acceso denegado');
+        await ctx.reply('❌ Solo los administradores pueden generar reportes.');
+        return;
+      }
+      
       await ctx.answerCbQuery('Iniciando generación de reporte...');
       
       // Importar dinámicamente el controlador para evitar dependencias circulares
@@ -322,24 +347,37 @@ export function registerCommands(bot) {
         const helpMessage = `
 *Instrucciones de Uso* ❓
 
-*1. Registrar una unidad:*
-   • Usa el botón "Registrar unidad"
-   • Ingresa el nombre del operador
-   • Ingresa el número económico
-   • Confirma los datos
+*FUNCIONES PRINCIPALES:*
 
-*2. Registrar carga de combustible:*
-   • Ve a "Ver unidades" y selecciona una unidad
-   • Sigue las instrucciones para ingresar litros, monto, etc.
-   • Confirma para guardar
+*1. 🚛 Registrar Carga*
+   • Selecciona unidad y operador
+   • Ingresa kilómetros actuales
+   • Ingresa litros y precio por litro
+   • El sistema calcula el monto automáticamente
+   • Toma foto del ticket (opcional)
+   • Ingresa número de nota
 
-*3. Consultar saldo pendiente:*
-   • Usa el botón "Consultar saldo pendiente"
+*2. 🕐 Turnos*
+   • Inicio de día: Registra kilómetros iniciales
+   • Fin de día: Registra kilómetros finales
+   • Sistema válida que no haya retrocesos
 
-*4. Generar reportes:*
-   • Usa el botón "Generar reporte"
-   • Aplica los filtros deseados
-   • Selecciona PDF o Excel
+*3. 📊 Consultas*
+   • Saldo pendiente: Ver cargas no pagadas
+   • Buscar nota: Buscar por número y descargar documentos
+   • Generar reporte: PDF/Excel con filtros [Solo Admin]
+
+*4. 🔧 Administración* [Solo Administradores]
+   • Gestionar unidades: Alta/baja de operadores
+   • Gestionar registros: Editar/eliminar cargas y kilómetros
+
+*NOVEDADES:*
+✅ Sistema de kilómetros integrado
+✅ Descarga de documentos respaldados
+✅ Gestión completa de registros (admins)
+✅ Menús reorganizados por función
+
+Para soporte contacta a tu administrador.
         `;
         
         await ctx.reply(helpMessage, {

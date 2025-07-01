@@ -172,14 +172,23 @@ export function getPostOperationKeyboard() {
 
 /**
  * Obtiene el teclado del submenú de Consultas
+ * @param {boolean} isAdmin - Si el usuario es administrador
  * @returns {Object} - Objeto de teclado para Telegraf
  */
-export function getConsultasKeyboard() {
-  return Markup.inlineKeyboard([
+export function getConsultasKeyboard(isAdmin = false) {
+  const buttons = [
     [Markup.button.callback('💰 Saldo pendiente', 'check_balance')],
-    [Markup.button.callback('📊 Generar reporte', 'generate_report')],
-    [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
-  ]);
+    [Markup.button.callback('🔍 Buscar nota', 'search_note_for_payment')]
+  ];
+  
+  // Solo mostrar Generar reporte a administradores
+  if (isAdmin) {
+    buttons.push([Markup.button.callback('📊 Generar reporte', 'generate_report')]);
+  }
+  
+  buttons.push([Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]);
+  
+  return Markup.inlineKeyboard(buttons);
 }
 
 /**
@@ -189,8 +198,7 @@ export function getConsultasKeyboard() {
 export function getAdminKeyboard() {
   return Markup.inlineKeyboard([
     [Markup.button.callback('👁️ Gestionar unidades', 'manage_units')],
-    [Markup.button.callback('🔍 Buscar/desactivar registros', 'search_fuel_records')],
-    [Markup.button.callback('💳 Buscar/marcar pagado', 'search_note_for_payment')],
+    [Markup.button.callback('📝 Gestionar registros', 'manage_fuel_records')],
     [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
   ]);
 }
