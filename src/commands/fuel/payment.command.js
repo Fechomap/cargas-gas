@@ -3,6 +3,7 @@ import { fuelController } from '../../controllers/index.js';
 import { isInState } from '../../state/conversation.js';
 import { getMainKeyboard } from '../../views/keyboards.js';
 import { logger } from '../../utils/logger.js';
+import { storageService } from '../../services/storage.service.js';
 
 /**
  * Configura los comandos para el manejo de pagos de cargas de combustible
@@ -60,6 +61,31 @@ export function setupPaymentCommands(bot) {
       await ctx.reply('¿Qué deseas hacer ahora?', {
         reply_markup: getMainKeyboard()
       });
+    }
+  });
+  
+  // Acción para descargar archivo asociado a una nota
+  bot.action(/^download_file_(.+)$/, async (ctx) => {
+    try {
+      const fileId = ctx.match[1];
+      logger.info(`Usuario ${ctx.from.id} solicitó descarga del archivo: ${fileId}`);
+      
+      await ctx.answerCbQuery('Generando enlace de descarga...');
+      
+      // Generar URL firmada temporal (válida por 1 hora)
+      const signedUrl = await storageService.getSignedUrl(fileId, 3600);
+      
+      // Enviar documento usando la URL firmada
+      await ctx.replyWithDocument(signedUrl, {
+        caption: '📄 Documento de respaldo de la carga de combustible'
+      });
+      
+      logger.info(`Archivo ${fileId} enviado exitosamente al usuario ${ctx.from.id}`);
+      
+    } catch (error) {
+      logger.error(`Error al descargar archivo: ${error.message}`, error);
+      await ctx.answerCbQuery('❌ Error al descargar archivo');
+      await ctx.reply('❌ Error al descargar el documento. El archivo puede no estar disponible o haber expirado.');
     }
   });
   

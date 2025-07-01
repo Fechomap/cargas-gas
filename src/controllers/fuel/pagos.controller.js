@@ -4,6 +4,7 @@ import { FuelService } from '../../services/fuel.adapter.service.js';
 import { updateConversationState } from '../../state/conversation.js';
 import { logger } from '../../utils/logger.js';
 import { getMainKeyboard } from '../../views/keyboards.js';
+import { prisma } from '../../db/index.js';
 
 // Crear instancia del servicio de combustible
 const fuelService = new FuelService();
@@ -106,21 +107,6 @@ export class PagosController {
       ctx.session.data.noteId = fuel.id;
       logger.info(`Carga encontrada con ID: ${fuel.id}, estado: ${fuel.paymentStatus}`);
       
-      // Verificar si la nota ya está pagada (en PostgreSQL es 'PAGADA' en mayúsculas)
-      if (fuel.paymentStatus === 'PAGADA') {
-        await ctx.reply(`⚠️ Nota #${searchQuery} ya está marcada como pagada.`);
-        await ctx.reply(`Fecha de pago: ${fuel.paymentDate ? this.formatDate(fuel.paymentDate) : 'No registrada'}`);
-        
-        // Preguntar si desea buscar otra nota
-        await ctx.reply('¿Deseas buscar otra nota?',
-          Markup.inlineKeyboard([
-            [Markup.button.callback('✅ Buscar otra', 'search_note_for_payment')],
-            [Markup.button.callback('❌ Cancelar', 'cancel_note_search')]
-          ])
-        );
-        return;
-      }
-      
       // Actualizar estado de conversación
       await updateConversationState(ctx, 'search_note_confirm', {
         noteId: fuel.id,
@@ -129,14 +115,25 @@ export class PagosController {
       
       logger.info(`Estado actualizado con noteId: ${fuel.id} para saleNumber: ${fuel.saleNumber}`);
       
-      // Registrar en log que vamos a mostrar los botones para nota no pagada
-      logger.info(`Mostrando resumen y botones para nota no pagada #${fuel.saleNumber}`);
+      // Registrar en log que vamos a mostrar información completa de la nota
+      logger.info(`Mostrando información completa de nota #${fuel.saleNumber} (Estado: ${fuel.paymentStatus})`);
       
-      // Mostrar resumen de la nota
-      const noteDetails = `
+      // Buscar archivo asociado en el sistema de storage
+      const attachment = await prisma.fileStorage.findFirst({
+        where: {
+          relatedId: fuel.id,
+          relatedType: 'fuel',
+          isActive: true
+        }
+      });
+      
+      logger.info(`Búsqueda de archivo para nota ${fuel.saleNumber}: ${attachment ? `encontrado ID ${attachment.id}` : 'no encontrado'}`);
+      
+      // Mostrar resumen completo de la nota con estado de pago
+      let noteDetails = `
 *💳 STATUS: ${fuel.paymentStatus.toUpperCase()}*
 
-*📝 Nota encontrada*
+*📝 Información de la nota*
 *Número:* ${fuel.saleNumber}
 *Operador:* ${fuel.operatorName}
 *Unidad:* ${fuel.unitNumber}
@@ -144,15 +141,43 @@ export class PagosController {
 *Fecha:* ${this.formatDate(fuel.recordDate)}
 *Monto:* *$${fuel.amount.toFixed(2)}*
 *Litros:* ${fuel.liters.toFixed(2)}`;
+
+      // Agregar información de pago si está pagada
+      if (fuel.paymentStatus === 'PAGADA') {
+        noteDetails += `\n*Fecha de pago:* ${fuel.paymentDate ? this.formatDate(fuel.paymentDate) : 'No registrada'}`;
+      }
+      
+      // Construir botones dinámicamente según disponibilidad de archivo y estado de pago
+      const buttons = [];
+      
+      // Agregar botón de descarga si hay archivo adjunto
+      if (attachment) {
+        buttons.push([{ 
+          text: '📥 Descargar documento', 
+          callback_data: `download_file_${attachment.id}` 
+        }]);
+      }
+      
+      // Agregar botones de acción según estado de pago
+      if (fuel.paymentStatus === 'PAGADA') {
+        // Para notas ya pagadas: solo buscar otra o cancelar
+        buttons.push([
+          { text: '🔍 Buscar otra nota', callback_data: 'search_note_for_payment' },
+          { text: '🏠 Menú principal', callback_data: 'main_menu' }
+        ]);
+      } else {
+        // Para notas no pagadas: opción de pagar
+        buttons.push([
+          { text: '✅ PAGAR', callback_data: 'mark_note_as_paid' },
+          { text: '❌ CANCELAR', callback_data: 'cancel_note_search' }
+        ]);
+      }
       
       // Usar formato explícito para asegurar que los botones se muestren
       await ctx.reply(noteDetails, {
         parse_mode: 'Markdown',
         reply_markup: {
-          inline_keyboard: [
-            [{ text: '✅ PAGAR', callback_data: 'mark_note_as_paid' }],
-            [{ text: '❌ CANCELAR', callback_data: 'cancel_note_search' }]
-          ]
+          inline_keyboard: buttons
         }
       });
     } catch (error) {
