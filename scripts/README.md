@@ -132,16 +132,19 @@ node scripts/verify-database-alignment.js
 ```
 scripts/
 ├── README.md                        # 📋 Este archivo
+├── SECURITY-TOKENS.md              # 🔐 Guía de seguridad para tokens
 ├── backup-local-database.sh         # 💾 Backup local
 ├── backup-production-database.sh    # 💾 Backup producción
 ├── sync-prod-to-local-dev.sh       # 🔄 Sincronización principal
-└── verify-database-alignment.js     # 🔍 Verificación de alineación
+├── verify-database-alignment.js     # 🔍 Verificación de alineación
+└── migrations/
+    └── migration_file_storage.sql   # 📄 Migración FileStorage
 ```
 
-**Total: 4 scripts principales + documentación**
+**Total: 5 scripts principales + documentación + migraciones**
 
 ---
 
-**Última actualización**: Junio 2025  
-**Versión**: 2.0 - Scripts organizados y limpieza completa  
-**Estado**: ✅ Producción-ready
+**Última actualización**: Julio 2025  
+**Versión**: 3.0 - Limpieza completa post-storage deployment  
+**Estado**: ✅ Producción-ready y organizado
