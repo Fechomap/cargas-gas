@@ -7,6 +7,7 @@ import { updateConversationState } from '../../state/conversation.js';
 import { logger } from '../../utils/logger.js';
 import { storageService } from '../../services/storage.service.js';
 import { getMainKeyboard } from '../../views/keyboards.js';
+import { prisma } from '../../db/index.js';
 
 // Crear instancia del servicio de combustible
 const fuelService = new FuelService();
@@ -306,19 +307,41 @@ export class RegistroController {
    */
   async handleTicketPhoto(ctx) {
     try {
-      let photoUrl = null;
+      let photoResult = null;
       
       // Verificar si se envió una foto
       if (ctx.message?.photo) {
         const fileId = ctx.message.photo[ctx.message.photo.length - 1].file_id;
-        photoUrl = await storageService.savePhotoFromTelegram(ctx, fileId);
-        await ctx.reply('Foto del ticket recibida');
+        
+        // Preparar metadatos para el nuevo sistema de storage
+        const tenantId = ctx.tenant?.id || ctx.session?.tenantId;
+        logger.info(`DEBUG - TenantId obtenido: ${tenantId} (desde ctx.tenant: ${ctx.tenant?.id}, desde session: ${ctx.session?.tenantId})`);
+        
+        if (!tenantId) {
+          logger.error('No se pudo obtener tenantId del contexto');
+          throw new Error('No se pudo identificar el tenant para guardar la foto');
+        }
+        
+        const metadata = {
+          tenantId: tenantId,
+          relatedType: 'fuel',
+          uploadedBy: ctx.from.id.toString(),
+          fileName: `ticket_${Date.now()}.jpg`,
+          // relatedId se agregará después cuando se cree el registro de fuel
+        };
+        
+        // Usar el nuevo sistema de storage con metadatos
+        photoResult = await storageService.savePhotoFromTelegram(ctx, fileId, metadata);
+        
+        await ctx.reply(`📸 Foto del ticket recibida y almacenada ${photoResult.isR2Storage ? 'en R2' : 'localmente'}`);
+        logger.info(`Foto guardada - ID: ${photoResult.id}, Storage: ${photoResult.isR2Storage ? 'R2' : 'Local'}`);
       } else {
         await ctx.reply('Foto omitida');
       }
       
-      // Guardar URL de la foto en la sesión
-      ctx.session.data.ticketPhoto = photoUrl;
+      // Guardar información de la foto en la sesión
+      ctx.session.data.ticketPhoto = photoResult?.storageKey || null;
+      ctx.session.data.ticketPhotoId = photoResult?.id || null;
       
       // Actualizar el estado para solicitar el número de venta
       await updateConversationState(ctx, 'fuel_entry_sale_number');
@@ -477,6 +500,20 @@ export class RegistroController {
       logger.info('Llamando a fuelService.createFuelEntry() con tenantId');
       const savedFuel = await fuelService.createFuelEntry(fuelData, ctx.tenant.id);
       logger.info(`Carga guardada con ID: ${savedFuel.id}`);
+      
+      // Actualizar relación del archivo con el registro de combustible
+      if (ctx.session.data.ticketPhotoId) {
+        try {
+          await prisma.fileStorage.update({
+            where: { id: ctx.session.data.ticketPhotoId },
+            data: { relatedId: savedFuel.id }
+          });
+          logger.info(`Archivo ${ctx.session.data.ticketPhotoId} vinculado al registro ${savedFuel.id}`);
+        } catch (fileError) {
+          logger.warn(`Error al vincular archivo: ${fileError.message}`);
+          // No bloquear el flujo por error de vinculación
+        }
+      }
       
       await ctx.answerCbQuery('Carga guardada correctamente');
       await ctx.reply(`✅ Carga registrada correctamente con ID: ${savedFuel.id}`);

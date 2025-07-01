@@ -65,6 +65,7 @@ model Tenant {
   notes             String?
   registrationToken String?         @unique
   Fuel              Fuel[]
+  FileStorage       FileStorage[]
   KilometerLog      KilometerLog[]
   TenantSettings    TenantSettings?
   Unit              Unit[]
@@ -117,6 +118,26 @@ model KilometerLog {
   @@unique([tenantId, unitId, logDate, logType])
   @@index([tenantId, logDate])
   @@index([unitId, logDate])
+}
+
+model FileStorage {
+  id          String   @id @default(uuid())
+  tenantId    String
+  relatedId   String?  // fuel_id, unit_id, etc
+  relatedType String   // 'fuel', 'audit', 'document', etc
+  fileName    String
+  fileType    String   // MIME type
+  fileSize    Int      // Size in bytes
+  storageKey  String   @unique // R2 object key
+  uploadedBy  String   // User ID who uploaded
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, relatedId])
+  @@index([tenantId, relatedType])
+  @@index([tenantId, createdAt])
 }
 
 enum FuelType {
