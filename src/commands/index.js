@@ -45,9 +45,9 @@ function setupGlobalCallbacks(bot) {
       buttons.push([Markup.button.callback('❓ Ayuda', 'show_help')]);
       
       // Mostrar mensaje con menú principal
-      await ctx.reply('🏠 Menú Principal', {
-        reply_markup: Markup.inlineKeyboard(buttons)
-      });
+      await ctx.reply('🏠 Menú Principal', 
+        Markup.inlineKeyboard(buttons)
+      );
     } catch (error) {
       logger.error(`Error al volver al menú principal: ${error.message}`);
       await ctx.answerCbQuery('Error al mostrar menú');
@@ -143,25 +143,8 @@ Para soporte contacta a tu administrador.
     }
   });
   
-  // Manejar botón de saldo pendiente
-  bot.action('check_balance', async (ctx) => {
-    try {
-      await ctx.answerCbQuery('Consultando saldo pendiente...');
-      
-      // Simular el comando /saldo
-      await bot.telegram.sendMessage(ctx.chat.id, '/saldo');
-    } catch (error) {
-      logger.error(`Error al consultar saldo: ${error.message}`);
-      await ctx.reply('Ocurrió un error al consultar el saldo pendiente.');
-      
-      // Volver al menú principal
-      await ctx.reply('¿Qué deseas hacer ahora?', {
-        reply_markup: Markup.inlineKeyboard([
-          [Markup.button.callback('🏠 Volver al menú principal', 'main_menu')]
-        ])
-      });
-    }
-  });
+  // NOTA: El callback 'check_balance' se maneja en fuel/balance.command.js
+  // Eliminado handler que simulaba comando /saldo
   
   // Manejar botón para gestionar unidades
   bot.action('manage_units', async (ctx) => {

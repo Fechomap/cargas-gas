@@ -33,7 +33,7 @@ export function withTenant() {
       const registrationCommands = ['/registrar_empresa', '/vincular', '/activar'];
       
       // Callbacks especiales que no requieren validación de tenant
-      const bypassCallbacks = ['start_registration'];
+      const bypassCallbacks = ['start_registration', 'main_menu'];
       
       // Verificar si es un comando especial que no requiere validación
       const messageText = ctx.message?.text || '';
@@ -69,6 +69,12 @@ export function withTenant() {
         return next();
       }
       
+      // MOVER AQUÍ: Permitir callbacks especiales SIEMPRE (independientemente de tenant)
+      if (ctx.callbackQuery && bypassCallbacks.includes(ctx.callbackQuery.data)) {
+        logger.debug(`Permitiendo callback especial: ${ctx.callbackQuery.data}`);
+        return next();
+      }
+      
       // Obtener chatId
       const chatId = ctx.chat?.id?.toString();
       if (!chatId) {
@@ -81,12 +87,6 @@ export function withTenant() {
       // Verificar si hay un estado de registro activo en la sesión
       if (ctx.session?.state?.startsWith('register_company_')) {
         logger.debug(`Permitiendo mensaje para proceso de registro activo: ${ctx.session.state}`);
-        return next();
-      }
-      
-      // Permitir callbacks especiales (como el botón de registro de empresa)
-      if (ctx.callbackQuery && bypassCallbacks.includes(ctx.callbackQuery.data)) {
-        logger.debug(`Permitiendo callback especial sin tenant: ${ctx.callbackQuery.data}`);
         return next();
       }
       

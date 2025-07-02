@@ -185,33 +185,6 @@ export function setupFuelEntryCommands(bot) {
     });
   });
   
-  // Manejar el botón main_menu de forma adecuada
-  bot.action('main_menu', async (ctx) => {
-    try {
-      await ctx.answerCbQuery('Volviendo al menú principal');
-      
-      // Limpiar el estado de conversación
-      if (ctx.session) {
-        ctx.session.state = 'idle';
-        ctx.session.data = {};
-      }
-      
-      // Mostrar mensaje con menú principal usando la función importada
-      await ctx.reply('🏠 Menú Principal', {
-        reply_markup: getMainKeyboard()
-      });
-    } catch (error) {
-      logger.error(`Error al volver al menú principal: ${error.message}`);
-      await ctx.answerCbQuery('Error al mostrar menú');
-      
-      // Intento directo con botones en línea básicos
-      await ctx.reply('Menú Principal (alternativo)', 
-        Markup.inlineKeyboard([
-          [Markup.button.callback('📝 Registrar unidad', 'register_unit')],
-          [Markup.button.callback('💰 Saldo pendiente', 'check_balance')],
-          [Markup.button.callback('📊 Generar reporte', 'generate_report')]
-        ])
-      );
-    }
-  });
+  // NOTA: El callback 'main_menu' se maneja globalmente en commands/index.js
+  // Eliminado handler duplicado que causaba conflictos
 }

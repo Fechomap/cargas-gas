@@ -93,42 +93,6 @@ export function setupStartCommand(bot) {
     }
   });
   
-  // Acción para volver al menú principal
-  bot.action('main_menu', async (ctx) => {
-    try {
-      await ctx.answerCbQuery(); // Responde al callback para quitar el "loading"
-      
-      // Verificar si es administrador
-      const isAdmin = await isAdminUser(ctx.from?.id);
-      
-      // Limpiar estado de conversación si es necesario (opcional, depende de la lógica)
-      // await updateConversationState(ctx, 'idle', {}); 
-      
-      // Editar el mensaje anterior o enviar uno nuevo con el menú principal
-      const { reply_markup } = getMainKeyboard(isAdmin);
-      const messageText = getWelcomeMessage(ctx.from.first_name); // Reutilizar mensaje de bienvenida
-      
-      // Intentar editar el mensaje actual si es posible
-      try {
-        await ctx.editMessageText(messageText, {
-          parse_mode: 'Markdown',
-          reply_markup: reply_markup
-        });
-      } catch (editError) {
-        // Si no se puede editar (ej. mensaje muy viejo), enviar uno nuevo
-        logger.warn(`No se pudo editar mensaje para main_menu: ${editError.message}`);
-        await ctx.reply(messageText, {
-          parse_mode: 'Markdown',
-          reply_markup: reply_markup
-        });
-      }
-      
-    } catch (error) {
-      logger.error(`Error en acción main_menu: ${error.message}`, error);
-      await ctx.reply('Ocurrió un error al volver al menú principal.');
-      // Opcional: Mostrar menú de fallback
-      const { reply_markup } = getMainKeyboard(isAdmin);
-      await ctx.reply('Intenta seleccionar una opción:', { reply_markup });
-    }
-  });
+  // NOTA: El callback 'main_menu' se maneja globalmente en commands/index.js
+  // para evitar duplicación de handlers y conflictos
 }
