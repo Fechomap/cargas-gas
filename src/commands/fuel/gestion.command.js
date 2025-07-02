@@ -156,13 +156,8 @@ export function setupGestionCommands(bot) {
       
       await ctx.answerCbQuery('Cargando opciones...');
       
-      // Buscar el registro y mostrar opciones
-      const fuel = ctx.session?.data?.managingFuelData;
-      if (fuel && fuel.id === fuelId) {
-        await gestionRegistrosController.showRecordManagementOptions(ctx, fuel);
-      } else {
-        await ctx.reply('Error: Información del registro no disponible.');
-      }
+      // Usar la nueva función que obtiene datos directamente de BD
+      await gestionRegistrosController.showRecordManagementOptionsByID(ctx, fuelId);
     } catch (error) {
       logger.error(`Error al mostrar opciones: ${error.message}`);
       await ctx.answerCbQuery('Error al cargar opciones');
@@ -208,10 +203,17 @@ export function setupGestionCommands(bot) {
   // Buscar por fecha (pendiente implementación)
   bot.action('km_search_by_date', async (ctx) => {
     try {
-      await ctx.answerCbQuery('Función en desarrollo');
-      await ctx.reply('📅 Búsqueda por fecha estará disponible próximamente.');
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      if (!isAdmin) {
+        await ctx.answerCbQuery('❌ Acceso denegado');
+        return;
+      }
+      
+      await ctx.answerCbQuery('Mostrando información...');
+      await gestionRegistrosController.showKmSearchByDate(ctx);
     } catch (error) {
       logger.error(`Error en búsqueda por fecha: ${error.message}`);
+      await ctx.answerCbQuery('Error al mostrar opción');
     }
   });
 
@@ -314,7 +316,7 @@ export function setupGestionCommands(bot) {
     
     if (isInState(ctx, 'km_search_unit')) {
       logger.info('GESTION: Procesando búsqueda de kilómetros por unidad');
-      await gestionRegistrosController.handleKmUnitSearch(ctx);
+      await gestionRegistrosController.handleKmUnitSearch(ctx, ctx.message.text);
       return;
     }
     

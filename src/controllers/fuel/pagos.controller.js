@@ -4,6 +4,7 @@ import { FuelService } from '../../services/fuel.adapter.service.js';
 import { updateConversationState } from '../../state/conversation.js';
 import { logger } from '../../utils/logger.js';
 import { getMainKeyboard } from '../../views/keyboards.js';
+import { isAdminUser } from '../../utils/admin.js';
 import { prisma } from '../../db/index.js';
 
 // Crear instancia del servicio de combustible
@@ -257,41 +258,40 @@ export class PagosController {
    */
   async cancelNoteSearch(ctx) {
     try {
-      await ctx.answerCbQuery('Operación cancelada');
-      await ctx.reply('No se califico como PAGADA.');
+      await ctx.answerCbQuery('Búsqueda cancelada');
       
       // Limpiar estado de conversación
       await updateConversationState(ctx, 'idle', {});
       
-      // Mostrar menú principal usando formato explícito
-      await ctx.reply('¿Qué deseas hacer ahora?', {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🆕 Registrar unidad', callback_data: 'register_unit' }],
-            [{ text: '⛽ Registrar carga', callback_data: 'register_fuel_start' }],
-            [{ text: '💰 Consultar saldo', callback_data: 'check_balance' }],
-            [{ text: '🔍 Buscar nota para pago', callback_data: 'search_note_for_payment' }],
-            [{ text: '📊 Generar reporte', callback_data: 'generate_report' }],
-            [{ text: '❓ Ayuda', callback_data: 'show_help' }]
-          ]
-        }
-      });
+      // Verificar si es admin para mostrar el menú correcto
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      
+      // Mostrar menú principal usando el método más directo
+      const keyboard = getMainKeyboard(isAdmin);
+      await ctx.reply('¿Qué deseas hacer ahora?', keyboard);
       
       // Registrar en log que se ha mostrado el menú principal
       logger.info(`Menú principal mostrado después de cancelar búsqueda para usuario ${ctx.from.id}`);
       
     } catch (error) {
       logger.error(`Error al cancelar búsqueda de nota: ${error.message}`);
-      await ctx.reply('Ocurrió un error. Por favor, vuelve al menú principal.');
       
-      // Intento alternativo con botones básicos como fallback
-      await ctx.reply('¿Qué deseas hacer ahora?', {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🏠 Volver al menú principal', callback_data: 'main_menu' }]
-          ]
-        }
-      });
+      try {
+        // Intentar mostrar menú principal como fallback
+        const isAdmin = await isAdminUser(ctx.from?.id);
+        const keyboard = getMainKeyboard(isAdmin);
+        await ctx.reply('Búsqueda cancelada. ¿Qué deseas hacer ahora?', keyboard);
+      } catch (fallbackError) {
+        // Si todo falla, mostrar botón básico
+        logger.error(`Error en fallback: ${fallbackError.message}`);
+        await ctx.reply('Error al mostrar menú. Usa /start para reiniciar.', {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🏠 Volver al menú principal', callback_data: 'main_menu' }]
+            ]
+          }
+        });
+      }
     }
   }
   

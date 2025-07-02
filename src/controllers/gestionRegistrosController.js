@@ -872,6 +872,206 @@ Selecciona el campo que deseas editar:`;
   }
 
   /**
+   * Maneja el input de búsqueda por unidad para kilómetros
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {string} unitNumber - Número de unidad
+   */
+  async handleKmUnitSearch(ctx, unitNumber) {
+    try {
+      // Buscar la unidad
+      const unit = await prisma.unit.findFirst({
+        where: {
+          tenantId: ctx.tenant.id,
+          unitNumber: unitNumber.toString(),
+          isActive: true
+        }
+      });
+
+      if (!unit) {
+        await ctx.reply(
+          `❌ No se encontró la unidad "${unitNumber}" o está inactiva.\n\n` +
+          'Ingresa otro número de unidad o cancela la búsqueda:',
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '❌ Cancelar', callback_data: 'manage_km_records' }]
+              ]
+            }
+          }
+        );
+        return;
+      }
+
+      // Buscar registros de kilómetros de la unidad
+      const kmLogs = await prisma.kilometerLog.findMany({
+        where: {
+          tenantId: ctx.tenant.id,
+          unitId: unit.id,
+          isOmitted: false
+        },
+        include: { Unit: true },
+        orderBy: [
+          { logDate: 'desc' },
+          { logTime: 'desc' }
+        ],
+        take: 20 // Últimos 20 registros
+      });
+
+      if (kmLogs.length === 0) {
+        await ctx.reply(
+          `📏 No se encontraron registros de kilómetros para la unidad ${unitNumber}.\n\n` +
+          '¿Deseas buscar otra unidad?',
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🔍 Nueva búsqueda', callback_data: 'km_search_by_unit' }],
+                [{ text: '🔙 Volver', callback_data: 'manage_km_records' }]
+              ]
+            }
+          }
+        );
+        return;
+      }
+
+      await this.showKmResultsByUnit(ctx, unit, kmLogs);
+      
+    } catch (error) {
+      logger.error(`Error en búsqueda por unidad: ${error.message}`);
+      await ctx.reply('❌ Error al buscar registros de la unidad.');
+    }
+  }
+
+  /**
+   * Muestra los resultados de kilómetros por unidad
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {Object} unit - Datos de la unidad
+   * @param {Array} kmLogs - Registros de kilómetros
+   */
+  async showKmResultsByUnit(ctx, unit, kmLogs) {
+    try {
+      let message = `📏 *Registros de Kilómetros - Unidad ${unit.unitNumber}*\n`;
+      message += `*Operador:* ${unit.operatorName}\n\n`;
+      
+      // Agregar información de registros
+      for (const log of kmLogs.slice(0, 10)) { // Mostrar solo los primeros 10
+        const typeIcon = log.logType === 'INICIO_TURNO' ? '🟢' : '🔴';
+        const typeText = log.logType === 'INICIO_TURNO' ? 'Inicio' : 'Fin';
+        const statusText = log.isOmitted ? ' (Omitido)' : '';
+        
+        message += `${typeIcon} *${typeText}*${statusText}\n`;
+        message += `├ Kilómetros: ${log.kilometers}\n`;
+        message += `├ Fecha: ${this.formatDate(log.logDate)}\n`;
+        message += `└ Hora: ${this.formatDate(log.logTime)}\n\n`;
+      }
+
+      if (kmLogs.length > 10) {
+        message += `_... y ${kmLogs.length - 10} registros más_\n\n`;
+      }
+
+      // Crear botones para gestionar cada registro
+      const buttons = kmLogs.slice(0, 8).map(log => [{
+        text: `${log.logType === 'INICIO_TURNO' ? '🟢' : '🔴'} ${this.formatDateShort(log.logDate)} - ${log.kilometers}km`,
+        callback_data: `km_manage_${log.id.substring(0, 8)}`
+      }]);
+      
+      buttons.push([
+        { text: '🔍 Nueva búsqueda', callback_data: 'km_search_by_unit' },
+        { text: '🔙 Volver', callback_data: 'manage_km_records' }
+      ]);
+
+      await ctx.reply(message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: buttons
+        }
+      });
+
+      // Limpiar estado
+      await updateConversationState(ctx, 'idle', {});
+      
+    } catch (error) {
+      logger.error(`Error al mostrar resultados por unidad: ${error.message}`);
+      await ctx.reply('❌ Error al mostrar los resultados.');
+    }
+  }
+
+  /**
+   * Implementa búsqueda por fecha (placeholder para FASE 4)
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async showKmSearchByDate(ctx) {
+    try {
+      await ctx.reply(
+        '📅 *Búsqueda por Fecha*\n\n' +
+        '🚧 Esta funcionalidad estará disponible próximamente.\n\n' +
+        'Por ahora puedes usar:\n' +
+        '• Búsqueda por unidad\n' +
+        '• Ver últimos registros',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🚛 Buscar por unidad', callback_data: 'km_search_by_unit' }],
+              [{ text: '📊 Ver últimos', callback_data: 'km_view_recent' }],
+              [{ text: '🔙 Volver', callback_data: 'manage_km_records' }]
+            ]
+          }
+        }
+      );
+    } catch (error) {
+      logger.error(`Error al mostrar búsqueda por fecha: ${error.message}`);
+      await ctx.reply('❌ Error al mostrar la opción.');
+    }
+  }
+
+  /**
+   * Muestra las opciones de gestión de un registro específico obteniendo datos de BD
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {string} fuelId - ID del registro de combustible
+   */
+  async showRecordManagementOptionsByID(ctx, fuelId) {
+    try {
+      // Buscar el registro directamente en la base de datos
+      const fuel = await prisma.fuel.findUnique({
+        where: { 
+          id: fuelId,
+          tenantId: ctx.tenant.id 
+        },
+        include: {
+          Unit: true
+        }
+      });
+
+      if (!fuel) {
+        await ctx.reply('❌ Registro no encontrado o no tienes permisos para verlo.');
+        return;
+      }
+
+      // Formatear datos para mostrar
+      const fuelData = {
+        id: fuel.id,
+        saleNumber: fuel.saleNumber,
+        operatorName: fuel.Unit.operatorName,
+        unitNumber: fuel.Unit.unitNumber,
+        recordDate: fuel.recordDate,
+        kilometers: fuel.kilometers,
+        liters: fuel.liters,
+        amount: fuel.amount,
+        fuelType: fuel.fuelType,
+        paymentStatus: fuel.paymentStatus,
+        isActive: fuel.isActive
+      };
+
+      // Llamar a la función existente con los datos formateados
+      await this.showRecordManagementOptions(ctx, fuelData);
+      
+    } catch (error) {
+      logger.error(`Error al mostrar opciones por ID: ${error.message}`);
+      await ctx.reply('❌ Error al cargar la información del registro.');
+    }
+  }
+
+  /**
    * Formatea fecha corta
    * @param {Date} date - Fecha
    * @returns {string}
