@@ -10,10 +10,10 @@ class UnitController {
   constructor() {
     this.listadoController = new ListadoController();
     this.registroController = new RegistroController();
-    
+
     logger.info('UnitController: Inicializado');
   }
-  
+
   /**
    * Registra una nueva unidad en el sistema
    * @param {Object} unitData - Datos de la unidad a registrar
@@ -22,7 +22,7 @@ class UnitController {
   async registerUnit(unitData) {
     return await this.registroController.registerUnit(unitData);
   }
-  
+
   /**
    * Muestra las unidades registradas como botones en el chat
    * @param {TelegrafContext} ctx - Contexto de Telegraf
@@ -31,7 +31,7 @@ class UnitController {
   async showRegisteredUnits(ctx, action = 'select_unit') {
     return await this.listadoController.showRegisteredUnits(ctx, action);
   }
-  
+
   /**
    * Obtiene una unidad por su buttonId
    * @param {object} ctx - Contexto de Telegraf con tenant
@@ -41,7 +41,7 @@ class UnitController {
   async getUnitByButtonId(ctx, buttonId) {
     return await this.listadoController.getUnitByButtonId(ctx, buttonId);
   }
-  
+
   /**
    * Muestra el listado de unidades para su desactivación
    * @param {TelegrafContext} ctx - Contexto de Telegraf
@@ -49,7 +49,7 @@ class UnitController {
   async showUnitsForDeactivation(ctx) {
     return await this.listadoController.showUnitsForDeactivation(ctx);
   }
-  
+
   /**
    * Desactiva una unidad (borrado lógico)
    * @param {TelegrafContext} ctx - Contexto de Telegraf

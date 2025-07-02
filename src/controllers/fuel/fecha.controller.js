@@ -19,11 +19,11 @@ export class FechaController {
   async checkRecordDate(ctx, savedFuel) {
     try {
       logger.info(`Verificando fecha de registro para carga ${savedFuel.id}`);
-      
+
       // Guardar el ID de la carga guardada en la sesión para referencia posterior
       ctx.session.data.savedFuelId = savedFuel.id;
       await updateConversationState(ctx, 'fuel_date_confirm');
-      
+
       // Preguntar si la carga se realizó hoy
       await ctx.reply('¿La recarga se realizó hoy?',
         Markup.inlineKeyboard([
@@ -34,13 +34,13 @@ export class FechaController {
     } catch (error) {
       logger.error(`Error al verificar fecha: ${error.message}`);
       await ctx.reply('Ocurrió un error al verificar la fecha, pero la carga ha sido guardada correctamente.');
-      
+
       // Continuar con el proceso normal como fallback
       const registroController = await import('./registro.controller.js').then(m => new m.RegistroController());
       await registroController.completeFuelRegistration(ctx);
     }
   }
-  
+
   /**
    * Muestra opciones para seleccionar una fecha reciente
    * @param {TelegrafContext} ctx - Contexto de Telegraf
@@ -49,25 +49,25 @@ export class FechaController {
     try {
       await ctx.answerCbQuery('Selecciona la fecha real de la carga');
       await updateConversationState(ctx, 'fuel_date_select');
-      
+
       const buttons = [];
-      
+
       // Ayer
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       buttons.push([Markup.button.callback(
         `Ayer (${this.formatDate(yesterday)})`,
-        `fuel_date_day_1`
+        'fuel_date_day_1'
       )]);
-      
+
       // Antier
       const twoDaysAgo = new Date();
       twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
       buttons.push([Markup.button.callback(
         `Antier (${this.formatDate(twoDaysAgo)})`,
-        `fuel_date_day_2`
+        'fuel_date_day_2'
       )]);
-      
+
       // Días 3 al 7
       for (let i = 3; i <= 7; i++) {
         const pastDate = new Date();
@@ -77,23 +77,23 @@ export class FechaController {
           `fuel_date_day_${i}`
         )]);
       }
-      
+
       // Opción personalizada y cancelar
       buttons.push([Markup.button.callback('📅 Elegir otra fecha', 'fuel_date_custom')]);
       buttons.push([Markup.button.callback('Cancelar (usar fecha actual)', 'fuel_date_cancel')]);
-      
+
       await ctx.reply('Selecciona la fecha real de la carga:',
         Markup.inlineKeyboard(buttons)
       );
     } catch (error) {
       logger.error(`Error al mostrar opciones de fecha: ${error.message}`);
       await ctx.reply('Ocurrió un error al mostrar las opciones de fecha.');
-      
+
       // Volver al menú de confirmación como fallback
       await this.checkRecordDate(ctx, { id: ctx.session.data.fuelId, recordDate: new Date() });
     }
   }
-  
+
   /**
    * Ajusta la fecha de registro según los días seleccionados
    * @param {TelegrafContext} ctx - Contexto de Telegraf
@@ -104,29 +104,29 @@ export class FechaController {
       if (!ctx.session.data.savedFuelId) {
         throw new Error('No se encontró referencia a la carga guardada');
       }
-      
+
       const newDate = new Date();
       newDate.setDate(newDate.getDate() - daysAgo);
       newDate.setHours(12, 0, 0, 0); // Mediodía para evitar problemas de zona horaria
-      
+
       // Verificar que el contexto tiene un tenant
       if (!ctx.tenant) {
         throw new Error('No se encontró tenant en el contexto');
       }
-      
+
       // Obtener tenantId del contexto
       const tenantId = ctx.tenant.id;
       logger.info(`Actualizando fecha para carga ${ctx.session.data.savedFuelId} y tenant: ${tenantId}`);
-      
+
       const updatedFuel = await fuelService.updateRecordDate(
         ctx.session.data.savedFuelId,
         newDate,
         tenantId
       );
-      
+
       await ctx.answerCbQuery('Fecha actualizada correctamente');
       await ctx.reply(`✅ Fecha de carga actualizada a: ${this.formatDate(newDate)}`);
-      
+
       // Completar el registro
       const registroController = await import('./registro.controller.js').then(m => new m.RegistroController());
       await registroController.completeFuelRegistration(ctx);
@@ -134,13 +134,13 @@ export class FechaController {
       logger.error(`Error al actualizar fecha de registro: ${error.message}`);
       await ctx.answerCbQuery('Error al actualizar fecha');
       await ctx.reply('Ocurrió un error al actualizar la fecha. La carga se registró con la fecha actual.');
-      
+
       // Completar el registro a pesar del error
       const registroController = await import('./registro.controller.js').then(m => new m.RegistroController());
       await registroController.completeFuelRegistration(ctx);
     }
   }
-  
+
   /**
    * Solicita al usuario ingresar una fecha manual
    * @param {TelegrafContext} ctx - Contexto de Telegraf
@@ -157,13 +157,13 @@ export class FechaController {
     } catch (error) {
       logger.error(`Error al solicitar fecha personalizada: ${error.message}`);
       await ctx.reply('Ocurrió un error al procesar la solicitud.');
-      
+
       // Completar el registro a pesar del error
       const registroController = await import('./registro.controller.js').then(m => new m.RegistroController());
       await registroController.completeFuelRegistration(ctx);
     }
   }
-  
+
   /**
    * Procesa la entrada de fecha manual del usuario
    * @param {TelegrafContext} ctx - Contexto de Telegraf
@@ -173,70 +173,70 @@ export class FechaController {
       const dateText = ctx.message.text.trim();
       const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
       const match = dateText.match(dateRegex);
-      
+
       if (!match) {
         return await ctx.reply(
           '❌ Formato de fecha incorrecto.\n' +
           'Por favor, usa el formato DD/MM/AAAA (ejemplo: 25/04/2025):'
         );
       }
-      
+
       const [, day, month, year] = match;
       const inputDate = new Date(year, month - 1, day, 12, 0, 0, 0);
-      
+
       if (isNaN(inputDate.getTime())) {
         return await ctx.reply('❌ Fecha inválida. Por favor, ingresa una fecha real:');
       }
-      
+
       const today = new Date();
       if (inputDate > today) {
         return await ctx.reply('❌ La fecha no puede ser posterior a hoy. Por favor, ingresa otra fecha:');
       }
-      
+
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       if (inputDate < thirtyDaysAgo) {
         return await ctx.reply('❌ La fecha no puede ser anterior a 30 días. Por favor, ingresa otra fecha:');
       }
-      
+
       // Actualizar fecha en la base de datos
       const fuelId = ctx.session.data.savedFuelId;
-      
+
       if (!fuelId) {
         throw new Error('No se encontró ID de la carga en la sesión');
       }
-      
+
       // Verificar que el contexto tiene un tenant
       if (!ctx.tenant) {
         throw new Error('No se encontró tenant en el contexto');
       }
-      
+
       // Obtener tenantId del contexto
       const tenantId = ctx.tenant.id;
       logger.info(`Actualizando fecha para carga ${fuelId} y tenant: ${tenantId}`);
-      
+
       // Actualizar en la base de datos
       const updatedFuel = await fuelService.updateRecordDate(fuelId, inputDate, tenantId);
-      
+
       // Confirmar actualización
       await ctx.reply(`✅ Fecha actualizada a: ${this.formatDate(updatedFuel.recordDate)}`);
-      
+
       // Guardar fecha actualizada en sesión para el resumen
       ctx.session.data.customDate = updatedFuel.recordDate;
-      
+
       // Completar el registro
       const registroController = await import('./registro.controller.js').then(m => new m.RegistroController());
       await registroController.completeFuelRegistration(ctx);
     } catch (error) {
       logger.error(`Error al procesar fecha manual: ${error.message}`);
       await ctx.reply('Ocurrió un error al procesar la fecha, pero la carga ha sido guardada correctamente.');
-      
+
       // Completar el registro a pesar del error
       const registroController = await import('./registro.controller.js').then(m => new m.RegistroController());
       await registroController.completeFuelRegistration(ctx);
     }
   }
-  
+
   /**
    * Formatea una fecha para mostrar
    * @param {Date} date - Fecha a formatear

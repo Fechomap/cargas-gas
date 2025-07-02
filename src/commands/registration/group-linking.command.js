@@ -22,11 +22,11 @@ export async function linkGroupWithToken(ctx) {
     if (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup') {
       return ctx.reply('⚠️ Este comando solo puede ser utilizado en un grupo.');
     }
-    
+
     // Obtener token del comando
     const text = ctx.message.text.trim();
     const parts = text.split(' ');
-    
+
     if (parts.length !== 2) {
       return ctx.reply(
         '⚠️ Formato incorrecto. Uso:\n' +
@@ -34,16 +34,16 @@ export async function linkGroupWithToken(ctx) {
         { reply_to_message_id: ctx.message.message_id }
       );
     }
-    
+
     const token = parts[1];
-    
+
     // Verificar token y vincular grupo
     const result = await registrationService.linkGroupWithToken({
       token,
       chatId: String(ctx.chat.id),
       chatTitle: ctx.chat.title
     });
-    
+
     if (result.success) {
       // Enviar mensaje de éxito
       await ctx.reply(
@@ -53,7 +53,7 @@ export async function linkGroupWithToken(ctx) {
         'Usa el comando /start para comenzar.',
         { parse_mode: 'Markdown' }
       );
-      
+
       // Enviar mensaje con botones principales
       setTimeout(async () => {
         try {
@@ -70,15 +70,15 @@ export async function linkGroupWithToken(ctx) {
           logger.error(`Error al enviar menú principal: ${error.message}`);
         }
       }, 1000);
-      
+
       logger.info(`Grupo ${ctx.chat.id} vinculado exitosamente como ${result.tenant.companyName}`);
     } else {
       // Enviar mensaje de error
       await ctx.reply(
         `❌ *Error al vincular grupo*\n\n${result.error}`,
-        { 
+        {
           parse_mode: 'Markdown',
-          reply_to_message_id: ctx.message.message_id 
+          reply_to_message_id: ctx.message.message_id
         }
       );
     }

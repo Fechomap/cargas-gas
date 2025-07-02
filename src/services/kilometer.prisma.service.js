@@ -17,7 +17,7 @@ export class KilometerService {
   static async getLastKilometer(tenantId, unitId) {
     try {
       logger.info(`Buscando último kilómetro para unidad ${unitId} del tenant ${tenantId}`);
-      
+
       // Buscar en KilometerLog (registros de turno)
       const lastTurnLog = await prisma.kilometerLog.findFirst({
         where: {
@@ -30,7 +30,7 @@ export class KilometerService {
           { logTime: 'desc' }
         ]
       });
-      
+
       // Buscar en Fuel (registros de carga con kilómetros)
       const lastFuelWithKm = await prisma.fuel.findFirst({
         where: {
@@ -50,15 +50,15 @@ export class KilometerService {
           id: true
         }
       });
-      
+
       // Determinar cuál es más reciente
       let lastKilometer = null;
-      
+
       if (lastTurnLog && lastFuelWithKm) {
         // Comparar fechas para determinar el más reciente
         const turnLogDate = new Date(lastTurnLog.logDate);
         const fuelDate = new Date(lastFuelWithKm.recordDate);
-        
+
         if (turnLogDate >= fuelDate) {
           lastKilometer = {
             kilometers: lastTurnLog.kilometers,
@@ -91,10 +91,10 @@ export class KilometerService {
           sourceId: lastFuelWithKm.id
         };
       }
-      
+
       logger.info(`Último kilómetro encontrado: ${lastKilometer ? lastKilometer.kilometers : 'ninguno'}`);
       return lastKilometer;
-      
+
     } catch (error) {
       logger.error(`Error al obtener último kilómetro: ${error.message}`);
       throw error;
@@ -111,10 +111,10 @@ export class KilometerService {
   static async validateKilometer(tenantId, unitId, newKilometer) {
     try {
       logger.info(`Validando kilómetro ${newKilometer} para unidad ${unitId}`);
-      
+
       // Convertir a número y validar formato
       const newKm = parseFloat(newKilometer);
-      
+
       if (isNaN(newKm) || newKm < 0) {
         return {
           isValid: false,
@@ -122,7 +122,7 @@ export class KilometerService {
           message: 'El kilómetro debe ser un número positivo'
         };
       }
-      
+
       // Validar máximo 2 decimales
       const decimalPlaces = (newKm.toString().split('.')[1] || '').length;
       if (decimalPlaces > 2) {
@@ -132,10 +132,10 @@ export class KilometerService {
           message: 'El kilómetro no puede tener más de 2 decimales'
         };
       }
-      
+
       // Obtener último kilómetro registrado
       const lastKilometer = await this.getLastKilometer(tenantId, unitId);
-      
+
       // Si es el primer registro, es válido
       if (!lastKilometer) {
         logger.info('Primer registro de kilómetros para esta unidad - válido');
@@ -145,9 +145,9 @@ export class KilometerService {
           newKilometer: newKm
         };
       }
-      
+
       const lastKm = parseFloat(lastKilometer.kilometers);
-      
+
       // Validar que el nuevo kilómetro sea >= al último
       if (newKm < lastKm) {
         return {
@@ -157,11 +157,11 @@ export class KilometerService {
           lastKilometer: lastKilometer
         };
       }
-      
+
       // Validación de incremento razonable (opcional - configurable)
       const increment = newKm - lastKm;
       const MAX_REASONABLE_INCREMENT = 1000; // 1000 km por registro
-      
+
       if (increment > MAX_REASONABLE_INCREMENT) {
         logger.warn(`Incremento de kilómetros muy alto: ${increment} km`);
         return {
@@ -173,7 +173,7 @@ export class KilometerService {
           increment: increment
         };
       }
-      
+
       logger.info(`Kilómetro válido: ${newKm} (incremento: +${increment})`);
       return {
         isValid: true,
@@ -181,7 +181,7 @@ export class KilometerService {
         newKilometer: newKm,
         increment: increment
       };
-      
+
     } catch (error) {
       logger.error(`Error al validar kilómetro: ${error.message}`);
       throw error;
@@ -196,9 +196,9 @@ export class KilometerService {
   static async createTurnLog(data) {
     try {
       const { tenantId, unitId, kilometers, logType, logDate, userId } = data;
-      
+
       logger.info(`Creando log de turno ${logType} para unidad ${unitId}`);
-      
+
       // Validar que no existe un log del mismo tipo para la misma fecha
       const existingLog = await prisma.kilometerLog.findUnique({
         where: {
@@ -210,11 +210,11 @@ export class KilometerService {
           }
         }
       });
-      
+
       if (existingLog && !existingLog.isOmitted) {
         throw new Error(`Ya existe un registro de ${logType} para esta unidad en la fecha ${logDate}`);
       }
-      
+
       // Si existe pero está omitido, lo reactivamos
       if (existingLog && existingLog.isOmitted) {
         logger.info('Reactivando log de turno previamente omitido');
@@ -228,7 +228,7 @@ export class KilometerService {
           }
         });
       }
-      
+
       // Crear nuevo registro
       const turnLog = await prisma.kilometerLog.create({
         data: {
@@ -241,10 +241,10 @@ export class KilometerService {
           isOmitted: false
         }
       });
-      
+
       logger.info(`Log de turno creado exitosamente: ${turnLog.id}`);
       return turnLog;
-      
+
     } catch (error) {
       logger.error(`Error al crear log de turno: ${error.message}`);
       throw error;
@@ -262,17 +262,17 @@ export class KilometerService {
     try {
       const queryDate = new Date(date);
       logger.info(`Obteniendo logs de turno para fecha ${queryDate.toISOString().split('T')[0]}`);
-      
+
       const where = {
         tenantId,
         logDate: queryDate,
         isOmitted: false
       };
-      
+
       if (logType) {
         where.logType = logType;
       }
-      
+
       const logs = await prisma.kilometerLog.findMany({
         where,
         include: {
@@ -282,10 +282,10 @@ export class KilometerService {
           { logTime: 'asc' }
         ]
       });
-      
+
       logger.info(`Encontrados ${logs.length} logs de turno`);
       return logs;
-      
+
     } catch (error) {
       logger.error(`Error al obtener logs de turno: ${error.message}`);
       throw error;
@@ -303,7 +303,7 @@ export class KilometerService {
     try {
       const queryDate = new Date(date);
       logger.info(`Buscando unidades sin ${logType} para fecha ${queryDate.toISOString().split('T')[0]}`);
-      
+
       // Obtener todas las unidades activas del tenant
       const allUnits = await prisma.unit.findMany({
         where: {
@@ -311,7 +311,7 @@ export class KilometerService {
           isActive: true
         }
       });
-      
+
       // Obtener unidades que SÍ tienen registro para esta fecha y tipo
       const unitsWithLog = await prisma.kilometerLog.findMany({
         where: {
@@ -324,15 +324,15 @@ export class KilometerService {
           unitId: true
         }
       });
-      
+
       const unitIdsWithLog = new Set(unitsWithLog.map(log => log.unitId));
-      
+
       // Filtrar unidades que NO tienen registro
       const unitsWithoutLog = allUnits.filter(unit => !unitIdsWithLog.has(unit.id));
-      
+
       logger.info(`Encontradas ${unitsWithoutLog.length} unidades sin ${logType}`);
       return unitsWithoutLog;
-      
+
     } catch (error) {
       logger.error(`Error al obtener unidades sin log: ${error.message}`);
       throw error;
@@ -348,7 +348,7 @@ export class KilometerService {
   static async omitTurnLog(logId, tenantId) {
     try {
       logger.info(`Omitiendo log de turno ${logId}`);
-      
+
       const updatedLog = await prisma.kilometerLog.update({
         where: {
           id: logId,
@@ -358,10 +358,10 @@ export class KilometerService {
           isOmitted: true
         }
       });
-      
-      logger.info(`Log de turno omitido exitosamente`);
+
+      logger.info('Log de turno omitido exitosamente');
       return updatedLog;
-      
+
     } catch (error) {
       logger.error(`Error al omitir log de turno: ${error.message}`);
       throw error;
@@ -378,7 +378,7 @@ export class KilometerService {
   static async getKilometerStats(tenantId, unitId = null, dateRange) {
     try {
       logger.info(`Obteniendo estadísticas de kilómetros para tenant ${tenantId}`);
-      
+
       const where = {
         tenantId,
         isOmitted: false,
@@ -387,11 +387,11 @@ export class KilometerService {
           lte: new Date(dateRange.endDate)
         }
       };
-      
+
       if (unitId) {
         where.unitId = unitId;
       }
-      
+
       const logs = await prisma.kilometerLog.findMany({
         where,
         include: {
@@ -403,10 +403,10 @@ export class KilometerService {
           { logType: 'asc' }
         ]
       });
-      
+
       // Procesar estadísticas por unidad
       const statsByUnit = {};
-      
+
       logs.forEach(log => {
         const unitKey = log.unitId;
         if (!statsByUnit[unitKey]) {
@@ -422,16 +422,16 @@ export class KilometerService {
             totalDistance: 0
           };
         }
-        
+
         const stats = statsByUnit[unitKey];
         stats.totalLogs++;
-        
+
         if (log.logType === 'INICIO_TURNO') {
           stats.inicioTurnoLogs++;
         } else {
           stats.finTurnoLogs++;
         }
-        
+
         const km = parseFloat(log.kilometers);
         if (!stats.firstKilometer || km < stats.firstKilometer) {
           stats.firstKilometer = km;
@@ -440,23 +440,23 @@ export class KilometerService {
           stats.lastKilometer = km;
         }
       });
-      
+
       // Calcular distancia total para cada unidad
       Object.values(statsByUnit).forEach(stats => {
         if (stats.firstKilometer && stats.lastKilometer) {
           stats.totalDistance = stats.lastKilometer - stats.firstKilometer;
         }
       });
-      
+
       logger.info(`Estadísticas generadas para ${Object.keys(statsByUnit).length} unidades`);
-      
+
       return {
         totalUnits: Object.keys(statsByUnit).length,
         totalLogs: logs.length,
         dateRange,
         unitStats: Object.values(statsByUnit)
       };
-      
+
     } catch (error) {
       logger.error(`Error al obtener estadísticas de kilómetros: ${error.message}`);
       throw error;

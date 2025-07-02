@@ -14,14 +14,14 @@ export async function updateConversationState(ctx, newState, data = null) {
       logger.info(`Creando nueva sesión para usuario ${ctx.from?.id || 'desconocido'}`);
       ctx.session = {};
     }
-    
+
     // Guardar estado anterior para logging
     const previousState = ctx.session.state || 'undefined';
-    
+
     // Actualizar estado
     ctx.session.state = newState;
     logger.info(`Cambio de estado: ${previousState} -> ${newState} (Usuario: ${ctx.from?.id || 'desconocido'})`);
-    
+
     // Si se proporcionan datos, actualizar o mantener los existentes
     if (data !== null) {
       ctx.session.data = data;
@@ -48,11 +48,11 @@ export function isInState(ctx, states) {
   if (!ctx.session || !ctx.session.state) {
     return false;
   }
-  
+
   if (Array.isArray(states)) {
     return states.includes(ctx.session.state);
   }
-  
+
   return ctx.session.state === states;
 }
 
@@ -75,7 +75,7 @@ export function debugState(ctx) {
     logger.info('No hay sesión para este contexto');
     return;
   }
-  
+
   logger.info(`Estado actual: ${ctx.session.state}`);
   if (ctx.session.data) {
     logger.info(`Datos en sesión: ${JSON.stringify(ctx.session.data, null, 2)}`);

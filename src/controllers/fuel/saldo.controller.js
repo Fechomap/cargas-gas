@@ -18,7 +18,7 @@ export class SaldoController {
     try {
       // Si hay contexto, verificar que tiene un tenant
       let tenantId = null;
-      
+
       if (ctx && ctx.tenant) {
         tenantId = ctx.tenant.id;
         logger.info(`Consultando saldo pendiente para tenantId: ${tenantId}`);
@@ -26,16 +26,16 @@ export class SaldoController {
         logger.warn('No se encontró tenant en el contexto para consultar saldo');
         return 0;
       }
-      
+
       // Iniciar cálculo de saldo
       logger.info('Iniciando cálculo de saldo pendiente');
-      
+
       // Utilizar PostgreSQL para calcular saldo
       const total = await fuelService.getTotalPendingBalance(tenantId);
-      
+
       // Registrar el resultado
       logger.info(`Total calculado desde PostgreSQL: ${total}`);
-      
+
       return total;
     } catch (error) {
       logger.error(`Error al obtener saldo pendiente: ${error.message}`);
@@ -43,7 +43,7 @@ export class SaldoController {
       return 0;
     }
   }
-  
+
   /**
    * Formatea una fecha a un string legible
    * @param {Date} date - Fecha a formatear
@@ -51,15 +51,15 @@ export class SaldoController {
    */
   formatDate(date) {
     if (!date) return 'Fecha no disponible';
-    
-    const options = { 
-      year: 'numeric', 
-      month: 'long', 
+
+    const options = {
+      year: 'numeric',
+      month: 'long',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     };
-    
+
     return new Date(date).toLocaleDateString('es-MX', options);
   }
 }

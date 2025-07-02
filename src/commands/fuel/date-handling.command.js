@@ -15,7 +15,7 @@ export function setupDateHandlingCommands(bot) {
         logger.info(`Usuario ${ctx.from.id} confirmó que la carga es de hoy`);
         await ctx.answerCbQuery('Fecha actual confirmada');
         await ctx.reply('✅ Se usará la fecha actual para la carga.');
-        
+
         // Completar el registro con la fecha actual
         await fuelController.completeFuelRegistration(ctx);
       }
@@ -61,7 +61,7 @@ export function setupDateHandlingCommands(bot) {
         logger.info(`Usuario ${ctx.from.id} canceló cambio de fecha`);
         await ctx.answerCbQuery('Se mantendrá la fecha actual');
         await ctx.reply('✅ Se mantendrá la fecha actual para la carga.');
-        
+
         await fuelController.completeFuelRegistration(ctx);
       }
     } catch (error) {
@@ -77,7 +77,7 @@ export function setupDateHandlingCommands(bot) {
       await fuelController.handleCustomDateInput(ctx);
       return;
     }
-    
+
     // Continuar con el siguiente middleware si no estamos en estado de entrada de fecha
     return next();
   });

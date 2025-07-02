@@ -9,7 +9,7 @@ export function setupLoggingMiddleware(bot) {
   bot.use(async (ctx, next) => {
     const start = Date.now();
     const updateId = ctx.update?.update_id || 'desconocido';
-    
+
     // Registro de inicio de solicitud
     logger.debug(`Solicitud iniciada [${updateId}] - Tipo: ${ctx.updateType || 'desconocido'}`, {
       updateType: ctx.updateType,
@@ -17,14 +17,14 @@ export function setupLoggingMiddleware(bot) {
       chatId: ctx.chat?.id,
       tenantId: ctx.tenant?.id
     });
-    
+
     try {
       // Continuar con el siguiente middleware y esperar su finalización
       await next();
-      
+
       // Calcular tiempo de respuesta
       const ms = Date.now() - start;
-      
+
       // Registro de finalización exitosa
       logger.debug(`Solicitud completada [${updateId}] en ${ms}ms`, {
         updateType: ctx.updateType,
@@ -34,7 +34,7 @@ export function setupLoggingMiddleware(bot) {
     } catch (error) {
       // Calcular tiempo hasta el error
       const ms = Date.now() - start;
-      
+
       // Registro de error (pero NO llamamos a next() aquí)
       logger.error(`Solicitud fallida [${updateId}] después de ${ms}ms: ${error.message}`, {
         updateType: ctx.updateType,
@@ -42,7 +42,7 @@ export function setupLoggingMiddleware(bot) {
         error: error.stack,
         success: false
       });
-      
+
       // Re-lanzar el error para que lo maneje el middleware de errores
       throw error;
     }
@@ -76,7 +76,7 @@ export function setupDetailedLoggingMiddleware(bot) {
         messageId: ctx.message?.message_id
       });
     }
-    
+
     // Continuar con el siguiente middleware
     return next();
   });

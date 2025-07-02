@@ -9,12 +9,12 @@ import path from 'path';
  * @param {Object} options - Opciones de configuración
  */
 export function setupDiagnosticMiddleware(bot, options = {}) {
-  const { 
+  const {
     verbose = false,
     logToFile = true,
     logDir = 'diagnostics'
   } = options;
-  
+
   // Middleware para registrar y diagnosticar todas las actualizaciones
   bot.use(async (ctx, next) => {
     try {
@@ -22,7 +22,7 @@ export function setupDiagnosticMiddleware(bot, options = {}) {
       const updateType = ctx.updateType || 'desconocido';
       const userId = ctx.from ? ctx.from.id : 'desconocido';
       const updateId = ctx.update?.update_id;
-      
+
       // Crear objeto de diagnóstico
       const diagnostic = {
         timestamp: new Date().toISOString(),
@@ -37,48 +37,48 @@ export function setupDiagnosticMiddleware(bot, options = {}) {
           isActive: ctx.tenant.isActive
         } : null
       };
-      
+
       // Añadir detalles específicos según el tipo de actualización
       if (updateType === 'callback_query') {
         diagnostic.callbackData = ctx.callbackQuery.data;
         diagnostic.messageId = ctx.callbackQuery.message?.message_id;
-        
+
         if (verbose) {
           logger.info(`CALLBACK: Usuario ${userId} - Datos: ${ctx.callbackQuery.data}`, diagnostic);
         }
       } else if (updateType === 'message') {
         diagnostic.messageText = ctx.message.text || 'sin texto';
         diagnostic.messageId = ctx.message.message_id;
-        
+
         if (verbose) {
           logger.info(`MENSAJE: Usuario ${userId} - Contenido: ${diagnostic.messageText}`, diagnostic);
         }
       }
-      
+
       // Guardar diagnóstico en archivo si está habilitado
       if (logToFile) {
         await saveDiagnosticToFile(diagnostic, logDir);
       }
-      
+
       // Almacenar diagnóstico en el contexto para referencia
       ctx.diagnostic = diagnostic;
-      
+
       // Medir tiempo de ejecución
       const startTime = Date.now();
-      
+
       // Continuar con el siguiente middleware
       await next();
-      
+
       // Calcular tiempo de procesamiento
       const processingTime = Date.now() - startTime;
-      
+
       // Actualizar diagnóstico con tiempo de procesamiento
       ctx.diagnostic.processingTime = processingTime;
-      
+
       if (verbose) {
         logger.debug(`Actualización ${updateId} procesada en ${processingTime}ms`);
       }
-      
+
     } catch (error) {
       logger.error(`Error en middleware de diagnóstico: ${error.message}`, {
         error: error.stack,
@@ -86,7 +86,7 @@ export function setupDiagnosticMiddleware(bot, options = {}) {
         userId: ctx.from?.id,
         chatId: ctx.chat?.id
       });
-      
+
       // Continuar para que otros middlewares puedan manejar el error
       await next();
     }
@@ -102,15 +102,15 @@ async function saveDiagnosticToFile(diagnostic, logDir) {
   try {
     // Crear directorio si no existe
     await fs.mkdir(path.resolve(logDir), { recursive: true });
-    
+
     // Generar nombre de archivo con timestamp
     const timestamp = new Date().toISOString().replace(/:/g, '-');
     const filename = `bot-diagnostic-${timestamp}.json`;
     const filePath = path.resolve(logDir, filename);
-    
+
     // Guardar diagnóstico en archivo
     await fs.writeFile(filePath, JSON.stringify(diagnostic, null, 2), 'utf8');
-    
+
     logger.debug(`Diagnóstico guardado: ${filename}`);
   } catch (error) {
     logger.error(`Error al guardar diagnóstico: ${error.message}`, {

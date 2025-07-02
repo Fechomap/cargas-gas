@@ -12,10 +12,10 @@ export class AccionesController {
   async clearFilters(ctx) {
     try {
       logger.info('Limpiando filtros');
-      
+
       ctx.session.data.filters = {};
       await ctx.answerCbQuery('✅ Filtros eliminados');
-      
+
       // Actualizar el mensaje principal
       const filtrosController = await import('./filtros.controller.js').then(m => new m.FiltrosController());
       await filtrosController.showFilterOptions(ctx, true);
@@ -35,15 +35,15 @@ export class AccionesController {
         logger.error('No se encontró tenant en el contexto');
         return ctx.reply('Error: No se pudo identificar el grupo. Por favor, contacte al administrador.');
       }
-      
+
       const tenantId = ctx.tenant.id;
       const filters = { tenantId };
-      
+
       await ctx.reply('⏳ Procesando pagos...');
-      
+
       // Marcar todas las cargas no pagadas como pagadas
       const result = await reportPrismaService.markAllAsPaid(filters, tenantId);
-      
+
       return ctx.reply(`✅ Operación completada: ${result.message}`);
     } catch (error) {
       logger.error(`Error al marcar como pagadas: ${error.message}`);

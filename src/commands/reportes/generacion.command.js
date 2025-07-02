@@ -12,7 +12,7 @@ export function configurarComandosGeneracion(bot) {
   bot.command('reporte', async (ctx) => {
     try {
       logger.info(`Comando /reporte ejecutado por usuario ${ctx.from.id}`);
-      
+
       // Si hay un mensaje previo de reporte, intentar eliminarlo
       const previousMessageId = ctx.session?.data?.mainMessageId;
       if (previousMessageId) {
@@ -23,7 +23,7 @@ export function configurarComandosGeneracion(bot) {
           logger.warn('No se pudo eliminar mensaje anterior');
         }
       }
-      
+
       // Eliminar el mensaje del comando si es posible
       try {
         await ctx.deleteMessage();
@@ -31,7 +31,7 @@ export function configurarComandosGeneracion(bot) {
         // Es normal que falle en algunos casos
         logger.debug('No se pudo eliminar mensaje del comando');
       }
-      
+
       await reportController.startReportGeneration(ctx);
     } catch (error) {
       logger.error(`Error en comando /reporte: ${error.message}`);
@@ -44,13 +44,13 @@ export function configurarComandosGeneracion(bot) {
     logger.info('Callback generate_unified_report recibido');
     if (isInState(ctx, 'report_unified')) {
       const filterCount = Object.keys(ctx.session?.data?.filters || {}).length;
-      
+
       if (filterCount === 0) {
         await ctx.answerCbQuery('Generando reporte global...', { show_alert: true });
       } else {
         await ctx.answerCbQuery(`Generando reporte con ${filterCount} filtro(s) aplicado(s)...`, { show_alert: true });
       }
-      
+
       await reportController.generateReport(ctx);
     } else {
       logger.warn(`Estado incorrecto para generate_unified_report: ${ctx.session?.state}`);
@@ -61,10 +61,10 @@ export function configurarComandosGeneracion(bot) {
   // Cancelar todo el proceso de reporte con mensaje limpio
   bot.action('cancel_report', async (ctx) => {
     logger.info('Callback cancel_report recibido');
-    
+
     try {
       await ctx.answerCbQuery('Reporte cancelado');
-      
+
       // Intentar editar el mensaje para mostrar cancelación
       try {
         await ctx.editMessageText(
@@ -89,7 +89,7 @@ export function configurarComandosGeneracion(bot) {
           }
         });
       }
-      
+
       // Limpiar estado y referencias de mensajes
       if (ctx.session) {
         ctx.session.state = 'idle';

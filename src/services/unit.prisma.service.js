@@ -64,15 +64,15 @@ export class UnitService {
    */
   static async findOrCreateUnit(unitData, tenantId) {
     const buttonId = this.generateButtonId(unitData.operatorName, unitData.unitNumber);
-    
+
     // Buscar unidad existente
     const existingUnit = await this.findUnitByButtonId(buttonId, tenantId);
-    
+
     // Si existe, retornarla
     if (existingUnit) {
       return existingUnit;
     }
-    
+
     // Si no existe, crearla
     return this.createUnit(unitData, tenantId);
   }
@@ -106,7 +106,7 @@ export class UnitService {
       data: updateData
     });
   }
-  
+
   /**
    * Desactiva una unidad (borrado lógico)
    * @param {String} unitId - ID de la unidad
@@ -116,7 +116,7 @@ export class UnitService {
   static async deactivateUnit(unitId, tenantId) {
     if (tenantId) {
       return prisma.unit.update({
-        where: { 
+        where: {
           id: unitId,
           tenantId // Importante: verificar que la unidad pertenezca al tenant
         },

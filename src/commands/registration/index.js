@@ -11,16 +11,16 @@ import { logger } from '../../utils/logger.js';
 export function setupCompanyRegisterCommands(bot) {
   try {
     logger.info('Configurando comandos de registro de empresas...');
-    
+
     // Configurar comando para iniciar registro (chat privado)
     setupStartRegistrationCommand(bot);
-    
+
     // Configurar comandos administrativos (listar, aprobar, rechazar)
     setupAdminCommands(bot);
-    
+
     // Configurar comando para vincular grupos
     setupGroupLinkingCommand(bot);
-    
+
     logger.info('Comandos de registro configurados exitosamente');
   } catch (error) {
     logger.error(`Error al configurar comandos de registro: ${error.message}`);

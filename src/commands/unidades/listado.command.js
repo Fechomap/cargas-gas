@@ -13,13 +13,13 @@ export function configurarComandosListado(bot) {
     try {
       await ctx.answerCbQuery('Cargando unidades');
       logger.info(`Usuario ${ctx.from.id} solicitó ver unidades`);
-      
+
       // Llamar al controlador para mostrar unidades
       await unitController.showRegisteredUnits(ctx);
     } catch (error) {
       logger.error(`Error al mostrar unidades: ${error.message}`);
       await ctx.reply('Ocurrió un error al cargar las unidades.');
-      
+
       // Mostrar menú principal como fallback
       await ctx.reply('¿Qué deseas hacer ahora?', {
         reply_markup: Markup.inlineKeyboard([
@@ -28,31 +28,31 @@ export function configurarComandosListado(bot) {
       });
     }
   });
-  
+
   // Manejar selección de una unidad específica
   bot.action(/^view_unit_(.+)$/, async (ctx) => {
     try {
       const unitId = ctx.match[1];
       logger.info(`Usuario ${ctx.from.id} seleccionó unidad ${unitId}`);
-      
+
       await ctx.answerCbQuery('Cargando información de unidad');
       await unitController.showUnitDetails(ctx, unitId);
     } catch (error) {
       logger.error(`Error al mostrar detalles de unidad: ${error.message}`);
       await ctx.answerCbQuery('Error al cargar detalles');
       await ctx.reply('Ocurrió un error al mostrar los detalles de la unidad.');
-      
+
       // Volver a la lista de unidades como fallback
       await unitController.showRegisteredUnits(ctx);
     }
   });
-  
+
   // Manejar acción de editar unidad
   bot.action(/^edit_unit_(.+)$/, async (ctx) => {
     try {
       const unitId = ctx.match[1];
       logger.info(`Usuario ${ctx.from.id} solicitó editar unidad ${unitId}`);
-      
+
       await ctx.answerCbQuery('Iniciando edición de unidad');
       await unitController.startUnitEdit(ctx, unitId);
     } catch (error) {
@@ -61,15 +61,15 @@ export function configurarComandosListado(bot) {
       await ctx.reply('Ocurrió un error al iniciar la edición de la unidad.');
     }
   });
-  
+
   // Manejar acción de eliminar unidad
   bot.action(/^delete_unit_(.+)$/, async (ctx) => {
     try {
       const unitId = ctx.match[1];
       logger.info(`Usuario ${ctx.from.id} solicitó eliminar unidad ${unitId}`);
-      
+
       await ctx.answerCbQuery('Solicitando confirmación de eliminación');
-      
+
       // Solicitar confirmación para eliminar
       await ctx.reply(
         '⚠️ *¿Estás seguro de eliminar esta unidad?*\n\n' +
@@ -90,24 +90,24 @@ export function configurarComandosListado(bot) {
       await ctx.reply('Ocurrió un error al procesar la solicitud.');
     }
   });
-  
+
   // Manejar confirmación de eliminación de unidad
   bot.action(/^confirm_delete_unit_(.+)$/, async (ctx) => {
     try {
       const unitId = ctx.match[1];
       logger.info(`Usuario ${ctx.from.id} confirmó eliminar unidad ${unitId}`);
-      
+
       await ctx.answerCbQuery('Procesando eliminación');
-      
+
       // Ejecutar la eliminación
       const result = await unitController.deleteUnit(ctx, unitId);
-      
+
       if (result.success) {
         await ctx.reply('✅ Unidad eliminada correctamente.');
       } else {
         await ctx.reply(`❌ No se pudo eliminar la unidad: ${result.error}`);
       }
-      
+
       // Mostrar unidades actualizadas
       await unitController.showRegisteredUnits(ctx);
     } catch (error) {
@@ -116,7 +116,7 @@ export function configurarComandosListado(bot) {
       await ctx.reply('Ocurrió un error al eliminar la unidad.');
     }
   });
-  
+
   // Volver a la lista de unidades
   bot.action('back_to_units', async (ctx) => {
     try {

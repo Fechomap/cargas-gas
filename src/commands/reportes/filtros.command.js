@@ -89,7 +89,7 @@ export function configurarComandosFiltros(bot) {
   bot.action(/^filter_value_(.+)$/, async (ctx) => {
     const filterValue = ctx.match[1];
     logger.info(`Selección de valor de filtro: ${filterValue}`);
-    
+
     if (isInState(ctx, 'report_filter_input')) {
       await ctx.answerCbQuery('Aplicando filtro...');
       await reportController.processFilterValue(ctx, filterValue);

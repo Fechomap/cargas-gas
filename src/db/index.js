@@ -27,10 +27,10 @@ export async function initializeDatabase() {
   try {
     await prisma.$connect();
     logger.info('✅ Conexión a PostgreSQL establecida correctamente');
-    
+
     // Registrar handlers para cerrar la conexión al finalizar
     setupDisconnectHandlers();
-    
+
     return prisma;
   } catch (error) {
     logger.error('❌ Error al conectar a PostgreSQL:', error);
@@ -58,7 +58,7 @@ function setupDisconnectHandlers() {
 // Exportamos un objeto de modelos para acceso conveniente (puede expandirse en el futuro)
 export const db = {
   prisma,
-  initializeDatabase,
+  initializeDatabase
 };
 
 export default db;

@@ -36,11 +36,11 @@ export class TenantService {
    */
   static async findOrCreateTenant(tenantData) {
     const existingTenant = await this.findTenantByChatId(tenantData.chatId);
-    
+
     if (existingTenant) {
       return existingTenant;
     }
-    
+
     return this.createTenant(tenantData);
   }
 
@@ -67,11 +67,11 @@ export class TenantService {
     const existingSettings = await prisma.tenantSettings.findUnique({
       where: { tenantId }
     });
-    
+
     if (existingSettings) {
       return existingSettings;
     }
-    
+
     return prisma.tenantSettings.create({
       data: {
         ...settingsData,
@@ -101,16 +101,16 @@ export class TenantService {
   static async isActiveTenant(chatId) {
     const tenant = await this.findTenantByChatId(chatId);
     if (!tenant) return false;
-    
+
     // Verificar si está activo y si la suscripción sigue vigente
     if (!tenant.isActive) return false;
-    
+
     if (tenant.subscriptionEnd && tenant.subscriptionEnd < new Date()) {
       // Suscripción expirada
       await this.updateTenant(tenant.id, { isActive: false });
       return false;
     }
-    
+
     return true;
   }
 }

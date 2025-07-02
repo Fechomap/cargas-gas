@@ -1,8 +1,8 @@
 // src/services/fuel.adapter.service.js
 import { FuelService as PrismaFuelService } from './fuel.prisma.service.js';
-import { 
-  usePostgreSQLForReads, 
-  usePostgreSQLForWrites 
+import {
+  usePostgreSQLForReads,
+  usePostgreSQLForWrites
 } from '../../config/database.config.js';
 import { logger } from '../utils/logger.js';
 
@@ -21,7 +21,7 @@ export class FuelService {
     // Llamar al método estático para mantener la misma implementación
     return FuelService.createFuelRecord(fuelData, tenantId);
   }
-  
+
   /**
    * Registra una nueva carga de combustible (método estático)
    * @param {Object} fuelData - Datos de la carga
@@ -32,13 +32,13 @@ export class FuelService {
     try {
       let pgResult = null;
       const errors = [];
-      
+
       // Escribir en PostgreSQL si está configurado
       if (usePostgreSQLForWrites()) {
         if (!tenantId) {
           throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
         }
-        
+
         try {
           pgResult = await PrismaFuelService.createFuelRecord(fuelData, tenantId);
           logger.info(`Carga registrada en PostgreSQL: ${pgResult.id}`);
@@ -47,12 +47,12 @@ export class FuelService {
           logger.error(`Error al registrar carga en PostgreSQL: ${error.message}`);
         }
       }
-      
+
       // Verificar si la operación tuvo éxito
       if (!pgResult) {
         throw new Error(`No se pudo registrar la carga en PostgreSQL: ${errors.join(', ')}`);
       }
-      
+
       return pgResult;
     } catch (error) {
       logger.error(`Error en createFuelRecord: ${error.message}`);
@@ -73,7 +73,7 @@ export class FuelService {
         if (!tenantId) {
           throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
         }
-        
+
         try {
           return await PrismaFuelService.getFuelById(fuelId, tenantId);
         } catch (error) {
@@ -81,7 +81,7 @@ export class FuelService {
           throw error;
         }
       }
-      
+
       throw new Error('No hay bases de datos configuradas para lectura');
     } catch (error) {
       logger.error(`Error en getFuelById: ${error.message}`);
@@ -99,13 +99,13 @@ export class FuelService {
     try {
       let pgResult = null;
       const errors = [];
-      
+
       // Actualizar en PostgreSQL si está configurado
       if (usePostgreSQLForWrites()) {
         if (!tenantId) {
           throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
         }
-        
+
         try {
           pgResult = await PrismaFuelService.markAsPaid(fuelId, tenantId);
           logger.info(`Carga marcada como pagada en PostgreSQL: ${fuelId}`);
@@ -114,12 +114,12 @@ export class FuelService {
           logger.error(`Error al marcar carga como pagada en PostgreSQL: ${error.message}`);
         }
       }
-      
+
       // Verificar si la operación tuvo éxito
       if (!pgResult) {
         throw new Error(`No se pudo marcar la carga como pagada en PostgreSQL: ${errors.join(', ')}`);
       }
-      
+
       return pgResult;
     } catch (error) {
       logger.error(`Error en markAsPaid: ${error.message}`);
@@ -140,7 +140,7 @@ export class FuelService {
         if (!tenantId) {
           throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
         }
-        
+
         try {
           return await PrismaFuelService.findFuels(filters, tenantId);
         } catch (error) {
@@ -148,7 +148,7 @@ export class FuelService {
           throw error;
         }
       }
-      
+
       throw new Error('No hay bases de datos configuradas para lectura');
     } catch (error) {
       logger.error(`Error en findFuels: ${error.message}`);
@@ -166,7 +166,7 @@ export class FuelService {
     // Llamar al método estático para mantener la misma implementación
     return FuelService.findBySaleNumberStatic(saleNumber, tenantId);
   }
-  
+
   /**
    * Marca una carga como pagada (método de instancia)
    * @param {String} fuelId - ID de la carga
@@ -191,12 +191,12 @@ export class FuelService {
         if (!tenantId) {
           throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
         }
-        
+
         try {
           // Usar el método findFuels con filtro de saleNumber EXACTO
-          const fuels = await PrismaFuelService.findFuels({ 
-            saleNumber, 
-            exactMatch: true 
+          const fuels = await PrismaFuelService.findFuels({
+            saleNumber,
+            exactMatch: true
           }, tenantId);
           return fuels && fuels.length > 0 ? fuels[0] : null;
         } catch (error) {
@@ -204,7 +204,7 @@ export class FuelService {
           throw error;
         }
       }
-      
+
       throw new Error('No hay bases de datos configuradas para lectura');
     } catch (error) {
       logger.error(`Error en findBySaleNumberStatic: ${error.message}`);
@@ -226,7 +226,7 @@ export class FuelService {
         if (!tenantId) {
           throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
         }
-        
+
         try {
           const total = await PrismaFuelService.getTotalUnpaidAmount(tenantId);
           logger.info(`Total calculado desde PostgreSQL: ${total}`);
@@ -236,14 +236,14 @@ export class FuelService {
           throw error;
         }
       }
-      
+
       throw new Error('No hay bases de datos configuradas para lectura');
     } catch (error) {
       logger.error(`Error en getTotalUnpaidAmount: ${error.message}`);
       return 0;
     }
   }
-  
+
   /**
    * Actualiza la fecha de registro de una carga de combustible
    * @param {String} fuelId - ID de la carga
@@ -256,7 +256,7 @@ export class FuelService {
       if (!tenantId) {
         throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
       }
-      
+
       try {
         const result = await PrismaFuelService.updateRecordDate(fuelId, newDate, tenantId);
         logger.info(`Fecha de carga actualizada en PostgreSQL: ${fuelId}`);
@@ -282,7 +282,7 @@ export class FuelService {
       if (!tenantId) {
         throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
       }
-      
+
       try {
         const result = await PrismaFuelService.deactivateFuel(fuelId, tenantId);
         logger.info(`Registro de combustible desactivado en PostgreSQL: ${fuelId}`);
@@ -296,7 +296,7 @@ export class FuelService {
       throw error;
     }
   }
-  
+
   /**
    * Método de instancia para actualizar la fecha de registro
    * @param {String} fuelId - ID de la carga
@@ -308,7 +308,7 @@ export class FuelService {
     // Llamar al método estático para mantener la misma implementación
     return FuelService.updateRecordDate(fuelId, newDate, tenantId);
   }
-  
+
   /**
    * Obtiene el saldo total pendiente (cargas no pagadas)
    * @param {String} tenantId - ID del tenant (solo para PostgreSQL)
@@ -318,7 +318,7 @@ export class FuelService {
     // Llamar al método estático para mantener la misma implementación
     return FuelService.getTotalUnpaidAmount(tenantId);
   }
-  
+
   /**
    * Busca una nota por su número de venta (usado en pagos.controller.js)
    * @param {String} saleNumber - Número de venta a buscar
@@ -329,7 +329,7 @@ export class FuelService {
     // Llamar al método estático existente para mantener la misma implementación
     return FuelService.findBySaleNumberStatic(saleNumber, tenantId);
   }
-  
+
   /**
    * Alias para createFuelEntry (mantener compatibilidad con código anterior)
    * @param {Object} fuelData - Datos de la carga
@@ -339,7 +339,7 @@ export class FuelService {
   async saveFuelEntry(fuelData, tenantId) {
     return this.createFuelEntry(fuelData, tenantId);
   }
-  
+
   /**
    * Busca notas que coincidan con un número de venta
    * @param {String} searchQuery - Texto de búsqueda
@@ -349,23 +349,23 @@ export class FuelService {
   async searchNotesBySaleNumber(searchQuery, tenantId) {
     try {
       logger.info(`Buscando notas con query: ${searchQuery}, tenantId: ${tenantId}`);
-      
+
       // Para PostgreSQL, usamos el método findFuels con un filtro
       if (usePostgreSQLForReads()) {
         if (!tenantId) {
           throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
         }
-        
+
         // Buscar con filtro de saleNumber usando búsqueda EXACTA
         // Esto mostrará SOLO notas con el número EXACTO ("1" solo encuentra "1", no "10" ni "01")
-        const fuels = await PrismaFuelService.findFuels({ 
-          saleNumber: searchQuery, 
+        const fuels = await PrismaFuelService.findFuels({
+          saleNumber: searchQuery,
           exactMatch: true // Busca coincidencia exacta del número de venta
         }, tenantId);
         logger.info(`Encontradas ${fuels.length} notas en PostgreSQL`);
         return fuels;
       }
-      
+
       throw new Error('No hay bases de datos configuradas para lectura');
     } catch (error) {
       logger.error(`Error en searchNotesBySaleNumber: ${error.message}`);

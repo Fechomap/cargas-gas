@@ -21,7 +21,7 @@ export class GestionRegistrosController {
   async showMainMenu(ctx) {
     try {
       logger.info(`Administrador ${ctx.from.id} accedió al menú de gestión de registros`);
-      
+
       await ctx.reply('📝 *Gestión de Registros*\n\nSelecciona el tipo de gestión que deseas realizar:', {
         parse_mode: 'Markdown',
         reply_markup: {
@@ -32,7 +32,7 @@ export class GestionRegistrosController {
           ]
         }
       });
-      
+
       logger.info(`Menú de gestión enviado exitosamente al administrador ${ctx.from.id}`);
     } catch (error) {
       logger.error(`Error al mostrar menú de gestión: ${error.message}`);
@@ -47,10 +47,10 @@ export class GestionRegistrosController {
   async startFuelRecordSearch(ctx) {
     try {
       logger.info(`Iniciando búsqueda de registros para gestión (Usuario: ${ctx.from.id})`);
-      
+
       // Actualizar estado de conversación
       await updateConversationState(ctx, 'gestion_search_fuel', {});
-      
+
       await ctx.reply(
         '🔍 *Buscar registro para gestionar*\n\n' +
         'Ingresa el número de nota del registro que deseas gestionar:',
@@ -76,37 +76,37 @@ export class GestionRegistrosController {
   async handleSearchInput(ctx) {
     try {
       const searchQuery = ctx.message.text.trim();
-      
+
       if (!searchQuery) {
         return await ctx.reply('Por favor, ingresa un número de nota válido.');
       }
-      
+
       logger.info(`Buscando registro para gestión: ${searchQuery}`);
-      
+
       // Verificar tenant
       if (!ctx.tenant) {
         logger.error('No se encontró tenant en el contexto');
         return await ctx.reply('Error: No se pudo identificar el grupo.');
       }
-      
+
       // Buscar registro por número de nota
       const fuel = await this.fuelService.findBySaleNumber(searchQuery, ctx.tenant.id);
-      
+
       if (!fuel) {
         await ctx.reply(`⚠️ No se encontró registro con el número: ${searchQuery}`);
         await ctx.reply('Por favor, verifica el número e intenta nuevamente.');
         return;
       }
-      
+
       // Guardar información en sesión
       ctx.session.data.managingFuelId = fuel.id;
       ctx.session.data.managingFuelData = fuel;
-      
+
       logger.info(`Registro encontrado para gestión: ID ${fuel.id}`);
-      
+
       // Mostrar información del registro y opciones de gestión
       await this.showRecordManagementOptions(ctx, fuel);
-      
+
     } catch (error) {
       logger.error(`Error en búsqueda para gestión: ${error.message}`);
       await ctx.reply('Error durante la búsqueda. Intenta nuevamente.');
@@ -144,10 +144,10 @@ Activo: ${fuel.isActive ? 'Sí' : 'No'}`;
           ]
         }
       });
-      
+
       // Limpiar estado de búsqueda
       await updateConversationState(ctx, 'idle', {});
-      
+
     } catch (error) {
       logger.error(`Error al mostrar opciones de gestión: ${error.message}`);
       await ctx.reply('Error al mostrar las opciones.');
@@ -162,12 +162,12 @@ Activo: ${fuel.isActive ? 'Sí' : 'No'}`;
   async showEditMenu(ctx, fuelId) {
     try {
       const fuel = await FuelService.getFuelById(fuelId, ctx.tenant.id);
-      
+
       if (!fuel) {
         await ctx.answerCbQuery('Registro no encontrado');
         return await ctx.reply('El registro no existe o no tienes permisos para editarlo.');
       }
-      
+
       const editInfo = `✏️ EDITAR REGISTRO
 
 REGISTRO ACTUAL:
@@ -194,7 +194,7 @@ Selecciona el campo que deseas editar:`;
           ]
         }
       });
-      
+
     } catch (error) {
       logger.error(`Error al mostrar menú de edición: ${error.message}`);
       await ctx.answerCbQuery('Error al cargar editor');
@@ -211,7 +211,7 @@ Selecciona el campo que deseas editar:`;
   async startFieldEdit(ctx, field, fuelId) {
     try {
       logger.info(`CONTROLLER: startFieldEdit llamado - field: ${field}, fuelId: ${fuelId}`);
-      
+
       // Verificar que el registro existe
       const fuel = await FuelService.getFuelById(fuelId, ctx.tenant.id);
       if (!fuel) {
@@ -219,7 +219,7 @@ Selecciona el campo que deseas editar:`;
         await ctx.reply('Error: Registro no encontrado.');
         return;
       }
-      
+
       logger.info(`CONTROLLER: Registro encontrado para edición: ${fuel.id}`);
 
       // Asegurar que la sesión esté inicializada
@@ -229,12 +229,12 @@ Selecciona el campo que deseas editar:`;
       if (!ctx.session.data) {
         ctx.session.data = {};
       }
-      
+
       // Guardar información en sesión
       ctx.session.data.editingField = field;
       ctx.session.data.editingFuelId = fuelId;
       ctx.session.data.editingFuelData = fuel;
-      
+
       logger.info(`CONTROLLER: Guardando en sesión - field: ${field}, fuelId: ${fuelId}`);
 
       // Actualizar estado de conversación (sin sobrescribir los datos de sesión)
@@ -267,7 +267,7 @@ Selecciona el campo que deseas editar:`;
         const currentStatus = fuel.paymentStatus;
         const oppositeStatus = currentStatus === 'PAGADA' ? 'NO_PAGADA' : 'PAGADA';
         const oppositeLabel = oppositeStatus === 'PAGADA' ? '✅ Marcar como PAGADA' : '❌ Marcar como NO_PAGADA';
-        
+
         await ctx.reply(prompts[field], {
           reply_markup: {
             inline_keyboard: [
@@ -300,7 +300,7 @@ Selecciona el campo que deseas editar:`;
   async handleFieldEditInput(ctx) {
     try {
       logger.info('CONTROLLER: handleFieldEditInput iniciado');
-      
+
       const field = ctx.session.data.editingField;
       const fuelId = ctx.session.data.editingFuelId;
       const newValue = ctx.message.text.trim();
@@ -315,7 +315,7 @@ Selecciona el campo que deseas editar:`;
 
       // Validar entrada según el campo
       let validatedValue = newValue;
-      
+
       if (field === 'km' || field === 'liters' || field === 'price') {
         const numValue = parseFloat(newValue);
         if (isNaN(numValue) || numValue < 0) {
@@ -344,7 +344,7 @@ Selecciona el campo que deseas editar:`;
   async updateFuelField(ctx, fuelId, field, value) {
     try {
       logger.info(`Actualizando campo ${field} con valor ${value} para fuelId: ${fuelId}`);
-      
+
       // Mapear campos a nombres de base de datos
       const fieldMap = {
         km: 'kilometers',
@@ -362,29 +362,29 @@ Selecciona el campo que deseas editar:`;
 
       // Actualizar en base de datos
       const updateData = { [dbField]: value };
-      
+
       // Si editamos litros o precio por litro, recalcular el monto
       if (field === 'liters' || field === 'price') {
         const currentFuel = await prisma.fuel.findUnique({
           where: { id: fuelId, tenantId: ctx.tenant.id }
         });
-        
+
         if (currentFuel) {
           const newLiters = field === 'liters' ? value : currentFuel.liters;
           const newPrice = field === 'price' ? value : (currentFuel.pricePerLiter || 0);
           updateData.amount = newLiters * newPrice;
         }
       }
-      
+
       // Si es estado de pago y se marca como pagada, agregar fecha
       if (field === 'payment' && value === 'PAGADA') {
         updateData.paymentDate = new Date();
       }
 
-      logger.info(`Datos de actualización:`, updateData);
-      
+      logger.info('Datos de actualización:', updateData);
+
       const updatedFuel = await prisma.fuel.update({
-        where: { 
+        where: {
           id: fuelId,
           tenantId: ctx.tenant.id
         },
@@ -410,12 +410,12 @@ Selecciona el campo que deseas editar:`;
       };
 
       let confirmationMessage = `✅ Campo actualizado exitosamente\n\n${fieldNames[field]}: ${value}`;
-      
+
       // Si se recalculó el monto, mostrarlo en la confirmación
       if (field === 'liters' || field === 'price') {
         confirmationMessage += `\n💡 Monto recalculado: $${updatedFuel.amount.toFixed(2)}`;
       }
-      
+
       await ctx.reply(confirmationMessage);
 
       // Mostrar información actualizada del registro
@@ -452,7 +452,7 @@ Selecciona el campo que deseas editar:`;
   async showKilometerMenu(ctx) {
     try {
       logger.info(`Mostrando menú de gestión de kilómetros para admin ${ctx.from.id}`);
-      
+
       await ctx.reply(
         '📏 *Gestión de Registros de Kilómetros*\n\n' +
         'Selecciona una opción para buscar registros:',
@@ -480,10 +480,10 @@ Selecciona el campo que deseas editar:`;
    */
   async showRecentKilometerLogs(ctx) {
     try {
-      logger.info(`Obteniendo registros recientes de kilómetros`);
-      
+      logger.info('Obteniendo registros recientes de kilómetros');
+
       const recentLogs = await prisma.kilometerLog.findMany({
-        where: { 
+        where: {
           tenantId: ctx.tenant.id,
           isOmitted: false
         },
@@ -498,11 +498,11 @@ Selecciona el campo que deseas editar:`;
       }
 
       let message = '📏 *Últimos 10 registros de kilómetros:*\n\n';
-      
+
       for (const log of recentLogs) {
         const typeIcon = log.logType === 'INICIO_TURNO' ? '🟢' : '🔴';
         const typeText = log.logType === 'INICIO_TURNO' ? 'Inicio' : 'Fin';
-        
+
         message += `${typeIcon} *${typeText}* - Unidad ${log.Unit.unitNumber}\n`;
         message += `├ Kilómetros: ${log.kilometers}\n`;
         message += `├ Fecha: ${this.formatDate(log.logDate)}\n`;
@@ -514,7 +514,7 @@ Selecciona el campo que deseas editar:`;
         text: `${log.Unit.unitNumber} - ${log.logType === 'INICIO_TURNO' ? 'Inicio' : 'Fin'} (${this.formatDateShort(log.logDate)})`,
         callback_data: `km_manage_${log.id.substring(0, 8)}`
       }]);
-      
+
       buttons.push([{ text: '🔙 Volver', callback_data: 'manage_km_records' }]);
 
       await ctx.reply(message, {
@@ -536,7 +536,7 @@ Selecciona el campo que deseas editar:`;
   async startKmSearchByUnit(ctx) {
     try {
       await updateConversationState(ctx, 'km_search_unit', {});
-      
+
       await ctx.reply(
         '🚛 *Buscar por unidad*\n\n' +
         'Ingresa el número de unidad:',
@@ -562,7 +562,7 @@ Selecciona el campo que deseas editar:`;
   async handleKmUnitSearch(ctx) {
     try {
       const unitNumber = ctx.message.text.trim();
-      
+
       if (!unitNumber) {
         return await ctx.reply('Por favor, ingresa un número de unidad válido.');
       }
@@ -600,7 +600,7 @@ Selecciona el campo que deseas editar:`;
       }
 
       await this.displayKilometerLogs(ctx, logs, unit);
-      
+
     } catch (error) {
       logger.error(`Error en búsqueda por unidad: ${error.message}`);
       await ctx.reply('Error durante la búsqueda.');
@@ -632,7 +632,7 @@ Selecciona el campo que deseas editar:`;
       for (const log of logs.slice(0, 5)) {
         const typeIcon = log.logType === 'INICIO_TURNO' ? '🟢' : '🔴';
         const typeText = log.logType === 'INICIO_TURNO' ? 'Inicio' : 'Fin';
-        
+
         message += `${typeIcon} *${typeText}*\n`;
         message += `├ Kilómetros: ${log.kilometers}\n`;
         message += `├ Fecha: ${this.formatDate(log.logDate)}\n`;
@@ -652,7 +652,7 @@ Selecciona el campo que deseas editar:`;
 
       // Limpiar estado
       await updateConversationState(ctx, 'idle', {});
-      
+
     } catch (error) {
       logger.error(`Error al mostrar registros: ${error.message}`);
       await ctx.reply('Error al mostrar los registros.');
@@ -683,7 +683,7 @@ Selecciona el campo que deseas editar:`;
       }
 
       const typeText = log.logType === 'INICIO_TURNO' ? 'Inicio de turno' : 'Fin de turno';
-      
+
       const info = `📏 *INFORMACIÓN DEL REGISTRO*
 
 *Tipo:* ${typeText}
@@ -731,15 +731,15 @@ Selecciona el campo que deseas editar:`;
       // Guardar en sesión
       ctx.session.data.editingKmId = logId;
       ctx.session.data.editingKmData = log;
-      
+
       await updateConversationState(ctx, 'editing_km_value', null);
 
       await ctx.reply(
-        `📏 *EDITANDO KILÓMETROS*\n\n` +
+        '📏 *EDITANDO KILÓMETROS*\n\n' +
         `Registro: ${log.logType === 'INICIO_TURNO' ? 'Inicio' : 'Fin'} de turno\n` +
         `Unidad: ${log.Unit.unitNumber}\n` +
         `Valor actual: ${log.kilometers} km\n\n` +
-        `Ingresa el nuevo valor de kilómetros:`,
+        'Ingresa el nuevo valor de kilómetros:',
         {
           parse_mode: 'Markdown',
           reply_markup: {
@@ -756,14 +756,14 @@ Selecciona el campo que deseas editar:`;
   }
 
   /**
-   * Procesa la edición de kilómetros
+   * Procesa la edición de kilómetros con validaciones de secuencia
    * @param {TelegrafContext} ctx - Contexto de Telegraf
    */
   async handleKmEditInput(ctx) {
     try {
       const newValue = ctx.message.text.trim();
       const kmValue = parseFloat(newValue);
-      
+
       if (isNaN(kmValue) || kmValue < 0) {
         await ctx.reply('❌ El valor debe ser un número positivo. Intenta nuevamente:');
         return;
@@ -772,6 +772,162 @@ Selecciona el campo que deseas editar:`;
       const logId = ctx.session.data.editingKmId;
       const oldLog = ctx.session.data.editingKmData;
 
+      // Validar secuencia de kilómetros
+      const validation = await this.validateKilometerSequence(ctx, oldLog, kmValue);
+
+      if (!validation.isValid) {
+        let warningMessage = `⚠️ *Advertencia de Secuencia*\n\n${validation.message}\n\n`;
+
+        if (validation.suggestions && validation.suggestions.length > 0) {
+          warningMessage += '*Sugerencias:*\n';
+          validation.suggestions.forEach(suggestion => {
+            warningMessage += `• ${suggestion}\n`;
+          });
+          warningMessage += '\n';
+        }
+
+        warningMessage += '¿Deseas continuar de todas formas?';
+
+        await ctx.reply(warningMessage, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '✅ Sí, continuar', callback_data: `km_force_update_${logId}_${kmValue}` },
+                { text: '❌ Cancelar', callback_data: `km_manage_${logId.substring(0, 8)}` }
+              ]
+            ]
+          }
+        });
+        return;
+      }
+
+      // Si la validación es exitosa, proceder con la actualización
+      await this.executeKmUpdate(ctx, logId, oldLog, kmValue);
+
+    } catch (error) {
+      logger.error(`Error al actualizar kilómetros: ${error.message}`);
+      await ctx.reply('❌ Error al actualizar los kilómetros.');
+    }
+  }
+
+  /**
+   * Valida la secuencia de kilómetros para evitar inconsistencias
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {Object} currentLog - Registro actual
+   * @param {number} newKmValue - Nuevo valor de kilómetros
+   * @returns {Object} Resultado de validación
+   */
+  async validateKilometerSequence(ctx, currentLog, newKmValue) {
+    try {
+      // Buscar registros relacionados de la misma unidad
+      const relatedLogs = await prisma.kilometerLog.findMany({
+        where: {
+          tenantId: ctx.tenant.id,
+          unitId: currentLog.unitId,
+          isOmitted: false,
+          id: { not: currentLog.id } // Excluir el registro actual
+        },
+        orderBy: [
+          { logDate: 'asc' },
+          { logTime: 'asc' }
+        ]
+      });
+
+      const warnings = [];
+      const suggestions = [];
+      let isValid = true;
+
+      // Encontrar registros anteriores y posteriores
+      const currentDate = new Date(currentLog.logDate);
+      const currentTime = new Date(currentLog.logTime);
+
+      const previousLogs = relatedLogs.filter(log => {
+        const logDateTime = new Date(log.logTime);
+        return logDateTime < currentTime;
+      }).sort((a, b) => new Date(b.logTime) - new Date(a.logTime));
+
+      const nextLogs = relatedLogs.filter(log => {
+        const logDateTime = new Date(log.logTime);
+        return logDateTime > currentTime;
+      }).sort((a, b) => new Date(a.logTime) - new Date(b.logTime));
+
+      // Validar con registro anterior
+      if (previousLogs.length > 0) {
+        const previousLog = previousLogs[0];
+        if (newKmValue < previousLog.kilometers) {
+          warnings.push(`El nuevo valor (${newKmValue} km) es menor al registro anterior (${previousLog.kilometers} km) del ${this.formatDate(previousLog.logTime)}.`);
+          suggestions.push(`Considerar un valor mayor a ${previousLog.kilometers} km`);
+          isValid = false;
+        }
+      }
+
+      // Validar con registro posterior
+      if (nextLogs.length > 0) {
+        const nextLog = nextLogs[0];
+        if (newKmValue > nextLog.kilometers) {
+          warnings.push(`El nuevo valor (${newKmValue} km) es mayor al registro posterior (${nextLog.kilometers} km) del ${this.formatDate(nextLog.logTime)}.`);
+          suggestions.push(`Considerar un valor menor a ${nextLog.kilometers} km`);
+          isValid = false;
+        }
+      }
+
+      // Validar diferencias dramáticas
+      const originalValue = currentLog.kilometers;
+      const difference = Math.abs(newKmValue - originalValue);
+
+      if (difference > 1000) {
+        warnings.push(`Cambio dramático detectado: diferencia de ${difference} km con el valor original.`);
+        suggestions.push('Verificar que el valor sea correcto');
+        isValid = false;
+      }
+
+      // Validar secuencia lógica de inicio/fin de turno
+      if (currentLog.logType === 'INICIO_TURNO') {
+        const samedayEndLogs = nextLogs.filter(log => {
+          const logDate = new Date(log.logDate);
+          const currentLogDate = new Date(currentLog.logDate);
+          return log.logType === 'FIN_TURNO' &&
+                 logDate.toDateString() === currentLogDate.toDateString();
+        });
+
+        if (samedayEndLogs.length > 0) {
+          const endLog = samedayEndLogs[0];
+          if (newKmValue >= endLog.kilometers) {
+            warnings.push(`Un inicio de turno no puede tener kilómetros iguales o mayores al fin de turno del mismo día (${endLog.kilometers} km).`);
+            suggestions.push(`Usar un valor menor a ${endLog.kilometers} km`);
+            isValid = false;
+          }
+        }
+      }
+
+      return {
+        isValid,
+        message: warnings.join('\n\n'),
+        suggestions,
+        warnings
+      };
+
+    } catch (error) {
+      logger.error(`Error en validación de secuencia: ${error.message}`);
+      return {
+        isValid: true, // En caso de error, permitir la actualización
+        message: 'No se pudo validar la secuencia, pero se puede continuar.',
+        suggestions: [],
+        warnings: []
+      };
+    }
+  }
+
+  /**
+   * Ejecuta la actualización de kilómetros
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {string} logId - ID del registro
+   * @param {Object} oldLog - Registro anterior
+   * @param {number} kmValue - Nuevo valor
+   */
+  async executeKmUpdate(ctx, logId, oldLog, kmValue) {
+    try {
       // Actualizar registro
       const updatedLog = await prisma.kilometerLog.update({
         where: { id: logId },
@@ -786,16 +942,17 @@ Selecciona el campo que deseas editar:`;
       delete ctx.session.data.editingKmData;
 
       await ctx.reply(
-        `✅ *Kilómetros actualizados exitosamente*\n\n` +
+        '✅ *Kilómetros actualizados exitosamente*\n\n' +
         `Valor anterior: ${oldLog.kilometers} km\n` +
-        `Nuevo valor: ${kmValue} km`
+        `Nuevo valor: ${kmValue} km`,
+        { parse_mode: 'Markdown' }
       );
 
       // Mostrar opciones del registro actualizado
       await this.showKmManagementOptions(ctx, logId.substring(0, 8));
-      
+
     } catch (error) {
-      logger.error(`Error al actualizar kilómetros: ${error.message}`);
+      logger.error(`Error al ejecutar actualización: ${error.message}`);
       await ctx.reply('❌ Error al actualizar los kilómetros.');
     }
   }
@@ -818,15 +975,15 @@ Selecciona el campo que deseas editar:`;
       }
 
       const typeText = log.logType === 'INICIO_TURNO' ? 'Inicio de turno' : 'Fin de turno';
-      
+
       await ctx.reply(
-        `⚠️ *CONFIRMAR ELIMINACIÓN*\n\n` +
-        `¿Estás seguro de eliminar este registro?\n\n` +
+        '⚠️ *CONFIRMAR ELIMINACIÓN*\n\n' +
+        '¿Estás seguro de eliminar este registro?\n\n' +
         `*Tipo:* ${typeText}\n` +
         `*Unidad:* ${log.Unit.unitNumber}\n` +
         `*Kilómetros:* ${log.kilometers}\n` +
         `*Fecha:* ${this.formatDate(log.logDate)}\n\n` +
-        `Esta acción marcará el registro como omitido.`,
+        'Esta acción marcará el registro como omitido.',
         {
           parse_mode: 'Markdown',
           reply_markup: {
@@ -861,10 +1018,10 @@ Selecciona el campo que deseas editar:`;
       logger.info(`Registro de kilómetros ${logId} marcado como omitido`);
 
       await ctx.reply('✅ Registro eliminado exitosamente.');
-      
+
       // Volver al menú de kilómetros
       await this.showKilometerMenu(ctx);
-      
+
     } catch (error) {
       logger.error(`Error al eliminar registro: ${error.message}`);
       await ctx.reply('❌ Error al eliminar el registro.');
@@ -934,7 +1091,7 @@ Selecciona el campo que deseas editar:`;
       }
 
       await this.showKmResultsByUnit(ctx, unit, kmLogs);
-      
+
     } catch (error) {
       logger.error(`Error en búsqueda por unidad: ${error.message}`);
       await ctx.reply('❌ Error al buscar registros de la unidad.');
@@ -951,13 +1108,13 @@ Selecciona el campo que deseas editar:`;
     try {
       let message = `📏 *Registros de Kilómetros - Unidad ${unit.unitNumber}*\n`;
       message += `*Operador:* ${unit.operatorName}\n\n`;
-      
+
       // Agregar información de registros
       for (const log of kmLogs.slice(0, 10)) { // Mostrar solo los primeros 10
         const typeIcon = log.logType === 'INICIO_TURNO' ? '🟢' : '🔴';
         const typeText = log.logType === 'INICIO_TURNO' ? 'Inicio' : 'Fin';
         const statusText = log.isOmitted ? ' (Omitido)' : '';
-        
+
         message += `${typeIcon} *${typeText}*${statusText}\n`;
         message += `├ Kilómetros: ${log.kilometers}\n`;
         message += `├ Fecha: ${this.formatDate(log.logDate)}\n`;
@@ -973,7 +1130,7 @@ Selecciona el campo que deseas editar:`;
         text: `${log.logType === 'INICIO_TURNO' ? '🟢' : '🔴'} ${this.formatDateShort(log.logDate)} - ${log.kilometers}km`,
         callback_data: `km_manage_${log.id.substring(0, 8)}`
       }]);
-      
+
       buttons.push([
         { text: '🔍 Nueva búsqueda', callback_data: 'km_search_by_unit' },
         { text: '🔙 Volver', callback_data: 'manage_km_records' }
@@ -988,7 +1145,7 @@ Selecciona el campo que deseas editar:`;
 
       // Limpiar estado
       await updateConversationState(ctx, 'idle', {});
-      
+
     } catch (error) {
       logger.error(`Error al mostrar resultados por unidad: ${error.message}`);
       await ctx.reply('❌ Error al mostrar los resultados.');
@@ -996,23 +1153,23 @@ Selecciona el campo que deseas editar:`;
   }
 
   /**
-   * Implementa búsqueda por fecha (placeholder para FASE 4)
+   * Implementa búsqueda por fecha para registros de kilómetros
    * @param {TelegrafContext} ctx - Contexto de Telegraf
    */
   async showKmSearchByDate(ctx) {
     try {
       await ctx.reply(
         '📅 *Búsqueda por Fecha*\n\n' +
-        '🚧 Esta funcionalidad estará disponible próximamente.\n\n' +
-        'Por ahora puedes usar:\n' +
-        '• Búsqueda por unidad\n' +
-        '• Ver últimos registros',
+        'Selecciona el período de búsqueda:',
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '🚛 Buscar por unidad', callback_data: 'km_search_by_unit' }],
-              [{ text: '📊 Ver últimos', callback_data: 'km_view_recent' }],
+              [{ text: '📅 Hoy', callback_data: 'km_date_today' }],
+              [{ text: '📅 Ayer', callback_data: 'km_date_yesterday' }],
+              [{ text: '📅 Últimos 7 días', callback_data: 'km_date_week' }],
+              [{ text: '📅 Último mes', callback_data: 'km_date_month' }],
+              [{ text: '📝 Fecha específica', callback_data: 'km_date_custom' }],
               [{ text: '🔙 Volver', callback_data: 'manage_km_records' }]
             ]
           }
@@ -1025,6 +1182,271 @@ Selecciona el campo que deseas editar:`;
   }
 
   /**
+   * Busca registros por período predefinido
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {string} period - Período (today, yesterday, week, month)
+   */
+  async searchKmByPeriod(ctx, period) {
+    try {
+      let startDate, endDate;
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      switch (period) {
+      case 'today':
+        startDate = today;
+        endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        break;
+      case 'yesterday':
+        startDate = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+        endDate = today;
+        break;
+      case 'week':
+        startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        break;
+      default:
+        throw new Error('Período no válido');
+      }
+
+      const logs = await prisma.kilometerLog.findMany({
+        where: {
+          tenantId: ctx.tenant.id,
+          isOmitted: false,
+          logDate: {
+            gte: startDate,
+            lt: endDate
+          }
+        },
+        include: { Unit: true },
+        orderBy: [
+          { logDate: 'desc' },
+          { logTime: 'desc' }
+        ],
+        take: 50
+      });
+
+      if (logs.length === 0) {
+        const periodNames = {
+          today: 'hoy',
+          yesterday: 'ayer',
+          week: 'los últimos 7 días',
+          month: 'el último mes'
+        };
+
+        await ctx.reply(
+          `📅 No se encontraron registros de kilómetros para ${periodNames[period]}.\n\n` +
+          '¿Deseas buscar en otro período?',
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '📅 Buscar otra fecha', callback_data: 'km_search_by_date' }],
+                [{ text: '🔙 Volver', callback_data: 'manage_km_records' }]
+              ]
+            }
+          }
+        );
+        return;
+      }
+
+      await this.displayKmSearchResults(ctx, logs, period);
+
+    } catch (error) {
+      logger.error(`Error en búsqueda por período: ${error.message}`);
+      await ctx.reply('❌ Error al buscar registros.');
+    }
+  }
+
+  /**
+   * Inicia búsqueda por fecha específica
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async startCustomDateSearch(ctx) {
+    try {
+      await updateConversationState(ctx, 'km_custom_date', {});
+
+      await ctx.reply(
+        '📅 *Búsqueda por Fecha Específica*\n\n' +
+        'Ingresa la fecha en formato DD/MM/AAAA\n' +
+        'Ejemplo: 01/07/2025\n\n' +
+        'O ingresa solo DD/MM para el año actual:',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '❌ Cancelar', callback_data: 'km_search_by_date' }]
+            ]
+          }
+        }
+      );
+    } catch (error) {
+      logger.error(`Error al iniciar búsqueda personalizada: ${error.message}`);
+      await ctx.reply('❌ Error al iniciar la búsqueda.');
+    }
+  }
+
+  /**
+   * Procesa búsqueda por fecha personalizada
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async handleCustomDateSearch(ctx) {
+    try {
+      const dateInput = ctx.message.text.trim();
+
+      // Validar formato de fecha
+      let date;
+      const currentYear = new Date().getFullYear();
+
+      if (dateInput.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+        // Formato DD/MM/AAAA
+        const [day, month, year] = dateInput.split('/').map(n => parseInt(n));
+        date = new Date(year, month - 1, day);
+      } else if (dateInput.match(/^\d{1,2}\/\d{1,2}$/)) {
+        // Formato DD/MM (año actual)
+        const [day, month] = dateInput.split('/').map(n => parseInt(n));
+        date = new Date(currentYear, month - 1, day);
+      } else {
+        await ctx.reply(
+          '❌ Formato de fecha inválido.\n\n' +
+          'Usa: DD/MM/AAAA o DD/MM\n' +
+          'Ejemplo: 01/07/2025 o 01/07\n\n' +
+          'Intenta nuevamente:'
+        );
+        return;
+      }
+
+      if (isNaN(date.getTime())) {
+        await ctx.reply(
+          '❌ Fecha inválida.\n\n' +
+          'Verifica que el día y mes sean correctos.\n' +
+          'Intenta nuevamente:'
+        );
+        return;
+      }
+
+      // Buscar registros para la fecha específica
+      const startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+
+      const logs = await prisma.kilometerLog.findMany({
+        where: {
+          tenantId: ctx.tenant.id,
+          isOmitted: false,
+          logDate: {
+            gte: startDate,
+            lt: endDate
+          }
+        },
+        include: { Unit: true },
+        orderBy: [
+          { logTime: 'desc' }
+        ]
+      });
+
+      if (logs.length === 0) {
+        await ctx.reply(
+          `📅 No se encontraron registros para el ${this.formatDateShort(date)}.\n\n` +
+          '¿Deseas buscar otra fecha?',
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '📅 Nueva fecha', callback_data: 'km_date_custom' }],
+                [{ text: '🔙 Volver', callback_data: 'km_search_by_date' }]
+              ]
+            }
+          }
+        );
+        return;
+      }
+
+      await this.displayKmSearchResults(ctx, logs, 'custom', date);
+
+      // Limpiar estado
+      await updateConversationState(ctx, 'idle', {});
+
+    } catch (error) {
+      logger.error(`Error en búsqueda personalizada: ${error.message}`);
+      await ctx.reply('❌ Error al procesar la fecha.');
+    }
+  }
+
+  /**
+   * Muestra resultados de búsqueda de kilómetros
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {Array} logs - Registros encontrados
+   * @param {string} period - Período buscado
+   * @param {Date} customDate - Fecha personalizada (opcional)
+   */
+  async displayKmSearchResults(ctx, logs, period, customDate = null) {
+    try {
+      const periodNames = {
+        today: 'Hoy',
+        yesterday: 'Ayer',
+        week: 'Últimos 7 días',
+        month: 'Último mes',
+        custom: customDate ? this.formatDateShort(customDate) : 'Fecha específica'
+      };
+
+      let message = `📅 *Registros de Kilómetros - ${periodNames[period]}*\n\n`;
+      message += `Total encontrados: ${logs.length}\n\n`;
+
+      // Agrupar por unidad para mejor visualización
+      const logsByUnit = {};
+      for (const log of logs) {
+        const unitNum = log.Unit.unitNumber;
+        if (!logsByUnit[unitNum]) {
+          logsByUnit[unitNum] = [];
+        }
+        logsByUnit[unitNum].push(log);
+      }
+
+      // Mostrar por unidad
+      for (const [unitNum, unitLogs] of Object.entries(logsByUnit)) {
+        message += `🚛 *Unidad ${unitNum}*\n`;
+
+        for (const log of unitLogs.slice(0, 3)) { // Máximo 3 por unidad
+          const typeIcon = log.logType === 'INICIO_TURNO' ? '🟢' : '🔴';
+          const typeText = log.logType === 'INICIO_TURNO' ? 'Inicio' : 'Fin';
+
+          message += `${typeIcon} ${typeText} - ${log.kilometers}km`;
+          message += ` (${this.formatDate(log.logTime).split(' ')[1]})\n`;
+        }
+
+        if (unitLogs.length > 3) {
+          message += `_... y ${unitLogs.length - 3} más_\n`;
+        }
+        message += '\n';
+      }
+
+      // Crear botones para gestionar registros
+      const buttons = logs.slice(0, 8).map(log => [{
+        text: `${log.Unit.unitNumber} - ${log.logType === 'INICIO_TURNO' ? '🟢' : '🔴'} ${log.kilometers}km`,
+        callback_data: `km_manage_${log.id.substring(0, 8)}`
+      }]);
+
+      buttons.push([
+        { text: '📅 Nueva búsqueda', callback_data: 'km_search_by_date' },
+        { text: '🔙 Volver', callback_data: 'manage_km_records' }
+      ]);
+
+      await ctx.reply(message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: buttons
+        }
+      });
+
+    } catch (error) {
+      logger.error(`Error al mostrar resultados de búsqueda: ${error.message}`);
+      await ctx.reply('❌ Error al mostrar los resultados.');
+    }
+  }
+
+  /**
    * Muestra las opciones de gestión de un registro específico obteniendo datos de BD
    * @param {TelegrafContext} ctx - Contexto de Telegraf
    * @param {string} fuelId - ID del registro de combustible
@@ -1033,9 +1455,9 @@ Selecciona el campo que deseas editar:`;
     try {
       // Buscar el registro directamente en la base de datos
       const fuel = await prisma.fuel.findUnique({
-        where: { 
+        where: {
           id: fuelId,
-          tenantId: ctx.tenant.id 
+          tenantId: ctx.tenant.id
         },
         include: {
           Unit: true
@@ -1064,7 +1486,7 @@ Selecciona el campo que deseas editar:`;
 
       // Llamar a la función existente con los datos formateados
       await this.showRecordManagementOptions(ctx, fuelData);
-      
+
     } catch (error) {
       logger.error(`Error al mostrar opciones por ID: ${error.message}`);
       await ctx.reply('❌ Error al cargar la información del registro.');

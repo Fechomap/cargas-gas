@@ -16,7 +16,7 @@ export function setupErrorMiddleware(bot) {
       chatId: ctx.chat?.id,
       tenantId: ctx.tenant?.id
     });
-    
+
     // Responder al usuario solo si es posible
     if (ctx.telegram && ctx.chat) {
       ctx.reply('Ha ocurrido un error. El equipo técnico ha sido notificado.')
@@ -25,7 +25,7 @@ export function setupErrorMiddleware(bot) {
         });
     }
   });
-  
+
   // Middleware para errores en la cadena de middlewares
   bot.use(async (ctx, next) => {
     try {
@@ -42,13 +42,13 @@ export function setupErrorMiddleware(bot) {
           tenantId: ctx.tenant?.id
         }
       });
-      
+
       // Solo enviar respuesta si no ha sido enviada ya
       if (!ctx.responseProcessed) {
         ctx.responseProcessed = true;
         await ctx.reply('Ocurrió un error al procesar tu solicitud. Por favor, intenta nuevamente.');
       }
-      
+
       // No llamamos a next() para evitar propagar el error
     }
   });
@@ -74,10 +74,10 @@ export function withErrorHandler(handler) {
           chatId: ctx.chat?.id
         }
       });
-      
+
       // Enviar mensaje de error genérico
       await ctx.reply('Lo sentimos, ocurrió un error al procesar tu solicitud.');
-      
+
       // No propagamos el error
       return;
     }

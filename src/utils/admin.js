@@ -8,16 +8,16 @@ import { logger } from './logger.js';
  */
 export async function isAdminUser(userId) {
   if (!userId) return false;
-  
+
   // Lista de IDs de administradores (considerando ambas variables de entorno)
-  const adminIds = process.env.ADMIN_USER_IDS 
+  const adminIds = process.env.ADMIN_USER_IDS
     ? process.env.ADMIN_USER_IDS.split(',').map(id => id.trim())
     : process.env.BOT_ADMIN_IDS
       ? process.env.BOT_ADMIN_IDS.split(',').map(id => id.trim())
       : [];
-  
+
   const isAdmin = adminIds.includes(userId.toString());
   logger.debug(`Verificando si usuario ${userId} es admin: ${isAdmin}`);
-  
+
   return isAdmin;
 }

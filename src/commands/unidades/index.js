@@ -9,12 +9,12 @@ import { configurarComandosDesactivacion } from './desactivacion.command.js';
  * @param {Telegraf} bot - Instancia del bot de Telegram
  */
 export function configurarComandosUnidades(bot) {
-  logger.info("⭐ Configurando sistema de unidades");
+  logger.info('⭐ Configurando sistema de unidades');
 
   // Registrar los diferentes módulos de comandos
   configurarComandosRegistro(bot);
   configurarComandosListado(bot);
   configurarComandosDesactivacion(bot);
 
-  logger.info("✅ Comandos de unidades configurados exitosamente");
+  logger.info('✅ Comandos de unidades configurados exitosamente');
 }

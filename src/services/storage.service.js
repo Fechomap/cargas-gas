@@ -32,8 +32,8 @@ const r2Client = new S3Client({
   endpoint: process.env.R2_ENDPOINT,
   credentials: {
     accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-  },
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+  }
 });
 
 /**
@@ -52,12 +52,12 @@ class StorageService {
   checkR2Configuration() {
     const requiredEnvs = ['R2_ENDPOINT', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME'];
     const missing = requiredEnvs.filter(env => !process.env[env]);
-    
+
     if (missing.length > 0) {
       logger.warn(`Variables de entorno R2 faltantes: ${missing.join(', ')}`);
       return false;
     }
-    
+
     return true;
   }
 
@@ -73,7 +73,7 @@ class StorageService {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const timestamp = Date.now();
-    
+
     return `${tenantId}/${year}/${month}/${relatedType}/${timestamp}_${fileName}`;
   }
 
@@ -110,12 +110,12 @@ class StorageService {
           relatedId: metadata.relatedId || '',
           relatedType: metadata.relatedType,
           uploadedBy: metadata.uploadedBy,
-          originalName: metadata.fileName,
-        },
+          originalName: metadata.fileName
+        }
       });
 
       await r2Client.send(command);
-      
+
       logger.info(`Archivo subido a R2: ${storageKey}`);
       return { storageKey, success: true };
     } catch (error) {
@@ -136,9 +136,9 @@ class StorageService {
       const fileExt = path.extname(metadata.fileName) || '.jpg';
       const fileName = `${uniqueId}${fileExt}`;
       const filePath = path.join(UPLOAD_DIR, fileName);
-      
+
       await fsPromises.writeFile(filePath, buffer);
-      
+
       logger.info(`Archivo guardado localmente: ${filePath}`);
       return { storageKey: filePath, success: true };
     } catch (error) {
@@ -158,7 +158,7 @@ class StorageService {
       // Validar metadatos requeridos
       const requiredFields = ['tenantId', 'relatedType', 'fileName', 'uploadedBy'];
       const missing = requiredFields.filter(field => !metadata[field]);
-      
+
       if (missing.length > 0) {
         throw new Error(`Metadatos faltantes: ${missing.join(', ')}`);
       }
@@ -194,8 +194,8 @@ class StorageService {
           fileType,
           fileSize,
           storageKey: storageResult.storageKey,
-          uploadedBy: metadata.uploadedBy,
-        },
+          uploadedBy: metadata.uploadedBy
+        }
       });
 
       logger.info(`Archivo guardado con ID: ${fileRecord.id}, R2: ${isR2Storage}`);
@@ -205,7 +205,7 @@ class StorageService {
         storageKey: storageResult.storageKey,
         isR2Storage,
         fileSize,
-        fileType,
+        fileType
       };
     } catch (error) {
       logger.error(`Error al guardar archivo: ${error.message}`);
@@ -222,7 +222,7 @@ class StorageService {
   async getSignedUrl(fileId, expiresIn = 86400) {
     try {
       const fileRecord = await prisma.fileStorage.findUnique({
-        where: { id: fileId, isActive: true },
+        where: { id: fileId, isActive: true }
       });
 
       if (!fileRecord) {
@@ -237,11 +237,11 @@ class StorageService {
       // Generar URL firmada para R2
       const command = new GetObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
-        Key: fileRecord.storageKey,
+        Key: fileRecord.storageKey
       });
 
       const signedUrl = await getSignedUrl(r2Client, command, { expiresIn });
-      
+
       logger.info(`URL firmada generada para archivo: ${fileId}`);
       return signedUrl;
     } catch (error) {
@@ -260,26 +260,26 @@ class StorageService {
   async savePhotoFromTelegram(ctx, fileId, metadata = {}) {
     try {
       logger.info(`Iniciando guardado de foto desde Telegram. FileID: ${fileId}`);
-      
+
       // Obtener URL del archivo
       const fileUrl = await ctx.telegram.getFileLink(fileId);
       logger.info(`URL obtenida de Telegram: ${fileUrl}`);
-      
+
       // Descargar archivo
       const response = await fetch(fileUrl);
       const buffer = Buffer.from(await response.arrayBuffer());
       logger.info(`Archivo descargado. Tamaño: ${buffer.length} bytes`);
-      
+
       // Preparar metadatos
       const fileMetadata = {
         fileName: `telegram_photo_${Date.now()}.jpg`,
         relatedType: 'fuel',
-        ...metadata,
+        ...metadata
       };
 
       // Guardar archivo usando el nuevo sistema
       const result = await this.saveFile(buffer, fileMetadata);
-      
+
       logger.info(`Foto de Telegram guardada exitosamente: ${result.id}`);
       return result;
     } catch (error) {
@@ -297,9 +297,9 @@ class StorageService {
     try {
       await prisma.fileStorage.update({
         where: { id: fileId },
-        data: { isActive: false },
+        data: { isActive: false }
       });
-      
+
       logger.info(`Archivo marcado como eliminado: ${fileId}`);
     } catch (error) {
       logger.error(`Error al eliminar archivo: ${error.message}`);
@@ -318,12 +318,12 @@ class StorageService {
       const where = {
         tenantId,
         isActive: true,
-        ...filters,
+        ...filters
       };
 
       const files = await prisma.fileStorage.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'desc' }
       });
 
       return files;
@@ -344,9 +344,9 @@ class StorageService {
       const uniqueId = uuidv4();
       const fileName = `${uniqueId}.${extension}`;
       const filePath = path.join(TEMP_DIR, fileName);
-      
+
       await fsPromises.writeFile(filePath, content);
-      
+
       return {
         filename: fileName,
         path: filePath

@@ -10,7 +10,7 @@ import { logger } from '../utils/logger.js';
  */
 export function migrateToNewMiddleware(bot) {
   logger.info('Migrando a nuevo sistema de middleware...');
-  
+
   // Usar el nuevo sistema de middleware con todas las opciones habilitadas
   setupMiddleware(bot, {
     enableDiagnostic: true,
@@ -19,7 +19,7 @@ export function migrateToNewMiddleware(bot) {
     enableTenantValidation: true,
     enableTenantSettings: true
   });
-  
+
   logger.info('Migración a nuevo sistema de middleware completada');
 }
 
@@ -40,7 +40,7 @@ export function setupMiddleware_LEGACY(bot) {
  */
 export function setupDiagnosticMiddleware_LEGACY(bot) {
   logger.warn('Llamada a setupDiagnosticMiddleware obsoleta, utilizando nuevo sistema');
-  
+
   // Importar solo el middleware de diagnóstico
   const { setupDiagnosticMiddleware } = require('./debug/diagnostic.js');
   setupDiagnosticMiddleware(bot, { verbose: true });
@@ -53,7 +53,7 @@ export function setupDiagnosticMiddleware_LEGACY(bot) {
  */
 export function setupGroupRestriction_LEGACY(bot) {
   logger.warn('Llamada a setupGroupRestriction obsoleta, utilizando nuevo sistema');
-  
+
   // Importar solo el middleware de restricción de grupo
   const { setupGroupRestrictionMiddleware } = require('./security/group.js');
   setupGroupRestrictionMiddleware(bot);
@@ -66,10 +66,10 @@ export function setupGroupRestriction_LEGACY(bot) {
  */
 export async function withTenant_LEGACY(ctx, next) {
   logger.warn('Uso directo de withTenant obsoleto, se recomienda usar el nuevo sistema');
-  
+
   // Importar el middleware de tenant
   const { withTenant } = require('./tenant/validation.js');
-  
+
   // Crear y ejecutar el middleware
   await withTenant()(ctx, next);
 }
@@ -81,10 +81,10 @@ export async function withTenant_LEGACY(ctx, next) {
  */
 export async function withTenantSettings_LEGACY(ctx, next) {
   logger.warn('Uso directo de withTenantSettings obsoleto, se recomienda usar el nuevo sistema');
-  
+
   // Importar el middleware de configuración de tenant
   const { withTenantSettings } = require('./tenant/settings.js');
-  
+
   // Crear y ejecutar el middleware
   await withTenantSettings()(ctx, next);
 }

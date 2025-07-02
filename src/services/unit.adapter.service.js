@@ -28,9 +28,9 @@ export class UnitService {
       if (!tenantId) {
         throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
       }
-      
+
       const buttonId = this.generateButtonId(unitData.operatorName, unitData.unitNumber);
-      
+
       try {
         return await PrismaUnitService.findOrCreateUnit({
           ...unitData,
@@ -56,7 +56,7 @@ export class UnitService {
       if (!tenantId) {
         throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
       }
-      
+
       try {
         return await PrismaUnitService.getActiveUnits(tenantId);
       } catch (error) {
@@ -89,7 +89,7 @@ export class UnitService {
       if (!tenantId) {
         throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
       }
-      
+
       try {
         return await PrismaUnitService.findUnitByButtonId(buttonId, tenantId);
       } catch (error) {
@@ -101,7 +101,7 @@ export class UnitService {
       throw error;
     }
   }
-  
+
   /**
    * Desactiva una unidad (borrado lógico)
    * @param {String} idOrButtonId - ID de la unidad o buttonId
@@ -114,7 +114,7 @@ export class UnitService {
       if (!tenantId) {
         throw new Error('Se requiere tenantId para operaciones con PostgreSQL');
       }
-      
+
       try {
         if (isByButtonId) {
           // Primero buscar la unidad por buttonId

@@ -16,10 +16,10 @@ class RegistrationService {
   async createRegistrationRequest(data) {
     try {
       const { companyName, contactName, contactPhone, contactEmail, requesterId, requesterUsername } = data;
-      
+
       // Generar ID único
       const id = uuidv4();
-      
+
       // Crear solicitud en base de datos
       const request = await prisma.registrationRequest.create({
         data: {
@@ -34,7 +34,7 @@ class RegistrationService {
           updatedAt: new Date()
         }
       });
-      
+
       logger.info(`Nueva solicitud de registro creada: ${id} para empresa "${companyName}"`);
       return request;
     } catch (error) {
@@ -42,7 +42,7 @@ class RegistrationService {
       throw error;
     }
   }
-  
+
   /**
    * Obtiene todas las solicitudes pendientes
    * @returns {Promise<Array>} - Lista de solicitudes pendientes
@@ -62,7 +62,7 @@ class RegistrationService {
       throw error;
     }
   }
-  
+
   /**
    * Aprueba una solicitud y genera un token para la vinculación
    * @param {String} requestId - ID de la solicitud
@@ -75,19 +75,19 @@ class RegistrationService {
       const request = await prisma.registrationRequest.findUnique({
         where: { id: requestId }
       });
-      
+
       if (!request) {
         throw new Error('Solicitud no encontrada');
       }
-      
+
       if (request.status !== 'PENDING') {
         throw new Error(`La solicitud ya fue ${request.status === 'APPROVED' ? 'aprobada' : 'rechazada'}`);
       }
-      
+
       // Generar token único de 6 caracteres (3 letras + 3 números)
       const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // Sin I, O para evitar confusiones
       const numbers = '23456789'; // Sin 0, 1 para evitar confusiones
-      
+
       let token = '';
       for (let i = 0; i < 3; i++) {
         token += letters.charAt(Math.floor(Math.random() * letters.length));
@@ -95,7 +95,7 @@ class RegistrationService {
       for (let i = 0; i < 3; i++) {
         token += numbers.charAt(Math.floor(Math.random() * numbers.length));
       }
-      
+
       // Crear tenant (sin chatId real todavía, pero isApproved=true para que pueda ser usado)
       const tenant = await prisma.tenant.create({
         data: {
@@ -110,8 +110,8 @@ class RegistrationService {
           settings: {
             create: {
               // Usando los campos correctos del esquema TenantSettings
-              currency: "MXN",
-              timezone: "America/Mexico_City",
+              currency: 'MXN',
+              timezone: 'America/Mexico_City',
               allowPhotoSkip: true,
               requireSaleNumber: false
             }
@@ -121,7 +121,7 @@ class RegistrationService {
           settings: true
         }
       });
-      
+
       // Actualizar estado de la solicitud
       await prisma.registrationRequest.update({
         where: { id: requestId },
@@ -132,7 +132,7 @@ class RegistrationService {
           updatedAt: new Date()
         }
       });
-      
+
       logger.info(`Solicitud ${requestId} aprobada. Token generado: ${token}`);
       return { tenant, token };
     } catch (error) {
@@ -140,7 +140,7 @@ class RegistrationService {
       throw error;
     }
   }
-  
+
   /**
    * Rechaza una solicitud de registro
    * @param {String} requestId - ID de la solicitud
@@ -154,15 +154,15 @@ class RegistrationService {
       const request = await prisma.registrationRequest.findUnique({
         where: { id: requestId }
       });
-      
+
       if (!request) {
         throw new Error('Solicitud no encontrada');
       }
-      
+
       if (request.status !== 'PENDING') {
         throw new Error(`La solicitud ya fue ${request.status === 'APPROVED' ? 'aprobada' : 'rechazada'}`);
       }
-      
+
       // Actualizar estado de la solicitud
       const updatedRequest = await prisma.registrationRequest.update({
         where: { id: requestId },
@@ -174,7 +174,7 @@ class RegistrationService {
           adminNotes: notes
         }
       });
-      
+
       logger.info(`Solicitud ${requestId} rechazada por administrador ${adminId}`);
       return updatedRequest;
     } catch (error) {
@@ -182,7 +182,7 @@ class RegistrationService {
       throw error;
     }
   }
-  
+
   /**
    * Busca un tenant por su token de registro
    * @param {String} token - Token de registro
@@ -198,7 +198,7 @@ class RegistrationService {
       throw error;
     }
   }
-  
+
   /**
    * Vincula un grupo con un tenant usando un token
    * @param {Object} options - Opciones para la vinculación
@@ -210,44 +210,44 @@ class RegistrationService {
   async linkGroupWithToken(options) {
     try {
       logger.info(`Intento de vinculación con token: ${JSON.stringify(options)}`);
-      
+
       // Validar que tenemos el token
       if (!options || !options.token) {
         logger.error('Token no proporcionado para la vinculación');
         return { success: false, error: 'Token no proporcionado' };
       }
-      
+
       // Normalizar token (quitar espacios, convertir a mayúsculas)
       const normalizedToken = String(options.token).trim().toUpperCase();
       const chatId = options.chatId;
-      
+
       // Buscar tenant con el token
       const tenant = await prisma.tenant.findFirst({
         where: { registrationToken: normalizedToken },
         include: { settings: true }
       });
-      
+
       if (!tenant) {
         return { success: false, error: 'Token inválido o expirado' };
       }
-      
+
       // Verificar que el tenant no esté ya vinculado a otro grupo
       if (tenant.chatId && !tenant.chatId.startsWith('pending_')) {
         return { success: false, error: 'Este token ya ha sido utilizado' };
       }
-      
+
       // Verificar que el grupo no esté ya vinculado a otro tenant
       const existingTenant = await prisma.tenant.findFirst({
-        where: { 
+        where: {
           chatId: chatId.toString(),
           NOT: { id: tenant.id }
         }
       });
-      
+
       if (existingTenant) {
         return { success: false, error: 'Este grupo ya está vinculado a otra empresa' };
       }
-      
+
       try {
         // Actualizar tenant con el chatId del grupo (sin usar chatTitle que no existe en el modelo)
         const updatedTenant = await prisma.tenant.update({
@@ -261,9 +261,9 @@ class RegistrationService {
           },
           include: { settings: true }
         });
-        
+
         logger.info(`Grupo ${chatId} vinculado exitosamente con tenant ${tenant.id} (${tenant.companyName})`);
-        return { success: true, tenant: updatedTenant };  
+        return { success: true, tenant: updatedTenant };
       } catch (updateError) {
         logger.error(`Error al actualizar tenant durante la vinculación: ${updateError.message}`);
         return { success: false, error: 'Error al vincular grupo con la empresa' };
@@ -273,7 +273,7 @@ class RegistrationService {
       return { success: false, error: `Error al vincular grupo: ${error.message}` };
     }
   }
-  
+
   /**
    * Obtiene una solicitud por ID
    * @param {String} requestId - ID de la solicitud

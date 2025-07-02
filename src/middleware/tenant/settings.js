@@ -21,18 +21,18 @@ export function withTenantSettings() {
         // Si no hay tenant o estamos en modo admin, continuamos sin cargar settings
         return next();
       }
-      
+
       // Obtener configuración del tenant
       const settings = await TenantService.getOrCreateSettings(ctx.tenant.id);
-      
+
       // Validar estructura de la configuración
       const validatedSettings = validateTenantSettings(settings);
-      
+
       // Agregar configuración al contexto
       ctx.tenantSettings = validatedSettings;
-      
+
       logger.debug(`Configuración de tenant cargada: ${ctx.tenant.id}`);
-      
+
       // Continuar con el siguiente middleware
       return next();
     } catch (error) {
@@ -43,12 +43,12 @@ export function withTenantSettings() {
         chatId: ctx.chat?.id,
         userId: ctx.from?.id
       });
-      
+
       // No interrumpir el flujo por un error en configuración
       // En su lugar, usar configuración por defecto
       ctx.tenantSettings = getDefaultTenantSettings();
       logger.info(`Usando configuración por defecto para tenant: ${ctx.tenant?.id}`);
-      
+
       // Continuar con el siguiente middleware
       return next();
     }
@@ -65,27 +65,27 @@ function validateTenantSettings(settings) {
   if (!settings) {
     return getDefaultTenantSettings();
   }
-  
+
   const defaultSettings = getDefaultTenantSettings();
   const validatedSettings = { ...defaultSettings };
-  
+
   // Transferir propiedades válidas
   if (typeof settings === 'object' && settings !== null) {
     // Validar límite de operadores
     if (typeof settings.unitLimit === 'number' && settings.unitLimit > 0) {
       validatedSettings.unitLimit = settings.unitLimit;
     }
-    
+
     // Validar moneda
     if (typeof settings.currency === 'string' && settings.currency) {
       validatedSettings.currency = settings.currency;
     }
-    
+
     // Validar zona horaria
     if (typeof settings.timezone === 'string' && settings.timezone) {
       validatedSettings.timezone = settings.timezone;
     }
-    
+
     // Validar características habilitadas
     if (typeof settings.features === 'object' && settings.features !== null) {
       validatedSettings.features = {
@@ -95,7 +95,7 @@ function validateTenantSettings(settings) {
           .reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {})
       };
     }
-    
+
     // Transferir configuración de notificaciones si existe
     if (typeof settings.notifications === 'object' && settings.notifications !== null) {
       validatedSettings.notifications = {
@@ -106,7 +106,7 @@ function validateTenantSettings(settings) {
       };
     }
   }
-  
+
   return validatedSettings;
 }
 

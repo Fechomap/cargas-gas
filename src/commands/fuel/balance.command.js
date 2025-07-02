@@ -16,11 +16,11 @@ export function setupBalanceCommands(bot) {
       logger.info('Llamando a fuelController.getTotalPendingBalance() con contexto');
       const totalAmount = await fuelController.getTotalPendingBalance(ctx);
       logger.info(`Saldo recuperado: ${totalAmount}`);
-      
+
       await ctx.reply(`💰 *Saldo pendiente total: $${totalAmount.toFixed(2)}*`, {
         parse_mode: 'Markdown'
       });
-      
+
       await ctx.reply('¿Qué deseas hacer ahora?', {
         reply_markup: getMainKeyboard()
       });
@@ -33,22 +33,22 @@ export function setupBalanceCommands(bot) {
       });
     }
   });
-  
+
   // Acción para mostrar saldo pendiente desde el botón
   bot.action('check_balance', async (ctx) => {
     try {
       logger.info(`Usuario ${ctx.from.id} solicitó saldo pendiente mediante botón`);
       await ctx.answerCbQuery('Consultando saldo pendiente...');
-      
+
       // Pasar el contexto al método
       logger.info('Llamando a fuelController.getTotalPendingBalance() con contexto');
       const totalAmount = await fuelController.getTotalPendingBalance(ctx);
       logger.info(`Saldo recuperado: ${totalAmount}`);
-      
+
       await ctx.reply(`💰 *Saldo pendiente total: $${totalAmount.toFixed(2)}*`, {
         parse_mode: 'Markdown'
       });
-      
+
       await ctx.reply('¿Qué deseas hacer ahora?', {
         reply_markup: getMainKeyboard()
       });
@@ -56,7 +56,7 @@ export function setupBalanceCommands(bot) {
       logger.error(`Error al mostrar saldo: ${error.message}`, error);
       await ctx.answerCbQuery('Error al consultar saldo');
       await ctx.reply('Ocurrió un error al consultar el saldo pendiente.');
-      
+
       // Mostrar menú incluso después del error
       await ctx.reply('¿Qué deseas hacer ahora?', {
         reply_markup: getMainKeyboard()

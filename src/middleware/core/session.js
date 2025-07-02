@@ -17,7 +17,7 @@ export function setupSessionMiddleware(bot) {
         // Validar y reparar la estructura de la sesión si es necesario
         ctx.session = validateAndRepairSession(ctx.session);
       }
-      
+
       // Continuar con el siguiente middleware
       return next();
     } catch (error) {
@@ -25,11 +25,11 @@ export function setupSessionMiddleware(bot) {
         error: error.stack,
         session: ctx.session
       });
-      
+
       // Reiniciar la sesión en caso de error grave
       ctx.session = createDefaultSession();
       logger.info('Sesión reiniciada debido a error');
-      
+
       // Continuar con el siguiente middleware
       return next();
     }
@@ -58,37 +58,37 @@ function createDefaultSession() {
  */
 function validateAndRepairSession(session) {
   const validatedSession = { ...createDefaultSession() };
-  
+
   // Transferir propiedades válidas
   if (typeof session === 'object' && session !== null) {
     // Validar estado
     if (typeof session.state === 'string') {
       validatedSession.state = session.state;
     }
-    
+
     // Validar datos
     if (typeof session.data === 'object' && session.data !== null) {
       validatedSession.data = session.data;
     }
-    
+
     // Validar historial
     if (Array.isArray(session.history)) {
       validatedSession.history = session.history;
     }
-    
+
     // Validar formulario actual
     if (session.currentForm !== undefined) {
       validatedSession.currentForm = session.currentForm;
     }
-    
+
     // Validar acciones pendientes
     if (Array.isArray(session.pendingActions)) {
       validatedSession.pendingActions = session.pendingActions;
     }
   }
-  
+
   // Actualizar timestamp de última interacción
   validatedSession.lastInteraction = Date.now();
-  
+
   return validatedSession;
 }

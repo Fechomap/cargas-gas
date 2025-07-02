@@ -20,38 +20,38 @@ function setupGlobalCallbacks(bot) {
   bot.action('main_menu', async (ctx) => {
     try {
       await ctx.answerCbQuery('Volviendo al menú principal');
-      
+
       // Limpiar el estado de conversación
       if (ctx.session) {
         ctx.session.state = 'idle';
         ctx.session.data = {};
       }
-      
+
       // Verificar si es administrador
       const isAdmin = await isAdminUser(ctx.from?.id);
-      
+
       // Crear menú con estructura nueva
       const buttons = [
         [Markup.button.callback('🚛 Registrar carga', 'register_fuel_start')],
         [Markup.button.callback('🕐 Turnos', 'turnos_menu')],
         [Markup.button.callback('📊 Consultas', 'consultas_menu')]
       ];
-      
+
       // Solo mostrar menú de Administración a usuarios admin
       if (isAdmin) {
         buttons.push([Markup.button.callback('🔧 Administración', 'admin_menu')]);
       }
-      
+
       buttons.push([Markup.button.callback('❓ Ayuda', 'show_help')]);
-      
+
       // Mostrar mensaje con menú principal
-      await ctx.reply('🏠 Menú Principal', 
+      await ctx.reply('🏠 Menú Principal',
         Markup.inlineKeyboard(buttons)
       );
     } catch (error) {
       logger.error(`Error al volver al menú principal: ${error.message}`);
       await ctx.answerCbQuery('Error al mostrar menú');
-      
+
       // Intento directo con botones en línea básicos
       const isAdmin = await isAdminUser(ctx.from?.id);
       const fallbackButtons = [
@@ -59,22 +59,22 @@ function setupGlobalCallbacks(bot) {
         [Markup.button.callback('🕐 Turnos', 'turnos_menu')],
         [Markup.button.callback('📊 Consultas', 'consultas_menu')]
       ];
-      
+
       if (isAdmin) {
         fallbackButtons.push([Markup.button.callback('🔧 Administración', 'admin_menu')]);
       }
-      
-      await ctx.reply('Menú Principal (alternativo)', 
+
+      await ctx.reply('Menú Principal (alternativo)',
         Markup.inlineKeyboard(fallbackButtons)
       );
     }
   });
-  
+
   // Manejar botón de ayuda
   bot.action('show_help', async (ctx) => {
     try {
       await ctx.answerCbQuery('Mostrando ayuda');
-      
+
       const helpMessage = `
 *Instrucciones de Uso* ❓
 
@@ -110,7 +110,7 @@ function setupGlobalCallbacks(bot) {
 
 Para soporte contacta a tu administrador.
       `;
-      
+
       await ctx.reply(helpMessage, {
         parse_mode: 'Markdown',
         reply_markup: Markup.inlineKeyboard([
@@ -122,18 +122,18 @@ Para soporte contacta a tu administrador.
       await ctx.reply('Ocurrió un error al mostrar la ayuda.');
     }
   });
-  
+
   // Manejar botón de ver unidades
   bot.action('show_units', async (ctx) => {
     try {
       await ctx.answerCbQuery('Cargando unidades');
-      
+
       // Llamar al controlador para mostrar unidades
       await unitController.showRegisteredUnits(ctx);
     } catch (error) {
       logger.error(`Error al mostrar unidades: ${error.message}`);
       await ctx.reply('Ocurrió un error al cargar las unidades.');
-      
+
       // Mostrar menú principal como fallback
       await ctx.reply('¿Qué deseas hacer ahora?', {
         reply_markup: Markup.inlineKeyboard([
@@ -142,10 +142,10 @@ Para soporte contacta a tu administrador.
       });
     }
   });
-  
+
   // NOTA: El callback 'check_balance' se maneja en fuel/balance.command.js
   // Eliminado handler que simulaba comando /saldo
-  
+
   // Manejar botón para gestionar unidades
   bot.action('manage_units', async (ctx) => {
     try {
@@ -167,16 +167,16 @@ Para soporte contacta a tu administrador.
       );
     }
   });
-  
+
   // Manejar botón de turnos
   bot.action('turnos_menu', async (ctx) => {
     try {
       await ctx.answerCbQuery('Accediendo al menú de turnos');
-      
+
       // Importar dinámicamente el controlador para evitar dependencias circulares
       const { TurnoController } = await import('../controllers/turno.controller.js');
       const turnoController = new TurnoController();
-      
+
       await turnoController.showTurnosMenu(ctx);
     } catch (error) {
       logger.error(`Error al acceder al menú de turnos: ${error.message}`);
@@ -184,15 +184,15 @@ Para soporte contacta a tu administrador.
       await ctx.reply('Error al acceder al menú de turnos. Por favor, intenta nuevamente.');
     }
   });
-  
+
   // Manejar botón del submenú de Consultas
   bot.action('consultas_menu', async (ctx) => {
     try {
       await ctx.answerCbQuery('Accediendo al menú de consultas');
-      
+
       // Verificar si es administrador para mostrar opciones apropiadas
       const isAdmin = await isAdminUser(ctx.from?.id);
-      
+
       await ctx.reply('📊 Menú de Consultas\n\nSelecciona la consulta que deseas realizar:', {
         reply_markup: getConsultasKeyboard(isAdmin).reply_markup
       });
@@ -202,21 +202,21 @@ Para soporte contacta a tu administrador.
       await ctx.reply('Error al acceder al menú de consultas. Por favor, intenta nuevamente.');
     }
   });
-  
+
   // Manejar botón del submenú de Administración
   bot.action('admin_menu', async (ctx) => {
     try {
       // Verificar permisos de administrador
       const isAdmin = await isAdminUser(ctx.from?.id);
-      
+
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         await ctx.reply('❌ No tienes permisos de administrador para acceder a esta sección.');
         return;
       }
-      
+
       await ctx.answerCbQuery('Accediendo al menú de administración');
-      
+
       await ctx.reply('🔧 Menú de Administración\n\nSelecciona la función administrativa que deseas realizar:', {
         reply_markup: getAdminKeyboard().reply_markup
       });
@@ -226,19 +226,19 @@ Para soporte contacta a tu administrador.
       await ctx.reply('Error al acceder al menú de administración. Por favor, intenta nuevamente.');
     }
   });
-  
+
   // Manejar botón de gestión de registros (CRUD completo)
   bot.action('manage_fuel_records', async (ctx) => {
     try {
       // Verificar permisos de administrador
       const isAdmin = await isAdminUser(ctx.from?.id);
-      
+
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         await ctx.reply('❌ No tienes permisos de administrador para gestionar registros.');
         return;
       }
-      
+
       await ctx.answerCbQuery('Accediendo a gestión de registros');
       await gestionRegistrosController.showMainMenu(ctx);
     } catch (error) {
@@ -247,35 +247,35 @@ Para soporte contacta a tu administrador.
       await ctx.reply('Error al acceder a la gestión de registros.');
     }
   });
-  
+
   // NOTA: El manejador para 'search_fuel_records' se ha movido a src/commands/fuel/desactivacion.command.js
   // para evitar duplicados y conflictos de manejadores
-  
+
   // Manejar botón para generar reporte (solo admins)
   bot.action('generate_report', async (ctx) => {
     try {
       // Verificar permisos de administrador
       const isAdmin = await isAdminUser(ctx.from?.id);
-      
+
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         await ctx.reply('❌ Solo los administradores pueden generar reportes.');
         return;
       }
-      
+
       await ctx.answerCbQuery('Iniciando generación de reporte...');
-      
+
       // Importar dinámicamente el controlador para evitar dependencias circulares
       const { reportController } = await import('../controllers/reportes/index.js');
-      
+
       // Llamar directamente al controlador en lugar de simular el comando
       await reportController.startReportGeneration(ctx);
-      
+
       logger.info('Generador de reportes iniciado directamente desde el botón');
     } catch (error) {
       logger.error(`Error al iniciar reporte: ${error.message}`);
       await ctx.reply('Ocurrió un error al iniciar la generación del reporte.');
-      
+
       // Volver al menú principal
       await ctx.reply('¿Qué deseas hacer ahora?', {
         reply_markup: Markup.inlineKeyboard([
@@ -293,29 +293,29 @@ Para soporte contacta a tu administrador.
 export function registerCommands(bot) {
   try {
     logger.info('Iniciando registro de comandos');
-    
+
     // Registrar comandos principales
     logger.info('Configurando comando start');
     setupStartCommand(bot);
-    
+
     logger.info('Configurando sistema de unidades');
     configurarComandosUnidades(bot);
-    
+
     logger.info('Configurando comandos de combustible');
     setupFuelCommands(bot);
-    
+
     logger.info('Configurando sistema de reportes');
     configurarComandosReportes(bot);
-    
+
     logger.info('Configurando sistema de registro de empresas');
     setupCompanyRegisterCommands(bot);
-    
+
     logger.info('Configurando sistema de turnos');
     setupTurnosCommands(bot);
-    
+
     // Configurar callbacks globales
     setupGlobalCallbacks(bot);
-    
+
     // Definir comandos para usuarios registrados (con tenant)
     const registeredUserCommands = [
       { command: 'start', description: 'Iniciar el bot' },
@@ -325,30 +325,30 @@ export function registerCommands(bot) {
       { command: 'reporte', description: 'Generar reportes de cargas' },
       { command: 'ayuda', description: 'Ver instrucciones de uso' }
     ];
-    
+
     // Definir comandos para usuarios no registrados (sin tenant)
     const unregisteredUserCommands = [
       { command: 'start', description: 'Iniciar el bot' },
       { command: 'registrar_empresa', description: 'Solicitar registro de empresa' },
       { command: 'vincular', description: 'Vincular grupo con token de empresa' }
     ];
-    
+
     // Establecer comandos en la interfaz de Telegram según el ámbito
     logger.info('Registrando comandos en API de Telegram para diferentes ámbitos');
-    
+
     // 1. Comandos para chats privados (usuarios no registrados) - limitado a registro
     bot.telegram.setMyCommands(unregisteredUserCommands, { scope: { type: 'all_private_chats' } });
     logger.info('Comandos para chats privados registrados');
-    
+
     // 2. Comandos para grupos (usuarios registrados) - menú completo
     bot.telegram.setMyCommands(registeredUserCommands, { scope: { type: 'all_group_chats' } });
     logger.info('Comandos para grupos registrados');
-    
+
     // Implementar comando /ayuda
     bot.command('ayuda', async (ctx) => {
       try {
         logger.info(`Usuario ${ctx.from?.id} solicitó ayuda via comando`);
-        
+
         const helpMessage = `
 *Instrucciones de Uso* ❓
 
@@ -384,7 +384,7 @@ export function registerCommands(bot) {
 
 Para soporte contacta a tu administrador.
         `;
-        
+
         await ctx.reply(helpMessage, {
           parse_mode: 'Markdown',
           reply_markup: Markup.inlineKeyboard([
@@ -396,13 +396,13 @@ Para soporte contacta a tu administrador.
         await ctx.reply('Ocurrió un error al mostrar la ayuda.');
       }
     });
-    
+
     // Añadir manejador para comandos no registrados
     bot.on('text', (ctx, next) => {
       logger.info(`Recibido texto: ${ctx.message.text}`);
       return next();
     });
-    
+
     logger.info('Comandos registrados correctamente');
   } catch (error) {
     logger.error('Error al registrar comandos:', error);

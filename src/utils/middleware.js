@@ -8,7 +8,7 @@ import { logger } from './logger.js';
 export function setupMiddleware(bot) {
   // Añadir diagnóstico
   setupDiagnosticMiddleware(bot);
-  
+
   // Middleware de logging
   bot.use(async (ctx, next) => {
     try {
@@ -49,14 +49,14 @@ export function setupDiagnosticMiddleware(bot) {
       // Registrar tipo de actualización
       const updateType = ctx.updateType || 'desconocido';
       const userId = ctx.from ? ctx.from.id : 'desconocido';
-      
+
       if (updateType === 'callback_query') {
         logger.info(`CALLBACK: Usuario ${userId} - Datos: ${ctx.callbackQuery.data}`);
       } else if (updateType === 'message') {
         const text = ctx.message.text || 'sin texto';
         logger.info(`MENSAJE: Usuario ${userId} - Contenido: ${text}`);
       }
-      
+
       await next();
     } catch (error) {
       logger.error(`Error en middleware de diagnóstico: ${error.message}`, error);
@@ -72,20 +72,20 @@ export function setupDiagnosticMiddleware(bot) {
 export function setupGroupRestriction(bot) {
   // IMPORTANTE: Reemplaza este ID con la ID real de tu grupo
   const ALLOWED_GROUP_IDS = [-1002411620798, -4527368480]; // ID de tu grupo
-  
+
   // Middleware para restringir acceso SOLO al grupo específico
   bot.use((ctx, next) => {
     // Registrar información del chat para depuración
     if (ctx.chat) {
       logger.info(`Chat info - ID: ${ctx.chat.id}, Tipo: ${ctx.chat.type}, Título: ${ctx.chat.title || 'N/A'}`);
     }
-    
+
     // Si no hay chat o no es el grupo autorizado, ignorar
     if (!ctx.chat || !ALLOWED_GROUP_IDS.includes(ctx.chat.id)) {
       logger.warn(`Acceso denegado - ID: ${ctx.chat?.id || 'desconocido'}, Tipo: ${ctx.chat?.type || 'desconocido'}`);
       return; // Bloquear silenciosamente, no responder al usuario
     }
-    
+
     // Si llegamos aquí, es el grupo autorizado
     return next();
   });

@@ -50,19 +50,19 @@ class ReportPrismaService {
       if (!tenantId) {
         throw new Error('Se requiere tenantId para generar reportes');
       }
-      
+
       // Obtener datos para el reporte
       const fuels = await FuelService.findFuels(filters, tenantId);
-      
+
       // Calcular resumen
       const summary = this.calculateSummary(fuels);
-      
+
       // Crear estructura del documento PDF
       const docDefinition = this.createPdfDocDefinition(fuels, summary, filters);
-      
+
       // Generar PDF
       const pdfDoc = printer.createPdfKitDocument(docDefinition);
-      
+
       // Crear archivo temporal
       const tempFilePath = await new Promise((resolve, reject) => {
         let chunks = [];
@@ -76,7 +76,7 @@ class ReportPrismaService {
         pdfDoc.on('error', reject);
         pdfDoc.end();
       });
-      
+
       return {
         ...tempFilePath,
         filename: `Reporte_${this.getReportDateString()}.pdf`
@@ -98,21 +98,21 @@ class ReportPrismaService {
       if (!tenantId) {
         throw new Error('Se requiere tenantId para generar reportes');
       }
-      
+
       // Obtener datos para el reporte
       const fuels = await FuelService.findFuels(filters, tenantId);
-      
+
       // Calcular resumen
       const summary = this.calculateSummary(fuels);
-      
+
       // Crear libro de Excel con ExcelJS
       const workbook = new ExcelJS.Workbook();
       workbook.creator = 'Sistema de Cargas de Combustible';
       workbook.created = new Date();
-      
+
       // Crear hoja para datos
       const worksheet = workbook.addWorksheet('Cargas de Combustible');
-      
+
       // Definir columnas (nueva estructura con kilómetros y precio por litro)
       worksheet.columns = [
         { header: 'Fecha', key: 'date', width: 18 },
@@ -127,7 +127,7 @@ class ReportPrismaService {
         { header: 'Fecha de Pago', key: 'paymentDate', width: 18 },
         { header: 'Venta #', key: 'saleNumber', width: 15 }
       ];
-      
+
       // Aplicar estilo a encabezados
       worksheet.getRow(1).font = { bold: true };
       worksheet.getRow(1).fill = {
@@ -135,7 +135,7 @@ class ReportPrismaService {
         pattern: 'solid',
         fgColor: { argb: 'FFD3D3D3' }
       };
-      
+
       // Añadir filas de datos (incluyendo kilómetros y precio por litro)
       fuels.forEach(fuel => {
         worksheet.addRow({
@@ -152,30 +152,30 @@ class ReportPrismaService {
           saleNumber: fuel.saleNumber || 'N/A'
         });
       });
-      
+
       // Dar formato a números (incluyendo nuevas columnas)
       worksheet.getColumn('kilometers').numFmt = '#,##0.00';
       worksheet.getColumn('liters').numFmt = '#,##0.00';
       worksheet.getColumn('pricePerLiter').numFmt = '$#,##0.00';
       worksheet.getColumn('amount').numFmt = '$#,##0.00';
-      
+
       // Agregar resumen al final (ajustado para nuevas columnas)
       worksheet.addRow([]);
       worksheet.addRow(['RESUMEN', '', '', '', '', '', '', '', '', '', '']);
       worksheet.getRow(worksheet.rowCount).font = { bold: true };
-      
+
       worksheet.addRow(['Total Cargas', summary.totalEntries]);
       worksheet.addRow(['Total Litros', summary.totalLiters]);
       worksheet.addRow(['Total Monto', summary.totalAmount]);
       worksheet.addRow(['Pagadas', summary.paidCount]);
       worksheet.addRow(['No Pagadas', summary.unpaidCount]);
-      
+
       // Crear archivo
       const buffer = await workbook.xlsx.writeBuffer();
-      
+
       // Guardar temporalmente
       const tempFilePath = await storageService.createTempFile(buffer, 'xlsx');
-      
+
       return {
         ...tempFilePath,
         filename: `Reporte_${this.getReportDateString()}.xlsx`
@@ -197,23 +197,23 @@ class ReportPrismaService {
       if (!tenantId) {
         throw new Error('Se requiere tenantId para marcar como pagadas');
       }
-      
+
       // Preparar filtros para encontrar solo las no pagadas
       const reportFilters = {
         ...filters,
         paymentStatus: 'NO_PAGADA'
       };
-      
+
       // Obtener cargas no pagadas
       const fuels = await FuelService.findFuels(reportFilters, tenantId);
-      
+
       // Marcar cada una como pagada
       let count = 0;
       for (const fuel of fuels) {
         await FuelService.markAsPaid(fuel.id, tenantId);
         count++;
       }
-      
+
       return {
         success: true,
         count,
@@ -240,11 +240,11 @@ class ReportPrismaService {
       paidAmount: 0,
       unpaidAmount: 0
     };
-    
+
     fuels.forEach(fuel => {
       summary.totalLiters += Number(fuel.liters);
       summary.totalAmount += Number(fuel.amount);
-      
+
       if (fuel.paymentStatus === 'PAGADA') {
         summary.paidCount++;
         summary.paidAmount += Number(fuel.amount);
@@ -253,7 +253,7 @@ class ReportPrismaService {
         summary.unpaidAmount += Number(fuel.amount);
       }
     });
-    
+
     return summary;
   }
 
@@ -279,13 +279,13 @@ class ReportPrismaService {
       fuel.paymentDate ? formatDate(new Date(fuel.paymentDate)) : 'N/A',
       fuel.saleNumber || 'N/A'
     ]);
-    
+
     // Agregar encabezados (nueva estructura con kilómetros y precio por litro)
     tableData.unshift([
-      'Fecha', 'Operador', 'Unidad', 'Kilómetros', 'Tipo', 
+      'Fecha', 'Operador', 'Unidad', 'Kilómetros', 'Tipo',
       'Litros', 'Precio/L', 'Monto', 'Estado', 'Fecha de Pago', '# Venta'
     ]);
-    
+
     // Crear documento
     return {
       // Configurar página en orientación horizontal
@@ -347,25 +347,25 @@ class ReportPrismaService {
   getFiltersDescription(filters) {
     let description = 'Filtros aplicados: ';
     const filterTexts = [];
-    
+
     if (filters.startDate && filters.endDate) {
       const start = formatDate(new Date(filters.startDate));
       const end = formatDate(new Date(filters.endDate));
       filterTexts.push(`Período: ${start} a ${end}`);
     }
-    
+
     if (filters.operatorName) {
       filterTexts.push(`Operador: ${filters.operatorName}`);
     }
-    
+
     if (filters.fuelType) {
       filterTexts.push(`Tipo: ${filters.fuelType === 'GAS' ? 'Gas' : (filters.fuelType === 'GASOLINA' ? 'Gasolina' : 'Diésel')}`);
     }
-    
+
     if (filters.paymentStatus) {
       filterTexts.push(`Estado: ${filters.paymentStatus === 'PAGADA' ? 'Pagada' : 'No Pagada'}`);
     }
-    
+
     return {
       text: filterTexts.length > 0 ? description + filterTexts.join(', ') : 'Sin filtros aplicados',
       style: 'subheader',

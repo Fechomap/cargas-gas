@@ -44,8 +44,8 @@ export class FuelService {
     if (fuelData.kilometers !== null && fuelData.kilometers !== undefined) {
       // Validar kilómetros contra el histórico
       const validation = await KilometerService.validateKilometer(
-        tenantId, 
-        fuelData.unitId, 
+        tenantId,
+        fuelData.unitId,
         fuelData.kilometers
       );
 
@@ -58,7 +58,7 @@ export class FuelService {
       // Si hay precio por litro y kilómetros, verificar cálculo automático
       if (fuelData.pricePerLiter && fuelData.liters) {
         const autoCalculatedAmount = parseFloat(fuelData.liters) * parseFloat(fuelData.pricePerLiter);
-        
+
         // Si no se proporcionó monto, calcularlo automáticamente
         if (!fuelData.amount) {
           calculatedAmount = autoCalculatedAmount;
@@ -66,7 +66,7 @@ export class FuelService {
           // Si se proporcionó monto, verificar que sea consistente (tolerancia de ±1 peso)
           const providedAmount = parseFloat(fuelData.amount);
           const difference = Math.abs(providedAmount - autoCalculatedAmount);
-          
+
           if (difference > 1.0) {
             console.warn(`Discrepancia en cálculo: Proporcionado $${providedAmount}, Calculado $${autoCalculatedAmount.toFixed(2)}`);
           }
@@ -108,12 +108,12 @@ export class FuelService {
         Unit: true
       }
     });
-    
+
     // Si se requiere que esté activo y el registro no lo está, retornar null
     if (record && record.isActive === false) {
       return null;
     }
-    
+
     return record;
   }
 
@@ -126,11 +126,11 @@ export class FuelService {
   static async markAsPaid(fuelId, tenantId) {
     // Primero verificamos si el registro existe y está activo
     const record = await this.getFuelById(fuelId, tenantId);
-    
+
     if (!record) {
       throw new Error('Registro no encontrado o inactivo');
     }
-    
+
     // Actualizamos el registro
     await prisma.fuel.update({
       where: {
@@ -141,7 +141,7 @@ export class FuelService {
         paymentDate: new Date()
       }
     });
-    
+
     // Obtenemos el registro actualizado para devolverlo completo
     return this.getFuelById(fuelId, tenantId);
   }
@@ -185,11 +185,11 @@ export class FuelService {
   static async updateFuel(fuelId, data, tenantId) {
     // Primero verificamos si el registro existe y está activo
     const record = await this.getFuelById(fuelId, tenantId);
-    
+
     if (!record) {
       throw new Error('Registro no encontrado o inactivo');
     }
-    
+
     // Actualizamos el registro
     return prisma.fuel.update({
       where: {
@@ -210,11 +210,11 @@ export class FuelService {
   static async updateRecordDate(fuelId, newDate, tenantId) {
     // Verificar que el registro existe
     const record = await this.getFuelById(fuelId, tenantId);
-    
+
     if (!record) {
       throw new Error('Registro no encontrado o inactivo');
     }
-    
+
     // Actualizar la fecha
     return prisma.fuel.update({
       where: {
@@ -253,11 +253,11 @@ export class FuelService {
    */
   static async findFuels(filters = {}, tenantId) {
     const where = { tenantId };
-    
+
     // IMPORTANTE: Aplicar filtro isActive ANTES de la consulta
     // Por defecto, solo buscar registros activos a menos que se especifique lo contrario
     where.isActive = filters.hasOwnProperty('isActive') ? filters.isActive : true;
-    
+
     // Aplicar filtros
     if (filters.startDate && filters.endDate) {
       where.recordDate = {
@@ -292,7 +292,7 @@ export class FuelService {
           equals: filters.saleNumber,
           mode: 'insensitive'
         };
-      } 
+      }
       // Si queremos búsqueda por prefijo (empieza con), usamos startsWith
       else if (filters.prefixMatch) {
         where.saleNumber = {
@@ -319,7 +319,7 @@ export class FuelService {
         recordDate: 'desc'
       }
     });
-    
+
     // Ya no necesitamos filtrar manualmente porque se aplicó en la consulta
     return results;
   }
@@ -374,14 +374,14 @@ export class FuelService {
    */
   static async findFuelsWithKilometers(filters = {}, tenantId) {
     const fuels = await this.findFuels(filters, tenantId);
-    
+
     // Agregar información adicional de kilómetros a cada registro
     const enrichedFuels = await Promise.all(
       fuels.map(async (fuel) => {
         if (fuel.kilometers) {
           // Obtener último kilómetro conocido antes de este registro
           const lastKm = await KilometerService.getLastKilometer(tenantId, fuel.unitId);
-          
+
           // Calcular eficiencia si hay datos completos
           let efficiency = null;
           if (fuel.kilometers && lastKm && fuel.liters) {
@@ -390,7 +390,7 @@ export class FuelService {
               efficiency = distance / parseFloat(fuel.liters); // km por litro
             }
           }
-          
+
           return {
             ...fuel,
             kilometerInfo: {
@@ -401,7 +401,7 @@ export class FuelService {
             }
           };
         }
-        
+
         return {
           ...fuel,
           kilometerInfo: {
@@ -413,7 +413,7 @@ export class FuelService {
         };
       })
     );
-    
+
     return enrichedFuels;
   }
 
@@ -448,8 +448,8 @@ export class FuelService {
     if (fuelData.kilometers !== null && fuelData.kilometers !== undefined) {
       try {
         const kilometerValidation = await KilometerService.validateKilometer(
-          tenantId, 
-          fuelData.unitId, 
+          tenantId,
+          fuelData.unitId,
           fuelData.kilometers
         );
 
@@ -468,7 +468,7 @@ export class FuelService {
       const calculatedAmount = parseFloat(fuelData.liters) * parseFloat(fuelData.pricePerLiter);
       const providedAmount = parseFloat(fuelData.amount);
       const difference = Math.abs(providedAmount - calculatedAmount);
-      
+
       if (difference > 1.0) {
         validation.warnings.push(
           `Discrepancia en monto: Calculado $${calculatedAmount.toFixed(2)}, Proporcionado $${providedAmount.toFixed(2)}`

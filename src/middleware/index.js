@@ -22,48 +22,48 @@ export function setupMiddleware(bot, options = {}) {
     enableLogging = true,
     enableGroupRestriction = true,
     enableTenantValidation = true,
-    enableTenantSettings = true,
+    enableTenantSettings = true
   } = options;
 
   logger.info('Iniciando configuración de middlewares');
 
   // 1. Middleware de errores (siempre debe ser el primero)
   setupErrorMiddleware(bot);
-  
+
   // 2. Middleware de diagnóstico (opcional)
   if (enableDiagnostic) {
     setupDiagnosticMiddleware(bot);
   }
-  
+
   // 3. Middleware de logging (opcional)
   if (enableLogging) {
     setupLoggingMiddleware(bot);
   }
-  
+
   // 4. Middleware de sesión (siempre necesario)
   setupSessionMiddleware(bot);
-  
+
   // 5. Middleware de restricción de grupo (opcional)
   if (enableGroupRestriction) {
     setupGroupRestrictionMiddleware(bot);
   }
-  
+
   // 6. Middleware de validación de tenant (opcional)
   if (enableTenantValidation) {
     setupTenantValidationMiddleware(bot);
   }
-  
+
   // 7. Middleware de configuración de tenant (opcional)
   if (enableTenantSettings) {
     setupTenantSettingsMiddleware(bot);
   }
-  
+
   // 8. Middleware de control de acceso (siempre necesario)
   setupAccessControlMiddleware(bot);
-  
+
   // 9. Middleware de verificación de administradores de grupo
   setupAdminCheckMiddleware(bot);
-  
+
   logger.info('Middlewares configurados correctamente');
 }
 

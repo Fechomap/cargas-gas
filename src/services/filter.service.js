@@ -74,7 +74,7 @@ class FilterService {
       logger.info('Obteniendo todos los filtros disponibles');
       const keys = Object.keys(this.definitions);
       logger.info(`Claves de filtros: ${keys.join(', ')}`);
-      
+
       const filters = keys.map(key => {
         const filter = {
           key,
@@ -83,7 +83,7 @@ class FilterService {
         logger.info(`Filtro ${key}: ${JSON.stringify(filter)}`);
         return filter;
       });
-      
+
       logger.info(`Total filtros disponibles: ${filters.length}`);
       return filters;
     } catch (error) {
@@ -97,16 +97,16 @@ class FilterService {
    */
   async processFilterValue(filterKey, value) {
     const definition = this.getFilterDefinition(filterKey);
-    
+
     switch (definition.type) {
-      case 'date_range':
-        return this.processDateRange(value);
-      case 'dynamic_list':
-        return this.processDynamicList(definition.dataSource, value);
-      case 'static_list':
-        return value;
-      default:
-        return value;
+    case 'date_range':
+      return this.processDateRange(value);
+    case 'dynamic_list':
+      return this.processDynamicList(definition.dataSource, value);
+    case 'static_list':
+      return value;
+    default:
+      return value;
     }
   }
 
@@ -119,35 +119,35 @@ class FilterService {
     let endDate = new Date();
 
     switch (rangeType) {
-      case 'today':
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      case 'this_week':
-        const dayOfWeek = startDate.getDay();
-        const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-        startDate.setDate(startDate.getDate() - diff);
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      case 'last_2_weeks':
-        startDate.setDate(startDate.getDate() - 14);
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      case 'this_month':
-        startDate.setDate(1);
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      case 'last_3_months':
-        startDate.setMonth(startDate.getMonth() - 3);
-        startDate.setDate(1);
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      default:
-        return null;
+    case 'today':
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      break;
+    case 'this_week':
+      const dayOfWeek = startDate.getDay();
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      startDate.setDate(startDate.getDate() - diff);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      break;
+    case 'last_2_weeks':
+      startDate.setDate(startDate.getDate() - 14);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      break;
+    case 'this_month':
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      break;
+    case 'last_3_months':
+      startDate.setMonth(startDate.getMonth() - 3);
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      break;
+    default:
+      return null;
     }
 
     return { startDate, endDate };
@@ -158,18 +158,18 @@ class FilterService {
    */
   async processDynamicList(dataSource, value, tenantId) {
     switch (dataSource) {
-      case 'operators':
-        if (value === 'get_options') {
-          if (!tenantId) {
-            throw new Error('Se requiere tenantId para obtener operadores con PostgreSQL');
-          }
-          const units = await unitService.getAllActiveUnits(tenantId);
-          const operators = [...new Set(units.map(unit => unit.operatorName))];
-          return operators.map(op => ({ label: op, value: op }));
+    case 'operators':
+      if (value === 'get_options') {
+        if (!tenantId) {
+          throw new Error('Se requiere tenantId para obtener operadores con PostgreSQL');
         }
-        return value;
-      default:
-        return value;
+        const units = await unitService.getAllActiveUnits(tenantId);
+        const operators = [...new Set(units.map(unit => unit.operatorName))];
+        return operators.map(op => ({ label: op, value: op }));
+      }
+      return value;
+    default:
+      return value;
     }
   }
 
@@ -191,12 +191,12 @@ class FilterService {
    */
   filtersToText(filters) {
     const descriptions = [];
-    
+
     for (const [key, value] of Object.entries(filters)) {
-      // Usar consistentemente getFilterDefinition 
+      // Usar consistentemente getFilterDefinition
       const definition = this.getFilterDefinition(key);
       if (!definition) continue;
-      
+
       // Escapar caracteres especiales de Markdown en los valores
       let safeValue = value;
       if (typeof value === 'string') {
@@ -204,7 +204,7 @@ class FilterService {
         safeValue = value.replace(/_/g, '\\_').replace(/\*/g, '\\*').replace(/`/g, '\\`');
         logger.info(`Valor escapado para Markdown: ${value} -> ${safeValue}`);
       }
-      
+
       if (key === 'startDate' && filters.endDate) {
         const startDate = this.formatDate(filters.startDate);
         const endDate = this.formatDate(filters.endDate);
@@ -234,7 +234,7 @@ class FilterService {
    */
   mapFiltersForDatabase(filters) {
     const mappedFilters = {};
-    
+
     // Mapeo de nombres de campos
     const fieldMapping = {
       'operator': 'operatorName',        // operator → operatorName
@@ -243,15 +243,15 @@ class FilterService {
       'startDate': 'startDate',         // startDate → startDate (sin cambio)
       'endDate': 'endDate'              // endDate → endDate (sin cambio)
     };
-    
+
     // Aplicar mapeo
     for (const [filterKey, filterValue] of Object.entries(filters)) {
       const mappedKey = fieldMapping[filterKey] || filterKey;
       mappedFilters[mappedKey] = filterValue;
-      
+
       logger.info(`Mapeo de filtro: ${filterKey} → ${mappedKey} = ${filterValue}`);
     }
-    
+
     logger.info(`Filtros mapeados: ${JSON.stringify(mappedFilters)}`);
     return mappedFilters;
   }

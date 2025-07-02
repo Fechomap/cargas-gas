@@ -30,7 +30,7 @@ export class PagosController {
       throw error;
     }
   }
-  
+
   /**
    * Marca todas las cargas no pagadas como pagadas
    * @returns {Promise<number>} - Cantidad de cargas actualizadas
@@ -46,7 +46,7 @@ export class PagosController {
       throw error;
     }
   }
-  
+
   /**
    * Inicia el flujo de búsqueda de nota por número de venta
    * @param {TelegrafContext} ctx - Contexto de Telegraf
@@ -54,10 +54,10 @@ export class PagosController {
   async startNoteSearch(ctx) {
     try {
       logger.info(`Usuario ${ctx.from.id} inició búsqueda de nota`);
-      
+
       // Actualizar estado de conversación
       await updateConversationState(ctx, 'search_note_input', {});
-      
+
       // Mostrar instrucciones y solicitar número de nota
       await ctx.reply(
         '🔍 *Búsqueda de nota para pago*\n\n' +
@@ -74,7 +74,7 @@ export class PagosController {
       await ctx.reply('Ocurrió un error al iniciar la búsqueda. Por favor, intenta nuevamente.');
     }
   }
-  
+
   /**
    * Procesa la entrada del número de venta para búsqueda
    * @param {TelegrafContext} ctx - Contexto de Telegraf
@@ -82,43 +82,43 @@ export class PagosController {
   async handleNoteSearchInput(ctx) {
     try {
       const searchQuery = ctx.message.text.trim();
-      
+
       if (!searchQuery) {
         return await ctx.reply('Por favor, ingresa un número de nota válido.');
       }
-      
+
       logger.info(`Buscando nota con query: ${searchQuery}`);
-      
+
       // Verificar que el contexto tiene un tenant
       if (!ctx.tenant) {
         logger.error('No se encontró tenant en el contexto para búsqueda de nota');
         return await ctx.reply('Error: No se pudo identificar el grupo. Por favor, contacte al administrador.');
       }
-      
+
       // Buscar la nota por número de venta con tenant
       const fuel = await fuelService.findBySaleNumber(searchQuery, ctx.tenant.id);
-      
+
       if (!fuel) {
         await ctx.reply(`⚠️ No se encontró ninguna nota con el número: ${searchQuery}`);
         await ctx.reply('Por favor, verifica el número e intenta nuevamente o cancela la operación.');
         return;
       }
-      
+
       // Guardar el ID de la nota en la sesión (usando el campo id para PostgreSQL)
       ctx.session.data.noteId = fuel.id;
       logger.info(`Carga encontrada con ID: ${fuel.id}, estado: ${fuel.paymentStatus}`);
-      
+
       // Actualizar estado de conversación
       await updateConversationState(ctx, 'search_note_confirm', {
         noteId: fuel.id,
         saleNumber: fuel.saleNumber
       });
-      
+
       logger.info(`Estado actualizado con noteId: ${fuel.id} para saleNumber: ${fuel.saleNumber}`);
-      
+
       // Registrar en log que vamos a mostrar información completa de la nota
       logger.info(`Mostrando información completa de nota #${fuel.saleNumber} (Estado: ${fuel.paymentStatus})`);
-      
+
       // Buscar archivo asociado en el sistema de storage
       const attachment = await prisma.fileStorage.findFirst({
         where: {
@@ -127,9 +127,9 @@ export class PagosController {
           isActive: true
         }
       });
-      
+
       logger.info(`Búsqueda de archivo para nota ${fuel.saleNumber}: ${attachment ? `encontrado ID ${attachment.id}` : 'no encontrado'}`);
-      
+
       // Mostrar resumen completo de la nota con estado de pago
       let noteDetails = `
 *💳 STATUS: ${fuel.paymentStatus.toUpperCase()}*
@@ -147,18 +147,18 @@ export class PagosController {
       if (fuel.paymentStatus === 'PAGADA') {
         noteDetails += `\n*Fecha de pago:* ${fuel.paymentDate ? this.formatDate(fuel.paymentDate) : 'No registrada'}`;
       }
-      
+
       // Construir botones dinámicamente según disponibilidad de archivo y estado de pago
       const buttons = [];
-      
+
       // Agregar botón de descarga si hay archivo adjunto
       if (attachment) {
-        buttons.push([{ 
-          text: '📥 Descargar documento', 
-          callback_data: `download_file_${attachment.id}` 
+        buttons.push([{
+          text: '📥 Descargar documento',
+          callback_data: `download_file_${attachment.id}`
         }]);
       }
-      
+
       // Agregar botones de acción según estado de pago
       if (fuel.paymentStatus === 'PAGADA') {
         // Para notas ya pagadas: solo buscar otra o cancelar
@@ -173,7 +173,7 @@ export class PagosController {
           { text: '❌ CANCELAR', callback_data: 'cancel_note_search' }
         ]);
       }
-      
+
       // Usar formato explícito para asegurar que los botones se muestren
       await ctx.reply(noteDetails, {
         parse_mode: 'Markdown',
@@ -186,7 +186,7 @@ export class PagosController {
       await ctx.reply('Ocurrió un error durante la búsqueda. Por favor, intenta nuevamente.');
     }
   }
-  
+
   /**
    * Marca la nota seleccionada como pagada
    * @param {TelegrafContext} ctx - Contexto de Telegraf
@@ -198,9 +198,9 @@ export class PagosController {
         await ctx.reply('Ocurrió un error. No se encontró referencia a la nota seleccionada.');
         return;
       }
-      
+
       const noteId = ctx.session.data.noteId;
-      
+
       // Verificar que el contexto tiene un tenant
       if (!ctx.tenant) {
         logger.error('No se encontró tenant en el contexto para marcar nota como pagada');
@@ -208,23 +208,23 @@ export class PagosController {
         await ctx.reply('Error: No se pudo identificar el grupo. Por favor, contacte al administrador.');
         return;
       }
-      
+
       // Obtener tenantId del contexto
       const tenantId = ctx.tenant.id;
       logger.info(`Marcando como pagada la nota con ID ${noteId} para tenant: ${tenantId}`);
-      
+
       // Marcar como pagada pasando el tenantId
       const updatedFuel = await fuelService.markAsPaid(noteId, tenantId);
-      
+
       await ctx.answerCbQuery('Nota marcada como pagada');
-      
+
       // Confirmar actualización
       await ctx.reply(`✅ Nota #${updatedFuel.saleNumber} marcada como pagada correctamente.`);
       await ctx.reply(`Fecha de pago: ${this.formatDate(updatedFuel.paymentDate)}`);
-      
+
       // Limpiar estado
       await updateConversationState(ctx, 'idle', {});
-      
+
       // Preguntar si desea buscar otra nota
       await ctx.reply('¿Deseas buscar otra nota?',
         Markup.inlineKeyboard([
@@ -236,14 +236,14 @@ export class PagosController {
       logger.error(`Error al marcar nota como pagada: ${error.message}`);
       await ctx.answerCbQuery('Error al marcar como pagada');
       await ctx.reply('Ocurrió un error al marcar la nota como pagada. Por favor, intenta nuevamente.');
-      
+
       // Volver al menú principal
       await ctx.reply('¿Qué deseas hacer ahora?', {
         reply_markup: getMainKeyboard()
       });
     }
   }
-  
+
   /**
    * Marca una nota como pagada (alias para compatibilidad)
    * @param {TelegrafContext} ctx - Contexto de Telegraf
@@ -251,7 +251,7 @@ export class PagosController {
   async markNoteAsPaid(ctx) {
     return this.handleMarkAsPaid(ctx);
   }
-  
+
   /**
    * Cancela la operación de búsqueda de nota
    * @param {TelegrafContext} ctx - Contexto de Telegraf
@@ -259,23 +259,23 @@ export class PagosController {
   async cancelNoteSearch(ctx) {
     try {
       await ctx.answerCbQuery('Búsqueda cancelada');
-      
+
       // Limpiar estado de conversación
       await updateConversationState(ctx, 'idle', {});
-      
+
       // Verificar si es admin para mostrar el menú correcto
       const isAdmin = await isAdminUser(ctx.from?.id);
-      
+
       // Mostrar menú principal usando el método más directo
       const keyboard = getMainKeyboard(isAdmin);
       await ctx.reply('¿Qué deseas hacer ahora?', keyboard);
-      
+
       // Registrar en log que se ha mostrado el menú principal
       logger.info(`Menú principal mostrado después de cancelar búsqueda para usuario ${ctx.from.id}`);
-      
+
     } catch (error) {
       logger.error(`Error al cancelar búsqueda de nota: ${error.message}`);
-      
+
       try {
         // Intentar mostrar menú principal como fallback
         const isAdmin = await isAdminUser(ctx.from?.id);
@@ -294,7 +294,7 @@ export class PagosController {
       }
     }
   }
-  
+
   /**
    * Formatea una fecha a un string legible
    * @param {Date} date - Fecha a formatear

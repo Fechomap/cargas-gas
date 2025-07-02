@@ -14,20 +14,20 @@ export class RegistroController {
   async registerUnit(unitData) {
     try {
       logger.info(`Registrando nueva unidad: ${unitData.operatorName} - ${unitData.unitNumber}`);
-      
+
       // Validar datos de entrada
       if (!unitData.operatorName || !unitData.unitNumber) {
         throw new Error('Datos de unidad incompletos');
       }
-      
+
       // Validar que el tenant esté presente en los datos
       if (!unitData.tenantId) {
         throw new Error('Se requiere el tenantId para registrar una unidad');
       }
-      
+
       // Usar el servicio para registrar la unidad (usando findOrCreateUnit en lugar de createUnit)
       const unit = await unitService.findOrCreateUnit(unitData, unitData.tenantId);
-      
+
       logger.info(`Unidad registrada con éxito: ${unit.id}`);
       return unit;
     } catch (error) {
@@ -35,7 +35,7 @@ export class RegistroController {
       throw error;
     }
   }
-  
+
   /**
    * Elimina una unidad (desactivación lógica)
    * @param {string} unitId - ID de la unidad a eliminar

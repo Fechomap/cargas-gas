@@ -12,7 +12,7 @@ import { setupGestionCommands } from './gestion.command.js';
  * @param {Telegraf} bot - Instancia del bot de Telegram
  */
 export function setupFuelCommands(bot) {
-  logger.info("⭐ Configurando sistema de registro de combustible");
+  logger.info('⭐ Configurando sistema de registro de combustible');
 
   // Registrar los diferentes módulos de comandos
   setupFuelEntryCommands(bot);
@@ -22,5 +22,5 @@ export function setupFuelCommands(bot) {
   setupFuelDeactivationCommands(bot);
   setupGestionCommands(bot);
 
-  logger.info("✅ Comandos de combustible configurados exitosamente");
+  logger.info('✅ Comandos de combustible configurados exitosamente');
 }

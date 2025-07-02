@@ -18,14 +18,14 @@ export function configurarComandosAcciones(bot) {
       await ctx.reply('❌ Error: No se pudieron marcar las cargas como pagadas.');
     }
   });
-  
+
   // Estas funciones no están implementadas en el nuevo controller refactorizado
-  /* 
+  /*
   // Acción para formato de descarga de reporte
   bot.action(/^report_format_(.+)$/, async (ctx) => {
     const format = ctx.match[1]; // pdf o excel
     logger.info(`Formato de reporte seleccionado: ${format}`);
-    
+
     if (isInState(ctx, 'report_format_selection')) {
       await ctx.answerCbQuery(`Generando reporte en formato ${format.toUpperCase()}...`);
       await reportController.generateReportWithFormat(ctx, format);
@@ -34,7 +34,7 @@ export function configurarComandosAcciones(bot) {
       await ctx.answerCbQuery('⚠️ Sesión expirada. Usa /reporte para comenzar de nuevo.');
     }
   });
-  
+
   // Acción para enviar el reporte por correo
   bot.action('send_report_email', async (ctx) => {
     logger.info('Solicitud para enviar reporte por correo');
@@ -46,7 +46,7 @@ export function configurarComandosAcciones(bot) {
       await ctx.answerCbQuery('⚠️ Sesión expirada. Usa /reporte para comenzar de nuevo.');
     }
   });
-  
+
   // Manejar entrada de texto para correo electrónico
   bot.on('text', async (ctx, next) => {
     if (isInState(ctx, 'report_email_input')) {
