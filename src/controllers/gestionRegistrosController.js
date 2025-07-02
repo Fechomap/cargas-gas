@@ -4,6 +4,7 @@ import { FuelService } from '../services/fuel.adapter.service.js';
 import { updateConversationState } from '../state/conversation.js';
 import { logger } from '../utils/logger.js';
 import { prisma } from '../db/index.js';
+import { AuditService, AuditActions } from '../services/audit.service.js';
 
 /**
  * Controlador para gestión CRUD completa de registros de combustible
@@ -345,6 +346,15 @@ Selecciona el campo que deseas editar:`;
     try {
       logger.info(`Actualizando campo ${field} con valor ${value} para fuelId: ${fuelId}`);
 
+      // Obtener el estado anterior para auditoría
+      const currentFuel = await prisma.fuel.findUnique({
+        where: { id: fuelId, tenantId: ctx.tenant.id }
+      });
+
+      if (!currentFuel) {
+        throw new Error('Registro no encontrado');
+      }
+
       // Mapear campos a nombres de base de datos
       const fieldMap = {
         km: 'kilometers',
@@ -360,20 +370,14 @@ Selecciona el campo que deseas editar:`;
         throw new Error(`Campo no válido: ${field}`);
       }
 
-      // Actualizar en base de datos
+      // Preparar datos de actualización
       const updateData = { [dbField]: value };
 
       // Si editamos litros o precio por litro, recalcular el monto
       if (field === 'liters' || field === 'price') {
-        const currentFuel = await prisma.fuel.findUnique({
-          where: { id: fuelId, tenantId: ctx.tenant.id }
-        });
-
-        if (currentFuel) {
-          const newLiters = field === 'liters' ? value : currentFuel.liters;
-          const newPrice = field === 'price' ? value : (currentFuel.pricePerLiter || 0);
-          updateData.amount = newLiters * newPrice;
-        }
+        const newLiters = field === 'liters' ? value : currentFuel.liters;
+        const newPrice = field === 'price' ? value : (currentFuel.pricePerLiter || 0);
+        updateData.amount = newLiters * newPrice;
       }
 
       // Si es estado de pago y se marca como pagada, agregar fecha
@@ -389,6 +393,16 @@ Selecciona el campo que deseas editar:`;
           tenantId: ctx.tenant.id
         },
         data: updateData
+      });
+
+      // 🔍 AUDITORÍA: Registrar el cambio
+      await AuditService.logUpdate({
+        entity: 'Fuel',
+        entityId: fuelId,
+        before: currentFuel,
+        after: updatedFuel,
+        ctx,
+        fieldName: field
       });
 
       logger.info(`Campo actualizado exitosamente en base de datos para fuelId: ${fuelId}`);
@@ -934,6 +948,16 @@ Selecciona el campo que deseas editar:`;
         data: { kilometers: kmValue }
       });
 
+      // 🔍 AUDITORÍA: Registrar actualización de kilómetros
+      await AuditService.logUpdate({
+        entity: 'KilometerLog',
+        entityId: logId,
+        before: oldLog,
+        after: updatedLog,
+        ctx,
+        fieldName: 'kilometers'
+      });
+
       logger.info(`Kilómetros actualizados: ${oldLog.kilometers} -> ${kmValue} para registro ${logId}`);
 
       // Limpiar sesión
@@ -1009,10 +1033,30 @@ Selecciona el campo que deseas editar:`;
    */
   async executeKmDeletion(ctx, logId) {
     try {
+      // Obtener el registro antes de eliminarlo para auditoría
+      const kmLog = await prisma.kilometerLog.findUnique({
+        where: { id: logId },
+        include: { Unit: true }
+      });
+
+      if (!kmLog) {
+        await ctx.reply('❌ Registro no encontrado.');
+        return;
+      }
+
       // Marcar como omitido en lugar de eliminar físicamente
       await prisma.kilometerLog.update({
         where: { id: logId },
         data: { isOmitted: true }
+      });
+
+      // 🔍 AUDITORÍA: Registrar eliminación lógica
+      await AuditService.logDeletion({
+        entity: 'KilometerLog',
+        entityId: logId,
+        deletedRecord: kmLog,
+        ctx,
+        isHardDelete: false
       });
 
       logger.info(`Registro de kilómetros ${logId} marcado como omitido`);

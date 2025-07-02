@@ -3,6 +3,7 @@ import { Markup } from 'telegraf';
 import { unitService } from '../../services/unit.adapter.service.js';
 import { logger } from '../../utils/logger.js';
 import { getUnitsKeyboard } from '../../views/keyboards.js';
+import { AuditService, AuditActions } from '../../services/audit.service.js';
 
 /**
  * Controlador para gestionar el listado y selección de unidades
@@ -80,8 +81,27 @@ export class ListadoController {
       // Obtener tenantId del contexto
       const tenantId = ctx.tenant.id;
 
+      // Obtener datos de la unidad antes de desactivarla para auditoría
+      let unitData = null;
+      try {
+        unitData = await unitService.findUnitByButtonId(buttonId, tenantId);
+      } catch (error) {
+        logger.warn(`No se pudo obtener datos de unidad para auditoría: ${error.message}`);
+      }
+
       // Desactivar la unidad
       await unitService.deactivateUnit(buttonId, tenantId, true); // true indica que es por buttonId
+
+      // 🔍 AUDITORÍA: Registrar desactivación de unidad
+      if (unitData) {
+        await AuditService.logDeletion({
+          entity: 'Unit',
+          entityId: unitData.id,
+          deletedRecord: unitData,
+          ctx,
+          isHardDelete: false
+        });
+      }
 
       await ctx.answerCbQuery('Unidad desactivada correctamente');
       await ctx.reply('✅ La unidad ha sido desactivada exitosamente. Ya no aparecerá en los listados ni podrá ser utilizada para registrar cargas.',

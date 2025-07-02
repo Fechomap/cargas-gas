@@ -2,6 +2,7 @@
 import { Markup } from 'telegraf';
 import { FuelService } from '../../services/fuel.adapter.service.js';
 import { logger } from '../../utils/logger.js';
+import { AuditService, AuditActions } from '../../services/audit.service.js';
 
 /**
  * Controlador para manejar la desactivación de registros de combustible
@@ -252,6 +253,15 @@ export class DesactivacionController {
 
       // Desactivar el registro
       await FuelService.deactivateFuel(fuelId, tenantId);
+
+      // 🔍 AUDITORÍA: Registrar desactivación
+      await AuditService.logDeletion({
+        entity: 'Fuel',
+        entityId: fuelId,
+        deletedRecord: fuelRecord,
+        ctx,
+        isHardDelete: false
+      });
 
       // Crear mensaje detallado de confirmación
       let successMessage = '✅ *REGISTRO DESACTIVADO* ✅\n\n';

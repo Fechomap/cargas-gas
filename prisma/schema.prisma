@@ -13,8 +13,6 @@ model Fuel {
   unitId        String
   liters        Decimal       @db.Decimal(10, 2)
   amount        Decimal       @db.Decimal(10, 2)
-  kilometers    Decimal?      @db.Decimal(10, 2)
-  pricePerLiter Decimal?      @db.Decimal(10, 2)
   fuelType      FuelType
   saleNumber    String?
   paymentStatus PaymentStatus @default(NO_PAGADA)
@@ -25,6 +23,8 @@ model Fuel {
   unitNumber    String
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  kilometers    Decimal?      @db.Decimal(10, 2)
+  pricePerLiter Decimal?      @db.Decimal(10, 2)
   isActive      Boolean       @default(true)
   Tenant        Tenant        @relation(fields: [tenantId], references: [id])
   Unit          Unit          @relation(fields: [unitId], references: [id])
@@ -64,8 +64,9 @@ model Tenant {
   isApproved        Boolean         @default(false)
   notes             String?
   registrationToken String?         @unique
-  Fuel              Fuel[]
+  AuditLog          AuditLog[]
   FileStorage       FileStorage[]
+  Fuel              Fuel[]
   KilometerLog      KilometerLog[]
   TenantSettings    TenantSettings?
   Unit              Unit[]
@@ -123,13 +124,13 @@ model KilometerLog {
 model FileStorage {
   id          String   @id @default(uuid())
   tenantId    String
-  relatedId   String?  // fuel_id, unit_id, etc
-  relatedType String   // 'fuel', 'audit', 'document', etc
+  relatedId   String?
+  relatedType String
   fileName    String
-  fileType    String   // MIME type
-  fileSize    Int      // Size in bytes
-  storageKey  String   @unique // R2 object key
-  uploadedBy  String   // User ID who uploaded
+  fileType    String
+  fileSize    Int
+  storageKey  String   @unique
+  uploadedBy  String
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -138,6 +139,24 @@ model FileStorage {
   @@index([tenantId, relatedId])
   @@index([tenantId, relatedType])
   @@index([tenantId, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  tenantId  String
+  userId    String
+  userName  String
+  action    String
+  entity    String
+  entityId  String
+  changes   Json?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  Tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entity, entityId])
+  @@index([tenantId, userId])
 }
 
 enum FuelType {
