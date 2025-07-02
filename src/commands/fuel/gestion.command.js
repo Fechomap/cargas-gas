@@ -337,26 +337,7 @@ export function setupGestionCommands(bot) {
     }
   });
 
-  // Eliminar registro de kilómetros
-  bot.action(/^km_delete_(.+)$/, async (ctx) => {
-    try {
-      const logId = ctx.match[1];
-
-      const isAdmin = await isAdminUser(ctx.from?.id);
-      if (!isAdmin) {
-        await ctx.answerCbQuery('❌ Acceso denegado');
-        return;
-      }
-
-      await ctx.answerCbQuery('Preparando eliminación...');
-      await gestionRegistrosController.confirmKmDeletion(ctx, logId);
-    } catch (error) {
-      logger.error(`Error al eliminar km: ${error.message}`);
-      await ctx.answerCbQuery('Error al eliminar');
-    }
-  });
-
-  // Confirmar eliminación de kilómetros
+  // Confirmar eliminación de kilómetros (DEBE IR ANTES del handler genérico)
   bot.action(/^km_delete_confirm_(.+)$/, async (ctx) => {
     try {
       const logId = ctx.match[1];
@@ -371,6 +352,25 @@ export function setupGestionCommands(bot) {
       await gestionRegistrosController.executeKmDeletion(ctx, logId);
     } catch (error) {
       logger.error(`Error al confirmar eliminación km: ${error.message}`);
+      await ctx.answerCbQuery('Error al eliminar');
+    }
+  });
+
+  // Eliminar registro de kilómetros (handler genérico)
+  bot.action(/^km_delete_(.+)$/, async (ctx) => {
+    try {
+      const logId = ctx.match[1];
+
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      if (!isAdmin) {
+        await ctx.answerCbQuery('❌ Acceso denegado');
+        return;
+      }
+
+      await ctx.answerCbQuery('Preparando eliminación...');
+      await gestionRegistrosController.confirmKmDeletion(ctx, logId);
+    } catch (error) {
+      logger.error(`Error al eliminar km: ${error.message}`);
       await ctx.answerCbQuery('Error al eliminar');
     }
   });
