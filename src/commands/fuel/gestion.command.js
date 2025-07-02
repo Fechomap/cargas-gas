@@ -29,15 +29,21 @@ export function setupGestionCommands(bot) {
     }
   });
 
-  // Callback para gestión de kilómetros (pendiente para FASE 4)
+  // Callback para gestión de kilómetros
   bot.action('manage_km_records', async (ctx) => {
     try {
-      await ctx.answerCbQuery('Función en desarrollo');
-      await ctx.reply('📏 *Gestión de Kilómetros*\n\n🚧 Esta función estará disponible en la próxima fase.', {
-        parse_mode: 'Markdown'
-      });
+      // Verificar permisos
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      if (!isAdmin) {
+        await ctx.answerCbQuery('❌ Acceso denegado');
+        return;
+      }
+      
+      await ctx.answerCbQuery('Cargando menú de kilómetros...');
+      await gestionRegistrosController.showKilometerMenu(ctx);
     } catch (error) {
       logger.error(`Error en gestión de km: ${error.message}`);
+      await ctx.answerCbQuery('Error al cargar menú');
     }
   });
 
@@ -163,13 +169,136 @@ export function setupGestionCommands(bot) {
     }
   });
 
+  // ============= CALLBACKS DE KILÓMETROS =============
+  
+  // Ver registros recientes de kilómetros
+  bot.action('km_view_recent', async (ctx) => {
+    try {
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      if (!isAdmin) {
+        await ctx.answerCbQuery('❌ Acceso denegado');
+        return;
+      }
+      
+      await ctx.answerCbQuery('Cargando registros...');
+      await gestionRegistrosController.showRecentKilometerLogs(ctx);
+    } catch (error) {
+      logger.error(`Error al ver registros recientes: ${error.message}`);
+      await ctx.answerCbQuery('Error al cargar registros');
+    }
+  });
+
+  // Buscar por unidad
+  bot.action('km_search_by_unit', async (ctx) => {
+    try {
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      if (!isAdmin) {
+        await ctx.answerCbQuery('❌ Acceso denegado');
+        return;
+      }
+      
+      await ctx.answerCbQuery('Iniciando búsqueda por unidad...');
+      await gestionRegistrosController.startKmSearchByUnit(ctx);
+    } catch (error) {
+      logger.error(`Error al buscar por unidad: ${error.message}`);
+      await ctx.answerCbQuery('Error en búsqueda');
+    }
+  });
+
+  // Buscar por fecha (pendiente implementación)
+  bot.action('km_search_by_date', async (ctx) => {
+    try {
+      await ctx.answerCbQuery('Función en desarrollo');
+      await ctx.reply('📅 Búsqueda por fecha estará disponible próximamente.');
+    } catch (error) {
+      logger.error(`Error en búsqueda por fecha: ${error.message}`);
+    }
+  });
+
+  // Gestionar registro específico de kilómetros
+  bot.action(/^km_manage_(.+)$/, async (ctx) => {
+    try {
+      const logIdShort = ctx.match[1];
+      
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      if (!isAdmin) {
+        await ctx.answerCbQuery('❌ Acceso denegado');
+        return;
+      }
+      
+      await ctx.answerCbQuery('Cargando registro...');
+      await gestionRegistrosController.showKmManagementOptions(ctx, logIdShort);
+    } catch (error) {
+      logger.error(`Error al gestionar registro km: ${error.message}`);
+      await ctx.answerCbQuery('Error al cargar registro');
+    }
+  });
+
+  // Editar kilómetros
+  bot.action(/^km_edit_(.+)$/, async (ctx) => {
+    try {
+      const logId = ctx.match[1];
+      
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      if (!isAdmin) {
+        await ctx.answerCbQuery('❌ Acceso denegado');
+        return;
+      }
+      
+      await ctx.answerCbQuery('Iniciando edición...');
+      await gestionRegistrosController.startKmEdit(ctx, logId);
+    } catch (error) {
+      logger.error(`Error al editar km: ${error.message}`);
+      await ctx.answerCbQuery('Error al editar');
+    }
+  });
+
+  // Eliminar registro de kilómetros
+  bot.action(/^km_delete_(.+)$/, async (ctx) => {
+    try {
+      const logId = ctx.match[1];
+      
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      if (!isAdmin) {
+        await ctx.answerCbQuery('❌ Acceso denegado');
+        return;
+      }
+      
+      await ctx.answerCbQuery('Preparando eliminación...');
+      await gestionRegistrosController.confirmKmDeletion(ctx, logId);
+    } catch (error) {
+      logger.error(`Error al eliminar km: ${error.message}`);
+      await ctx.answerCbQuery('Error al eliminar');
+    }
+  });
+
+  // Confirmar eliminación de kilómetros
+  bot.action(/^km_delete_confirm_(.+)$/, async (ctx) => {
+    try {
+      const logId = ctx.match[1];
+      
+      const isAdmin = await isAdminUser(ctx.from?.id);
+      if (!isAdmin) {
+        await ctx.answerCbQuery('❌ Acceso denegado');
+        return;
+      }
+      
+      await ctx.answerCbQuery('Eliminando registro...');
+      await gestionRegistrosController.executeKmDeletion(ctx, logId);
+    } catch (error) {
+      logger.error(`Error al confirmar eliminación km: ${error.message}`);
+      await ctx.answerCbQuery('Error al eliminar');
+    }
+  });
+
   // Manejar entrada de texto para búsqueda de gestión y edición de campos
   bot.on('text', async (ctx, next) => {
     const currentState = ctx.session?.state;
     const editingField = ctx.session?.data?.editingField;
     const editingFuelId = ctx.session?.data?.editingFuelId;
+    const editingKmId = ctx.session?.data?.editingKmId;
     
-    logger.info(`GESTION TEXT HANDLER: Texto recibido "${ctx.message.text}" - Estado: ${currentState}, Field: ${editingField}, FuelId: ${editingFuelId}`);
+    logger.info(`GESTION TEXT HANDLER: Texto recibido "${ctx.message.text}" - Estado: ${currentState}, Field: ${editingField}, FuelId: ${editingFuelId}, KmId: ${editingKmId}`);
     
     if (isInState(ctx, 'gestion_search_fuel')) {
       logger.info('GESTION: Procesando búsqueda de gestión');
@@ -180,6 +309,18 @@ export function setupGestionCommands(bot) {
     if (isInState(ctx, 'editing_fuel_field')) {
       logger.info('GESTION: Procesando edición de campo');
       await gestionRegistrosController.handleFieldEditInput(ctx);
+      return;
+    }
+    
+    if (isInState(ctx, 'km_search_unit')) {
+      logger.info('GESTION: Procesando búsqueda de kilómetros por unidad');
+      await gestionRegistrosController.handleKmUnitSearch(ctx);
+      return;
+    }
+    
+    if (isInState(ctx, 'editing_km_value')) {
+      logger.info('GESTION: Procesando edición de kilómetros');
+      await gestionRegistrosController.handleKmEditInput(ctx);
       return;
     }
     

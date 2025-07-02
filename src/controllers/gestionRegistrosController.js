@@ -442,6 +442,448 @@ Selecciona el campo que deseas editar:`;
       minute: '2-digit'
     });
   }
+
+  // ============= GESTIÓN DE KILÓMETROS =============
+
+  /**
+   * Muestra el menú de gestión de kilómetros
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async showKilometerMenu(ctx) {
+    try {
+      logger.info(`Mostrando menú de gestión de kilómetros para admin ${ctx.from.id}`);
+      
+      await ctx.reply(
+        '📏 *Gestión de Registros de Kilómetros*\n\n' +
+        'Selecciona una opción para buscar registros:',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🚛 Por unidad', callback_data: 'km_search_by_unit' }],
+              [{ text: '📅 Por fecha', callback_data: 'km_search_by_date' }],
+              [{ text: '📊 Ver últimos registros', callback_data: 'km_view_recent' }],
+              [{ text: '🔙 Volver', callback_data: 'manage_fuel_records' }]
+            ]
+          }
+        }
+      );
+    } catch (error) {
+      logger.error(`Error al mostrar menú de kilómetros: ${error.message}`);
+      await ctx.reply('Error al mostrar el menú.');
+    }
+  }
+
+  /**
+   * Muestra los últimos registros de kilómetros
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async showRecentKilometerLogs(ctx) {
+    try {
+      logger.info(`Obteniendo registros recientes de kilómetros`);
+      
+      const recentLogs = await prisma.kilometerLog.findMany({
+        where: { 
+          tenantId: ctx.tenant.id,
+          isOmitted: false
+        },
+        include: { Unit: true },
+        orderBy: { logTime: 'desc' },
+        take: 10
+      });
+
+      if (recentLogs.length === 0) {
+        await ctx.reply('No se encontraron registros de kilómetros.');
+        return;
+      }
+
+      let message = '📏 *Últimos 10 registros de kilómetros:*\n\n';
+      
+      for (const log of recentLogs) {
+        const typeIcon = log.logType === 'INICIO_TURNO' ? '🟢' : '🔴';
+        const typeText = log.logType === 'INICIO_TURNO' ? 'Inicio' : 'Fin';
+        
+        message += `${typeIcon} *${typeText}* - Unidad ${log.Unit.unitNumber}\n`;
+        message += `├ Kilómetros: ${log.kilometers}\n`;
+        message += `├ Fecha: ${this.formatDate(log.logDate)}\n`;
+        message += `├ Hora: ${this.formatDate(log.logTime)}\n`;
+        message += `└ ID: \`${log.id.substring(0, 8)}\`\n\n`;
+      }
+
+      const buttons = recentLogs.map(log => [{
+        text: `${log.Unit.unitNumber} - ${log.logType === 'INICIO_TURNO' ? 'Inicio' : 'Fin'} (${this.formatDateShort(log.logDate)})`,
+        callback_data: `km_manage_${log.id.substring(0, 8)}`
+      }]);
+      
+      buttons.push([{ text: '🔙 Volver', callback_data: 'manage_km_records' }]);
+
+      await ctx.reply(message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: buttons
+        }
+      });
+    } catch (error) {
+      logger.error(`Error al mostrar registros recientes: ${error.message}`);
+      await ctx.reply('Error al obtener los registros.');
+    }
+  }
+
+  /**
+   * Inicia búsqueda de kilómetros por unidad
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async startKmSearchByUnit(ctx) {
+    try {
+      await updateConversationState(ctx, 'km_search_unit', {});
+      
+      await ctx.reply(
+        '🚛 *Buscar por unidad*\n\n' +
+        'Ingresa el número de unidad:',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '❌ Cancelar', callback_data: 'manage_km_records' }]
+            ]
+          }
+        }
+      );
+    } catch (error) {
+      logger.error(`Error al iniciar búsqueda por unidad: ${error.message}`);
+      await ctx.reply('Error al iniciar la búsqueda.');
+    }
+  }
+
+  /**
+   * Procesa búsqueda de kilómetros por unidad
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async handleKmUnitSearch(ctx) {
+    try {
+      const unitNumber = ctx.message.text.trim();
+      
+      if (!unitNumber) {
+        return await ctx.reply('Por favor, ingresa un número de unidad válido.');
+      }
+
+      logger.info(`Buscando registros de kilómetros para unidad: ${unitNumber}`);
+
+      // Buscar la unidad
+      const unit = await prisma.unit.findFirst({
+        where: {
+          tenantId: ctx.tenant.id,
+          unitNumber: unitNumber,
+          isActive: true
+        }
+      });
+
+      if (!unit) {
+        await ctx.reply(`⚠️ No se encontró la unidad: ${unitNumber}`);
+        return;
+      }
+
+      // Buscar registros de kilómetros
+      const logs = await prisma.kilometerLog.findMany({
+        where: {
+          tenantId: ctx.tenant.id,
+          unitId: unit.id,
+          isOmitted: false
+        },
+        orderBy: { logDate: 'desc' },
+        take: 20
+      });
+
+      if (logs.length === 0) {
+        await ctx.reply(`No se encontraron registros de kilómetros para la unidad ${unitNumber}.`);
+        return;
+      }
+
+      await this.displayKilometerLogs(ctx, logs, unit);
+      
+    } catch (error) {
+      logger.error(`Error en búsqueda por unidad: ${error.message}`);
+      await ctx.reply('Error durante la búsqueda.');
+    }
+  }
+
+  /**
+   * Muestra lista de registros de kilómetros con opciones
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {Array} logs - Registros de kilómetros
+   * @param {Object} unit - Información de la unidad
+   */
+  async displayKilometerLogs(ctx, logs, unit) {
+    try {
+      let message = `📏 *Registros de kilómetros - Unidad ${unit.unitNumber}*\n`;
+      message += `Operador: ${unit.operatorName}\n\n`;
+
+      const buttons = logs.slice(0, 10).map(log => {
+        const typeText = log.logType === 'INICIO_TURNO' ? 'Inicio' : 'Fin';
+        const dateText = this.formatDateShort(log.logDate);
+        return [{
+          text: `${typeText} - ${dateText} - ${log.kilometers} km`,
+          callback_data: `km_manage_${log.id.substring(0, 8)}`
+        }];
+      });
+
+      buttons.push([{ text: '🔙 Volver', callback_data: 'manage_km_records' }]);
+
+      for (const log of logs.slice(0, 5)) {
+        const typeIcon = log.logType === 'INICIO_TURNO' ? '🟢' : '🔴';
+        const typeText = log.logType === 'INICIO_TURNO' ? 'Inicio' : 'Fin';
+        
+        message += `${typeIcon} *${typeText}*\n`;
+        message += `├ Kilómetros: ${log.kilometers}\n`;
+        message += `├ Fecha: ${this.formatDate(log.logDate)}\n`;
+        message += `└ ID: \`${log.id.substring(0, 8)}\`\n\n`;
+      }
+
+      if (logs.length > 5) {
+        message += `\n... y ${logs.length - 5} registros más`;
+      }
+
+      await ctx.reply(message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: buttons
+        }
+      });
+
+      // Limpiar estado
+      await updateConversationState(ctx, 'idle', {});
+      
+    } catch (error) {
+      logger.error(`Error al mostrar registros: ${error.message}`);
+      await ctx.reply('Error al mostrar los registros.');
+    }
+  }
+
+  /**
+   * Muestra opciones de gestión para un registro de kilómetros específico
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {string} logId - ID del registro (primeros 8 caracteres)
+   */
+  async showKmManagementOptions(ctx, logIdShort) {
+    try {
+      // Buscar el registro completo
+      const log = await prisma.kilometerLog.findFirst({
+        where: {
+          id: {
+            startsWith: logIdShort
+          },
+          tenantId: ctx.tenant.id
+        },
+        include: { Unit: true }
+      });
+
+      if (!log) {
+        await ctx.answerCbQuery('Registro no encontrado');
+        return;
+      }
+
+      const typeText = log.logType === 'INICIO_TURNO' ? 'Inicio de turno' : 'Fin de turno';
+      
+      const info = `📏 *INFORMACIÓN DEL REGISTRO*
+
+*Tipo:* ${typeText}
+*Unidad:* ${log.Unit.unitNumber}
+*Operador:* ${log.Unit.operatorName}
+*Kilómetros:* ${log.kilometers}
+*Fecha:* ${this.formatDate(log.logDate)}
+*Hora registro:* ${this.formatDate(log.logTime)}
+*Estado:* ${log.isOmitted ? 'Omitido' : 'Activo'}`;
+
+      await ctx.reply(info, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '✏️ Editar kilómetros', callback_data: `km_edit_${log.id}` }],
+            [{ text: '🗑️ Eliminar registro', callback_data: `km_delete_${log.id}` }],
+            [{ text: '🔙 Volver', callback_data: 'km_view_recent' }],
+            [{ text: '🏠 Menú admin', callback_data: 'admin_menu' }]
+          ]
+        }
+      });
+    } catch (error) {
+      logger.error(`Error al mostrar opciones de gestión km: ${error.message}`);
+      await ctx.reply('Error al cargar el registro.');
+    }
+  }
+
+  /**
+   * Inicia edición de kilómetros
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {string} logId - ID del registro
+   */
+  async startKmEdit(ctx, logId) {
+    try {
+      const log = await prisma.kilometerLog.findUnique({
+        where: { id: logId },
+        include: { Unit: true }
+      });
+
+      if (!log) {
+        await ctx.answerCbQuery('Registro no encontrado');
+        return;
+      }
+
+      // Guardar en sesión
+      ctx.session.data.editingKmId = logId;
+      ctx.session.data.editingKmData = log;
+      
+      await updateConversationState(ctx, 'editing_km_value', null);
+
+      await ctx.reply(
+        `📏 *EDITANDO KILÓMETROS*\n\n` +
+        `Registro: ${log.logType === 'INICIO_TURNO' ? 'Inicio' : 'Fin'} de turno\n` +
+        `Unidad: ${log.Unit.unitNumber}\n` +
+        `Valor actual: ${log.kilometers} km\n\n` +
+        `Ingresa el nuevo valor de kilómetros:`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '❌ Cancelar', callback_data: `km_manage_${log.id.substring(0, 8)}` }]
+            ]
+          }
+        }
+      );
+    } catch (error) {
+      logger.error(`Error al iniciar edición de km: ${error.message}`);
+      await ctx.reply('Error al iniciar la edición.');
+    }
+  }
+
+  /**
+   * Procesa la edición de kilómetros
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   */
+  async handleKmEditInput(ctx) {
+    try {
+      const newValue = ctx.message.text.trim();
+      const kmValue = parseFloat(newValue);
+      
+      if (isNaN(kmValue) || kmValue < 0) {
+        await ctx.reply('❌ El valor debe ser un número positivo. Intenta nuevamente:');
+        return;
+      }
+
+      const logId = ctx.session.data.editingKmId;
+      const oldLog = ctx.session.data.editingKmData;
+
+      // Actualizar registro
+      const updatedLog = await prisma.kilometerLog.update({
+        where: { id: logId },
+        data: { kilometers: kmValue }
+      });
+
+      logger.info(`Kilómetros actualizados: ${oldLog.kilometers} -> ${kmValue} para registro ${logId}`);
+
+      // Limpiar sesión
+      await updateConversationState(ctx, 'idle', {});
+      delete ctx.session.data.editingKmId;
+      delete ctx.session.data.editingKmData;
+
+      await ctx.reply(
+        `✅ *Kilómetros actualizados exitosamente*\n\n` +
+        `Valor anterior: ${oldLog.kilometers} km\n` +
+        `Nuevo valor: ${kmValue} km`
+      );
+
+      // Mostrar opciones del registro actualizado
+      await this.showKmManagementOptions(ctx, logId.substring(0, 8));
+      
+    } catch (error) {
+      logger.error(`Error al actualizar kilómetros: ${error.message}`);
+      await ctx.reply('❌ Error al actualizar los kilómetros.');
+    }
+  }
+
+  /**
+   * Confirma eliminación de registro de kilómetros
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {string} logId - ID del registro
+   */
+  async confirmKmDeletion(ctx, logId) {
+    try {
+      const log = await prisma.kilometerLog.findUnique({
+        where: { id: logId },
+        include: { Unit: true }
+      });
+
+      if (!log) {
+        await ctx.answerCbQuery('Registro no encontrado');
+        return;
+      }
+
+      const typeText = log.logType === 'INICIO_TURNO' ? 'Inicio de turno' : 'Fin de turno';
+      
+      await ctx.reply(
+        `⚠️ *CONFIRMAR ELIMINACIÓN*\n\n` +
+        `¿Estás seguro de eliminar este registro?\n\n` +
+        `*Tipo:* ${typeText}\n` +
+        `*Unidad:* ${log.Unit.unitNumber}\n` +
+        `*Kilómetros:* ${log.kilometers}\n` +
+        `*Fecha:* ${this.formatDate(log.logDate)}\n\n` +
+        `Esta acción marcará el registro como omitido.`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '✅ Sí, eliminar', callback_data: `km_delete_confirm_${logId}` },
+                { text: '❌ Cancelar', callback_data: `km_manage_${logId.substring(0, 8)}` }
+              ]
+            ]
+          }
+        }
+      );
+    } catch (error) {
+      logger.error(`Error al confirmar eliminación: ${error.message}`);
+      await ctx.reply('Error al procesar la solicitud.');
+    }
+  }
+
+  /**
+   * Ejecuta eliminación de registro de kilómetros
+   * @param {TelegrafContext} ctx - Contexto de Telegraf
+   * @param {string} logId - ID del registro
+   */
+  async executeKmDeletion(ctx, logId) {
+    try {
+      // Marcar como omitido en lugar de eliminar físicamente
+      await prisma.kilometerLog.update({
+        where: { id: logId },
+        data: { isOmitted: true }
+      });
+
+      logger.info(`Registro de kilómetros ${logId} marcado como omitido`);
+
+      await ctx.reply('✅ Registro eliminado exitosamente.');
+      
+      // Volver al menú de kilómetros
+      await this.showKilometerMenu(ctx);
+      
+    } catch (error) {
+      logger.error(`Error al eliminar registro: ${error.message}`);
+      await ctx.reply('❌ Error al eliminar el registro.');
+    }
+  }
+
+  /**
+   * Formatea fecha corta
+   * @param {Date} date - Fecha
+   * @returns {string}
+   */
+  formatDateShort(date) {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit'
+    });
+  }
 }
 
 export const gestionRegistrosController = new GestionRegistrosController();
