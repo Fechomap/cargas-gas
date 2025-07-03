@@ -12,13 +12,13 @@ export const AuditActions = {
   FUEL_DELETE: 'FUEL_DELETE',
   FUEL_DEACTIVATE: 'FUEL_DEACTIVATE',
   FUEL_PAYMENT_UPDATE: 'FUEL_PAYMENT_UPDATE',
-  
+
   // Kilómetros
   KM_CREATE: 'KM_CREATE',
   KM_UPDATE: 'KM_UPDATE',
   KM_DELETE: 'KM_DELETE',
   KM_FORCE_UPDATE: 'KM_FORCE_UPDATE', // Cuando se fuerza un cambio con advertencia
-  
+
   // Unidades
   UNIT_CREATE: 'UNIT_CREATE',
   UNIT_UPDATE: 'UNIT_UPDATE',
@@ -51,7 +51,7 @@ export class AuditService {
   }) {
     try {
       // Construir nombre de usuario
-      const userName = ctx.from.username || 
+      const userName = ctx.from.username ||
         `${ctx.from.first_name || ''} ${ctx.from.last_name || ''}`.trim() ||
         'Usuario sin nombre';
 
@@ -80,7 +80,7 @@ export class AuditService {
       });
 
       logger.info(`Auditoría registrada: ${action} en ${entity} ID:${entityId} por ${userName}`);
-      
+
       return auditLog;
     } catch (error) {
       // No fallar la operación principal si falla la auditoría
@@ -159,8 +159,8 @@ export class AuditService {
     ctx,
     isHardDelete = false
   }) {
-    const action = isHardDelete ? 
-      `${entity.toUpperCase()}_DELETE` : 
+    const action = isHardDelete ?
+      `${entity.toUpperCase()}_DELETE` :
       `${entity.toUpperCase()}_DEACTIVATE`;
 
     return await this.log({
@@ -229,7 +229,7 @@ export class AuditService {
 
       if (entity) where.entity = entity;
       if (action) where.action = action;
-      
+
       if (startDate || endDate) {
         where.createdAt = {};
         if (startDate) where.createdAt.gte = startDate;

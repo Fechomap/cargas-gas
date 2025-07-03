@@ -264,7 +264,7 @@ export class PagosController {
       await updateConversationState(ctx, 'idle', {});
 
       // Verificar si es admin para mostrar el menú correcto
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
 
       // Mostrar menú principal usando el método más directo
       const keyboard = getMainKeyboard(isAdmin);
@@ -278,7 +278,7 @@ export class PagosController {
 
       try {
         // Intentar mostrar menú principal como fallback
-        const isAdmin = await isAdminUser(ctx.from?.id);
+        const isAdmin = await isAdminUser(ctx.from?.id, ctx);
         const keyboard = getMainKeyboard(isAdmin);
         await ctx.reply('Búsqueda cancelada. ¿Qué deseas hacer ahora?', keyboard);
       } catch (fallbackError) {

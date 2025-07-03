@@ -20,8 +20,8 @@ export function setupStartCommand(bot) {
       // Verificar si es un chat privado
       const isPrivateChat = ctx.chat?.type === 'private';
 
-      // Verificar si es administrador
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      // Verificar si es administrador (pasando el contexto para verificar admins de Telegram)
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
 
       // Verificar si el usuario ya tiene un Tenant ID (si está en un grupo registrado)
       const chatId = ctx.chat?.id?.toString();

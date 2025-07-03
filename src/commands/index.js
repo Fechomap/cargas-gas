@@ -27,8 +27,8 @@ function setupGlobalCallbacks(bot) {
         ctx.session.data = {};
       }
 
-      // Verificar si es administrador
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      // Verificar si es administrador (pasando el contexto para verificar admins de Telegram)
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
 
       // Crear menú con estructura nueva
       const buttons = [
@@ -190,8 +190,8 @@ Para soporte contacta a tu administrador.
     try {
       await ctx.answerCbQuery('Accediendo al menú de consultas');
 
-      // Verificar si es administrador para mostrar opciones apropiadas
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      // Verificar si es administrador para mostrar opciones apropiadas (pasando el contexto para verificar admins de Telegram)
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
 
       await ctx.reply('📊 Menú de Consultas\n\nSelecciona la consulta que deseas realizar:', {
         reply_markup: getConsultasKeyboard(isAdmin).reply_markup
@@ -206,8 +206,8 @@ Para soporte contacta a tu administrador.
   // Manejar botón del submenú de Administración
   bot.action('admin_menu', async (ctx) => {
     try {
-      // Verificar permisos de administrador
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      // Verificar permisos de administrador (pasando el contexto para verificar admins de Telegram)
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
 
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
@@ -230,8 +230,8 @@ Para soporte contacta a tu administrador.
   // Manejar botón de gestión de registros (CRUD completo)
   bot.action('manage_fuel_records', async (ctx) => {
     try {
-      // Verificar permisos de administrador
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      // Verificar permisos de administrador (pasando el contexto para verificar admins de Telegram)
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
 
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
@@ -254,8 +254,8 @@ Para soporte contacta a tu administrador.
   // Manejar botón para generar reporte (solo admins)
   bot.action('generate_report', async (ctx) => {
     try {
-      // Verificar permisos de administrador
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      // Verificar permisos de administrador (pasando el contexto para verificar admins de Telegram)
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
 
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');

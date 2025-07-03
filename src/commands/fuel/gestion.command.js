@@ -16,7 +16,7 @@ export function setupGestionCommands(bot) {
   bot.action('manage_fuel_records_search', async (ctx) => {
     try {
       // Verificar permisos
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -34,7 +34,7 @@ export function setupGestionCommands(bot) {
   bot.action('manage_km_records', async (ctx) => {
     try {
       // Verificar permisos
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -54,7 +54,7 @@ export function setupGestionCommands(bot) {
       const fuelId = ctx.match[1];
 
       // Verificar permisos
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -74,7 +74,7 @@ export function setupGestionCommands(bot) {
       const fuelId = ctx.match[1];
 
       // Verificar permisos
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -100,7 +100,7 @@ export function setupGestionCommands(bot) {
       const fuelId = ctx.match[2];
 
       // Verificar permisos
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -129,7 +129,7 @@ export function setupGestionCommands(bot) {
       }
 
       // Verificar permisos
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -149,7 +149,7 @@ export function setupGestionCommands(bot) {
       const fuelId = ctx.match[1];
 
       // Verificar permisos
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -170,7 +170,7 @@ export function setupGestionCommands(bot) {
   // Ver registros recientes de kilómetros
   bot.action('km_view_recent', async (ctx) => {
     try {
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -187,7 +187,7 @@ export function setupGestionCommands(bot) {
   // Buscar por unidad
   bot.action('km_search_by_unit', async (ctx) => {
     try {
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -204,7 +204,7 @@ export function setupGestionCommands(bot) {
   // Buscar por fecha - Menú principal
   bot.action('km_search_by_date', async (ctx) => {
     try {
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -221,7 +221,7 @@ export function setupGestionCommands(bot) {
   // Callbacks para períodos predefinidos
   bot.action('km_date_today', async (ctx) => {
     try {
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -237,7 +237,7 @@ export function setupGestionCommands(bot) {
 
   bot.action('km_date_yesterday', async (ctx) => {
     try {
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -253,7 +253,7 @@ export function setupGestionCommands(bot) {
 
   bot.action('km_date_week', async (ctx) => {
     try {
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -269,7 +269,7 @@ export function setupGestionCommands(bot) {
 
   bot.action('km_date_month', async (ctx) => {
     try {
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -285,7 +285,7 @@ export function setupGestionCommands(bot) {
 
   bot.action('km_date_custom', async (ctx) => {
     try {
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -304,7 +304,7 @@ export function setupGestionCommands(bot) {
     try {
       const logIdShort = ctx.match[1];
 
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -323,7 +323,7 @@ export function setupGestionCommands(bot) {
     try {
       const logId = ctx.match[1];
 
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -342,7 +342,7 @@ export function setupGestionCommands(bot) {
     try {
       const logId = ctx.match[1];
 
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -361,7 +361,7 @@ export function setupGestionCommands(bot) {
     try {
       const logId = ctx.match[1];
 
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;
@@ -381,7 +381,7 @@ export function setupGestionCommands(bot) {
       const logId = ctx.match[1];
       const kmValue = parseFloat(ctx.match[2]);
 
-      const isAdmin = await isAdminUser(ctx.from?.id);
+      const isAdmin = await isAdminUser(ctx.from?.id, ctx);
       if (!isAdmin) {
         await ctx.answerCbQuery('❌ Acceso denegado');
         return;

@@ -1,5 +1,6 @@
 // src/middleware/security/group.js
 import { logger } from '../../utils/logger.js';
+import { isAdminUser } from '../../utils/admin.js';
 
 /**
  * Middleware para restricción de grupos
@@ -24,7 +25,7 @@ export function setupGroupRestrictionMiddleware(bot) {
                               messageText.startsWith('/rechazar');
 
       // Si es un chat privado y un comando de administración, permitir
-      if (ctx.chat?.type === 'private' && isAdminCommand && await isAdminUser(ctx.from?.id)) {
+      if (ctx.chat?.type === 'private' && isAdminCommand && await isAdminUser(ctx.from?.id, ctx)) {
         logger.info(`Comando administrativo permitido en chat privado: ${messageText}`);
         return next();
       }
@@ -89,23 +90,3 @@ export function setupGroupRestrictionMiddleware(bot) {
   });
 }
 
-/**
- * Verifica si un usuario es administrador
- * @param {string} userId - ID del usuario
- * @returns {Promise<boolean>} - True si es admin, false en caso contrario
- */
-async function isAdminUser(userId) {
-  if (!userId) return false;
-
-  // Lista de IDs de administradores (usando ambas variables de entorno)
-  const adminIds = process.env.ADMIN_USER_IDS
-    ? process.env.ADMIN_USER_IDS.split(',').map(id => id.trim())
-    : process.env.BOT_ADMIN_IDS
-      ? process.env.BOT_ADMIN_IDS.split(',').map(id => id.trim())
-      : [];
-
-  const isAdmin = adminIds.includes(userId.toString());
-  logger.debug(`Usuario ${userId} ${isAdmin ? 'ES' : 'NO es'} administrador`);
-
-  return isAdmin;
-}
